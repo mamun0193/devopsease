@@ -9,11 +9,9 @@
   "scripts": {
     "start": "node src/index.js"
   },
-  "devDependencies": {
-    
-  },
   "dependencies": {
     "dockerode": "^4.0.9",
+    "dotenv": "^17.2.3",
     "express": "^5.2.1"
   }
 }

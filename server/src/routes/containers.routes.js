@@ -3,21 +3,29 @@ const { listContainers, getContainerLogs } = require("../docker/containers");
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
   try {
     const containers = await listContainers();
-    res.json(containers);
+    res.status(200).json({
+      success: true,
+      data: containers,
+      message: "Containers retrieved successfully",
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-router.get("/:id/logs", async (req, res) => {
+router.get("/:id/logs", async (req, res, next) => {
   try {
     const logs = await getContainerLogs(req.params.id);
-    res.send(logs);
+    res.status(200).json({
+      success: true,
+      data: logs,
+      message: "Container logs retrieved successfully",
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 

@@ -1,14 +1,27 @@
 const express = require("express");
 const containersRoutes = require("./routes/containers.routes");
+const healthRoutes = require("./routes/health.routes");
+const errorHandler = require("./middlewares/errorHandler");
+const logger = require("./utils/logger");
+const requestLogger = require("./middlewares/requestLogger");
+const dotenv = require("dotenv");
 
+dotenv.config();
+
+const PORT = process.env.PORT || 4000;
 const app = express();
 
-app.get("/health", (req, res) => {
-  res.json({ status: "DevOpsEase backend running" });
-});
+// Middlewares
+app.use(express.json());
+app.use(requestLogger);
 
+// Routes
+app.use("/health", healthRoutes);
 app.use("/containers", containersRoutes);
 
-app.listen(4000, () => {
-  console.log("DevOpsEase server running on http://localhost:4000");
+// Error Handling Middleware
+app.use(errorHandler);
+
+app.listen(PORT, () => {
+  logger.info(`DevOpsEase server running on http://localhost:${PORT}`);
 });
