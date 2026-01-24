@@ -1,4 +1,4 @@
-const logger = require("../utils/logger");
+import logger from "../utils/logger.js";
 
 function errorHandler(err, req, res, next) {
   logger.error(err.message || "Internal Server Error", {
@@ -13,4 +13,4 @@ function errorHandler(err, req, res, next) {
     message: err.message || "Internal Server Error",
   });
 }
-module.exports = errorHandler;
+export default errorHandler;

@@ -1,5 +1,5 @@
-const express = require("express");
-const { listContainers, getContainerLogs } = require("../docker/containers");
+import express from "express";
+import { listContainers, getContainerLogs } from "../docker/containers.js";
 
 const router = express.Router();
 
@@ -29,4 +29,4 @@ router.get("/:id/logs", async (req, res, next) => {
   }
 });
 
-module.exports = router;
+export default router;

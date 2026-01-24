@@ -1,10 +1,10 @@
-const express = require("express");
-const containersRoutes = require("./routes/containers.routes");
-const healthRoutes = require("./routes/health.routes");
-const errorHandler = require("./middlewares/errorHandler");
-const logger = require("./utils/logger");
-const requestLogger = require("./middlewares/requestLogger");
-const dotenv = require("dotenv");
+import express from "express";
+import containersRoutes from "./routes/containers.routes.js";
+import healthRoutes from "./routes/health.routes.js";
+import errorHandler from "./middlewares/errorHandler.js";
+import logger from "./utils/logger.js";
+import requestLogger from "./middlewares/requestLogger.js";
+import dotenv from "dotenv";
 
 dotenv.config();
 

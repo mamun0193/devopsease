@@ -9,7 +9,7 @@ const log = (level, message, meta = {}) => {
   );
 };
 
-module.exports = {
+export default {
   info: (msg, meta) => log("info", msg, meta),
   warn: (msg, meta) => log("warn", msg, meta),
   error: (msg, meta) => log("error", msg, meta),

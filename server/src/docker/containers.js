@@ -1,4 +1,4 @@
-const docker = require("./client");
+import docker from "./client.js";
 
 // docker ps
 async function listContainers() {
@@ -18,7 +18,4 @@ async function getContainerLogs(id) {
   return logs.toString();
 }
 
-module.exports = {
-  listContainers,
-  getContainerLogs,
-};
+export { listContainers, getContainerLogs };
