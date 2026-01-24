@@ -18,6 +18,6 @@ export default function createFailure({
     confidence,   // low | medium | high
     reasons,      // array of signal-based reasons
     metadata,     // raw data for debugging / UI
-    detectedAt: new Date().toISOString()
+    detectedAt: new Date().toLocaleString()
   };
 };
