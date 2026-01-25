@@ -1,6 +1,7 @@
 import express from "express";
 import containersRoutes from "./routes/containers.routes.js";
 import healthRoutes from "./routes/health.routes.js";
+import analysisRoutes from './routes/analysis.routes.js';
 import errorHandler from "./middlewares/errorHandler.js";
 import logger from "./utils/logger.js";
 import requestLogger from "./middlewares/requestLogger.js";
@@ -16,6 +17,7 @@ app.use(express.json());
 app.use(requestLogger);
 
 // Routes
+app.use(analysisRoutes);
 app.use("/health", healthRoutes);
 app.use("/containers", containersRoutes);
 
