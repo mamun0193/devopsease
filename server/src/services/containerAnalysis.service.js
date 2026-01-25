@@ -1,8 +1,16 @@
-import Docker from 'dockerode';
+import Docker from "dockerode";
+import { collectSignals } from "../intelligence/signals/index.js";
+import { classifyFailure } from "../intelligence/classifier.js";
+import { explainFailure } from "../intelligence/explainer.js";
+import {
+  recordFailure,
+  getFailureHistory,
+} from "../intelligence/history/failureHistory.store.js";
 
-import { collectSignals } from '../intelligence/signals/index.js';
-import { classifyFailure } from '../intelligence/classifier.js';
-import { explainFailure } from '../intelligence/explainer.js';
+import {
+  boostConfidence,
+  generateStabilityInsight,
+} from "../intelligence/history/confidenceBoost.js";
 
 const docker = new Docker();
 
@@ -12,7 +20,7 @@ const docker = new Docker();
 
 export async function analyzeContainer(containerId) {
   if (!containerId) {
-    throw new Error('containerId is required for analysis');
+    throw new Error("containerId is required for analysis");
   }
 
   const container = docker.getContainer(containerId);
@@ -22,17 +30,17 @@ export async function analyzeContainer(containerId) {
   const state = inspectData.State;
 
   // Fetch recent logs (last 200 lines)
-  let logs = '';
+  let logs = "";
   try {
     logs = await container.logs({
       stdout: true,
       stderr: true,
-      tail: 200
+      tail: 200,
     });
     logs = logs.toString();
   } catch (err) {
     // Logs may not always be available
-    logs = '';
+    logs = "";
   }
 
   // Collect failure signals
@@ -40,11 +48,34 @@ export async function analyzeContainer(containerId) {
     state,
     exitCode: state?.ExitCode,
     restartCount: state?.RestartCount,
-    logs
+    logs,
   });
 
   // Classify failure
   const failure = classifyFailure(signals);
+  const containerKey = inspectData.Id || inspectData.Name;
+
+  // Record meaningful failures only
+  if (failure.category !== "unknown") {
+    recordFailure(containerKey, failure);
+  }
+
+  // Get failure history(recent 10)
+  const history = getFailureHistory(containerKey);
+
+  // Boost confidence based on history
+  failure.confidence = boostConfidence(failure.confidence, history);
+
+  // Generate stability insight
+  failure.stabilityInsight = generateStabilityInsight(history);
+
+  // Attach history data to failure metadata
+  
+   failure.metadata = {
+    ...failure.metadata,
+    historyInsight: generateStabilityInsight(history),
+    recentFailures: history
+  };
 
   // Generate human explanation
   const explanation = explainFailure(failure);
@@ -55,6 +86,6 @@ export async function analyzeContainer(containerId) {
     containerName: inspectData.Name,
     state: state?.Status,
     failure,
-    explanation
+    explanation,
   };
 }
