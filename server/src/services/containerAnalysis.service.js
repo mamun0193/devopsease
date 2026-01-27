@@ -1,4 +1,4 @@
-import Docker from "dockerode";
+import docker from "../docker/client.js";
 import { collectSignals } from "../intelligence/signals/index.js";
 import { classifyFailure } from "../intelligence/classifier.js";
 import { explainFailure } from "../intelligence/explainer.js";
@@ -11,8 +11,6 @@ import {
   boostConfidence,
   generateStabilityInsight,
 } from "../intelligence/history/confidenceBoost.js";
-
-const docker = new Docker();
 
 /**
  * Analyze a container and return failure intelligence
@@ -65,9 +63,6 @@ export async function analyzeContainer(containerId) {
 
   // Boost confidence based on history
   failure.confidence = boostConfidence(failure.confidence, history);
-
-  // Generate stability insight
-  failure.stabilityInsight = generateStabilityInsight(history);
 
   // Attach history data to failure metadata
   
