@@ -164,5 +164,5 @@ node sandbox/testAnalysisPipeline.js  # Verify analysis still works
 
 ## 🚀 Next Steps
 
-→ **Day 21:** Dashboard integration with observability UI
+→ **Day 21:** Advaned log parsing and exit code analysis for deeper insights into container behavior.
 

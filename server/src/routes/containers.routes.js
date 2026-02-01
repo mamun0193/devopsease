@@ -1,6 +1,7 @@
 import express from "express";
 import { listContainers, getContainerLogs } from "../docker/containers.js";
 import { inspectContainer } from "../services/containerInspect.service.js";
+import { parseLogs } from "../services/logParser.service.js";
 
 const router = express.Router();
 
@@ -19,10 +20,21 @@ router.get("/", async (req, res, next) => {
 
 router.get("/:id/logs", async (req, res, next) => {
   try {
-    const logs = await getContainerLogs(req.params.id);
+    const { tail, since, until } = req.query;
+    const options = {
+      tail: tail ? parseInt(tail, 10) : 500,
+      since: since ? parseInt(since, 10) : undefined,
+      until: until ? parseInt(until, 10) : undefined,
+    };
+    const rawLogs = await getContainerLogs(req.params.id, options);
+    const { logs, stats } = parseLogs(rawLogs);
     res.status(200).json({
       success: true,
-      data: logs,
+      data: {
+        raw: rawLogs,
+        parsed: logs,
+        stats
+      },
       message: "Container logs retrieved successfully",
     });
   } catch (err) {

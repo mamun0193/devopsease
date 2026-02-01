@@ -1,4 +1,5 @@
 import docker from '../docker/client.js';
+import { analyzeExitCode } from '../intelligence/signals/exitCodes.js';
 
 /**
  * Inspect a container and return raw observability data
@@ -12,13 +13,18 @@ export async function inspectContainer(containerId) {
   const container = docker.getContainer(containerId);
   const inspectData = await container.inspect();
 
+  // Extract exit code analysis
+  const exitCode = inspectData.State?.ExitCode;
+  const exitAnalysis = analyzeExitCode(exitCode);
+
   // Extract observability data only
   return {
     name: inspectData.Name,
     image: inspectData.Config?.Image,
     state: {
       status: inspectData.State?.Status,
-      exitCode: inspectData.State?.ExitCode,
+      exitCode: exitCode,
+      exitCodeReason: exitAnalysis?.reason || null,
       running: inspectData.State?.Running,
       pid: inspectData.State?.Pid,
       startedAt: inspectData.State?.StartedAt,

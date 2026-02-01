@@ -6,14 +6,26 @@ async function listContainers() {
 }
 
 // docker logs
-async function getContainerLogs(id) {
+async function getContainerLogs(id, options = {}) {
   const container = docker.getContainer(id);
+  const { tail = 500, since, until } = options;
 
-  const logs = await container.logs({
+  const logOptions = {
     stdout: true,
     stderr: true,
-    tail: 100,
-  });
+    tail: tail,
+    timestamps: true, // Always include Docker timestamps
+  };
+
+  // Add time filters if provided (Unix timestamps)
+  if (since) {
+    logOptions.since = since;
+  }
+  if (until) {
+    logOptions.until = until;
+  }
+
+  const logs = await container.logs(logOptions);
 
   return logs.toString();
 }
