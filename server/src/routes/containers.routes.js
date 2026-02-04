@@ -2,6 +2,12 @@ import express from "express";
 import { listContainers, getContainerLogs } from "../docker/containers.js";
 import { inspectContainer } from "../services/containerInspect.service.js";
 import { parseLogs } from "../services/logParser.service.js";
+import {
+  startContainer,
+  stopContainer,
+  restartContainer,
+  removeContainer,
+} from "../docker/containerActions.js";
 
 const router = express.Router();
 
@@ -56,6 +62,78 @@ router.get("/:id/inspect", async (req, res, next) => {
       success: true,
       data,
       message: "Container inspection completed successfully"
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Container control endpoints
+
+/**
+ * POST /containers/:id/start
+ * Start a stopped container
+ */
+router.post("/:id/start", async (req, res, next) => {
+  try {
+    const result = await startContainer(req.params.id);
+    res.status(result.statusCode).json({
+      success: result.success,
+      data: result.data,
+      message: result.message,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /containers/:id/stop
+ * Stop a running container
+ */
+router.post("/:id/stop", async (req, res, next) => {
+  try {
+    const result = await stopContainer(req.params.id);
+    res.status(result.statusCode).json({
+      success: result.success,
+      data: result.data,
+      message: result.message,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /containers/:id/restart
+ * Restart a container (stop + start)
+ */
+router.post("/:id/restart", async (req, res, next) => {
+  try {
+    const result = await restartContainer(req.params.id);
+    res.status(result.statusCode).json({
+      success: result.success,
+      data: result.data,
+      message: result.message,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * DELETE /containers/:id
+ * Remove a container
+ * Query param: force=true to remove running containers
+ */
+router.delete("/:id", async (req, res, next) => {
+  try {
+    const force = req.query.force === "true";
+    const result = await removeContainer(req.params.id, force);
+    res.status(result.statusCode).json({
+      success: result.success,
+      data: result.data,
+      message: result.message,
     });
   } catch (err) {
     next(err);

@@ -143,6 +143,7 @@ This project is part of a comprehensive Docker & AWS cloud deployment learning s
 - [Day 20 — Observability & Routing Enhancements](./docs/DAY_20.md)
 - [Day 21: Advanced Log Parsing & Filtering](./docs/DAY_21.md)
 - [Day 22: Frontend LogViewer Component](./docs/DAY_22.md)
+- [Day 23: Container Control APIs](./docs/DAY_23.md)
 
 ---
 
