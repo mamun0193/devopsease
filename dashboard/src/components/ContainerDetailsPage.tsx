@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft,
   Box,
@@ -16,19 +16,34 @@ import { formatContainerName, truncateId, formatRelativeTime, formatImageName, f
 import LogViewer from './LogViewer';
 import FailureAnalysis from './FailureAnalysis';
 import ContainerInfo from './ContainerInfo';
+import ContainerControls from './ContainerControls';
 
 type TabType = 'analysis' | 'logs' | 'info';
 
 const ContainerDetailsPage: React.FC = () => {
   const { containerId } = useParams<{ containerId: string }>();
+  const navigate = useNavigate();
   const { data: containers = [], isLoading } = useContainers();
   const [activeTab, setActiveTab] = React.useState<TabType>('analysis');
   const [isScrolled, setIsScrolled] = React.useState(false);
+  const [showStickyControls, setShowStickyControls] = React.useState(false);
+  const headerRef = React.useRef<HTMLElement>(null);
+
+  // Handle container removal - navigate back to dashboard
+  const handleContainerRemoved = React.useCallback(() => {
+    navigate('/');
+  }, [navigate]);
 
   // Listen for scroll events
   React.useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
+      
+      // Check if header is out of view
+      if (headerRef.current) {
+        const headerBottom = headerRef.current.getBoundingClientRect().bottom;
+        setShowStickyControls(headerBottom < 0);
+      }
     };
     
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -107,6 +122,7 @@ const ContainerDetailsPage: React.FC = () => {
     <div className="min-h-screen bg-slate-950">
       {/* Header - Hidden when scrolled */}
       <header 
+        ref={headerRef}
         className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800"
       >
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -152,19 +168,32 @@ const ContainerDetailsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Quick Stats */}
-            <div className="flex items-center gap-4 flex-wrap">
-              <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg">
-                <Layers size={16} className="text-slate-500" />
-                <span className="text-sm text-slate-300 font-mono">{formatImageName(container.Image)}</span>
+            {/* Right side: Quick Stats + Controls */}
+            <div className="flex flex-col gap-3">
+              {/* Quick Stats */}
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg">
+                  <Layers size={16} className="text-slate-500" />
+                  <span className="text-sm text-slate-300 font-mono">{formatImageName(container.Image)}</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg">
+                  <Clock size={16} className="text-slate-500" />
+                  <span className="text-sm text-slate-300">{formatRelativeTime(container.Created)}</span>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg">
+                  <Network size={16} className="text-slate-500" />
+                  <span className="text-sm text-slate-300 font-mono">{formatPorts(container.Ports)}</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg">
-                <Clock size={16} className="text-slate-500" />
-                <span className="text-sm text-slate-300">{formatRelativeTime(container.Created)}</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg">
-                <Network size={16} className="text-slate-500" />
-                <span className="text-sm text-slate-300 font-mono">{formatPorts(container.Ports)}</span>
+
+              {/* Container Controls */}
+              <div className="flex justify-start lg:justify-end">
+                <ContainerControls
+                  containerId={container.Id}
+                  containerName={name}
+                  containerState={container.State}
+                  onRemoved={handleContainerRemoved}
+                />
               </div>
             </div>
           </div>
@@ -178,22 +207,37 @@ const ContainerDetailsPage: React.FC = () => {
         isScrolled && activeTab !== 'logs' ? 'shadow-lg shadow-slate-950/50' : ''
       }`}>
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all border-b-2 -mb-px ${
-                  activeTab === tab.id 
-                    ? 'text-blue-400 border-blue-500 bg-blue-500/5' 
-                    : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-800/30'
-                }`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-                <span className="hidden sm:inline text-xs opacity-60">• {tab.hint}</span>
-              </button>
-            ))}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex gap-1">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  className={`flex items-center gap-2 px-4 py-3.5 text-sm font-medium transition-all border-b-2 -mb-px ${
+                    activeTab === tab.id 
+                      ? 'text-blue-400 border-blue-500 bg-blue-500/5' 
+                      : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-800/30'
+                  }`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  {tab.icon}
+                  <span>{tab.label}</span>
+                  <span className="hidden sm:inline text-xs opacity-60">• {tab.hint}</span>
+                </button>
+              ))}
+            </div>
+            
+            {/* Container Controls in Sticky Tab Bar - only when header is out of view */}
+            {showStickyControls && activeTab !== 'logs' && (
+              <div className="hidden md:block">
+                <ContainerControls
+                  containerId={container.Id}
+                  containerName={name}
+                  containerState={container.State}
+                  onRemoved={handleContainerRemoved}
+                  compact
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

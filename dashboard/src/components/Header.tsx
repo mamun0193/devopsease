@@ -4,11 +4,11 @@ import {
   Activity,
   Server,
   AlertTriangle,
-  Pause,
-  RefreshCw
+  Pause
 } from 'lucide-react';
 import { useContainers, useHealthCheck } from '../hooks/useContainers';
 import { getContainerStats } from '../utils/formatters';
+import RefreshButton from './RefreshButton';
 
 interface HeaderProps {
   onFilterChange?: (filter: 'all' | 'running' | 'stopped' | 'paused') => void;
@@ -16,7 +16,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all' }) => {
-  const { data: containers = [], isLoading, refetch } = useContainers();
+  const { data: containers = [], isFetching, refetch } = useContainers();
   const { data: health } = useHealthCheck();
   const stats = getContainerStats(containers);
 
@@ -134,15 +134,13 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all' })
             </span>
           </div>
 
-          <motion.button
-            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-300 text-sm font-medium transition-all disabled:opacity-50 px-3 py-1.5"
-            onClick={() => refetch()}
-            disabled={isLoading}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-          </motion.button>
+          <RefreshButton
+            onRefresh={() => refetch()}
+            isFetching={isFetching}
+            size="md"
+            variant="default"
+            showLabel={false}
+          />
         </div>
       </div>
     </header>

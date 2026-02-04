@@ -5,3 +5,7 @@ export { default as ContainerDetails } from './ContainerDetails';
 export { default as ContainerInfo } from './ContainerInfo';
 export { default as LogViewer } from './LogViewer';
 export { default as FailureAnalysis } from './FailureAnalysis';
+export { default as ContainerControls } from './ContainerControls';
+export { default as ConfirmModal } from './ConfirmModal';
+export { default as ActionFeedback } from './ActionFeedback';
+export { default as RefreshButton } from './RefreshButton';

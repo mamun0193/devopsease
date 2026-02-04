@@ -16,6 +16,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useContainerAnalysis } from '../hooks/useContainers';
+import RefreshButton from './RefreshButton';
 
 interface FailureAnalysisProps {
   containerId: string | null;
@@ -186,13 +187,15 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
           <AlertTriangle size={32} className="text-red-400 mb-4" />
           <p className="text-slate-300 font-medium">Failed to analyze container</p>
           <span className="text-sm text-slate-500 mt-1">{error.message}</span>
-          <button 
-            onClick={() => refetch()} 
-            className="flex items-center gap-2 mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 transition-colors"
-          >
-            <RefreshCw size={14} />
-            Retry Analysis
-          </button>
+          <div className="mt-4">
+            <RefreshButton
+              onRefresh={() => refetch()}
+              label="Retry Analysis"
+              size="lg"
+              variant="default"
+              showLabel={true}
+            />
+          </div>
         </div>
       </div>
     );
@@ -229,12 +232,12 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
           <Shield size={20} className="text-red-400" />
           <h2 className="text-lg font-semibold text-slate-100">Failure Analysis</h2>
         </div>
-        <button 
-          onClick={() => refetch()} 
-          className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200 transition-colors"
-        >
-          <RefreshCw size={14} />
-        </button>
+        <RefreshButton
+          onRefresh={refetch}
+          size="sm"
+          variant="ghost"
+          showLabel={false}
+        />
       </div>
 
       {/* Main Alert Banner */}

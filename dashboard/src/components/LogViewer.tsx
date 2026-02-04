@@ -7,18 +7,16 @@ import {
   AlertTriangle,
   Info,
   CheckCircle,
-  ChevronDown,
-  ChevronUp,
   X,
-  RefreshCw,
   ArrowDown,
-  Clock,
   Copy,
   Check,
   Calendar
 } from 'lucide-react';
 import { useContainerLogs } from '../hooks/useContainers';
 import type { ParsedLogLine } from '../api';
+import RefreshButton from './RefreshButton';
+import { DateTimePicker } from './ui/date-time-picker';
 
 // Normalized log entry with timestamp inference
 interface NormalizedLogLine extends ParsedLogLine {
@@ -122,8 +120,8 @@ const LogViewer: React.FC<LogViewerProps> = ({ containerId, containerName }) => 
   
   // Time range filter state
   const [showTimeRange, setShowTimeRange] = React.useState(false);
-  const [startTime, setStartTime] = React.useState('');
-  const [endTime, setEndTime] = React.useState('');
+  const [startTime, setStartTime] = React.useState<Date | undefined>(undefined);
+  const [endTime, setEndTime] = React.useState<Date | undefined>(undefined);
   const [timeRangeActive, setTimeRangeActive] = React.useState(false);
   
   // Refs
@@ -141,12 +139,7 @@ const LogViewer: React.FC<LogViewerProps> = ({ containerId, containerName }) => 
   const timeRange = React.useMemo(() => {
     if (!timeRangeActive || (!startTime && !endTime)) return null;
     
-    const start = startTime ? new Date(startTime) : null;
-    const end = endTime ? new Date(endTime) : null;
-    
-    if ((start && isNaN(start.getTime())) || (end && isNaN(end.getTime()))) return null;
-    
-    return { start, end };
+    return { start: startTime || null, end: endTime || null };
   }, [startTime, endTime, timeRangeActive]);
 
   // Apply all filters
@@ -200,8 +193,8 @@ const LogViewer: React.FC<LogViewerProps> = ({ containerId, containerName }) => 
 
   // Clear time range
   const clearTimeRange = () => {
-    setStartTime('');
-    setEndTime('');
+    setStartTime(undefined);
+    setEndTime(undefined);
     setTimeRangeActive(false);
     setShowTimeRange(false);
   };
@@ -211,15 +204,6 @@ const LogViewer: React.FC<LogViewerProps> = ({ containerId, containerName }) => 
     if (logContainerRef.current) {
       logContainerRef.current.scrollTo({
         top: logContainerRef.current.scrollHeight,
-        behavior: 'smooth'
-      });
-    }
-  }, []);
-
-  const scrollToTop = React.useCallback(() => {
-    if (logContainerRef.current) {
-      logContainerRef.current.scrollTo({
-        top: 0,
         behavior: 'smooth'
       });
     }
@@ -283,14 +267,13 @@ const LogViewer: React.FC<LogViewerProps> = ({ containerId, containerName }) => 
           </h2>
           
           {/* Refresh Button */}
-          <button 
-            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-50 border border-slate-700"
-            onClick={() => refetch()}
-            disabled={isLoading}
-            title="Refresh logs"
-          >
-            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
-          </button>
+          <RefreshButton
+            onRefresh={() => refetch()}
+            isLoading={isLoading}
+            size="sm"
+            variant="default"
+            showLabel={false}
+          />
         </div>
 
         {/* Level Filters + Time Range - Single Row */}
@@ -345,49 +328,58 @@ const LogViewer: React.FC<LogViewerProps> = ({ containerId, containerName }) => 
           {/* Time Range Button */}
           <div className="relative">
             <button 
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
                 timeRangeActive 
                   ? 'bg-purple-500/20 text-purple-400 border-purple-500/50' 
-                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                  : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:text-slate-200'
               }`}
               onClick={() => setShowTimeRange(!showTimeRange)}
             >
-              <Calendar size={12} />
+              <Calendar size={14} />
               {timeRangeActive ? 'Time Filter Active' : 'Time Range'}
             </button>
             
+            {/* Backdrop */}
+            {showTimeRange && (
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setShowTimeRange(false)}
+              />
+            )}
+            
             {/* Time Range Dropdown */}
             {showTimeRange && (
-              <div className="absolute right-0 top-full mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 p-4 w-72">
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">From</label>
-                    <input
-                      type="datetime-local"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-purple-500"
+              <div className="absolute right-0 top-full mt-2 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl z-50 p-4 w-80">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-300">Start Time</label>
+                    <DateTimePicker
+                      date={startTime}
+                      onDateChange={setStartTime}
+                      placeholder="Select start time"
+                      className="w-full"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">To</label>
-                    <input
-                      type="datetime-local"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-purple-500"
+                  <div className="space-y-2">
+                    <label className="block text-xs font-medium text-slate-300">End Time</label>
+                    <DateTimePicker
+                      date={endTime}
+                      onDateChange={setEndTime}
+                      placeholder="Select end time"
+                      className="w-full"
                     />
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-2">
                     <button
                       onClick={applyTimeRange}
-                      className="flex-1 px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm rounded-lg transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-colors"
                     >
-                      Apply
+                      <Check size={14} />
+                      Apply Filter
                     </button>
                     <button
                       onClick={clearTimeRange}
-                      className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-lg transition-colors"
+                      className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm font-medium rounded-lg transition-colors"
                     >
                       Clear
                     </button>
@@ -517,19 +509,25 @@ interface LogLineProps {
 const LogLine: React.FC<LogLineProps> = ({ log, lineNumber, isExpanded, onToggle, getIcon }) => {
   const [copied, setCopied] = React.useState(false);
 
-  const levelClasses = {
+  const levelClassesMap: Record<string, string> = {
     error: 'border-l-red-500 hover:bg-red-500/5',
     warning: 'border-l-yellow-500 hover:bg-yellow-500/5',
     info: 'border-l-blue-500 hover:bg-blue-500/5',
     success: 'border-l-emerald-500 hover:bg-emerald-500/5',
-  }[log.level] || 'border-l-slate-600 hover:bg-slate-800/50';
+    debug: 'border-l-slate-500 hover:bg-slate-500/5',
+    unknown: 'border-l-slate-600 hover:bg-slate-800/50',
+  };
+  const levelClasses = levelClassesMap[log.level] || levelClassesMap.unknown;
 
-  const levelColor = {
+  const levelColorMap: Record<string, string> = {
     error: 'text-red-400',
     warning: 'text-yellow-400',
     info: 'text-blue-400',
     success: 'text-emerald-400',
-  }[log.level] || 'text-slate-500';
+    debug: 'text-slate-400',
+    unknown: 'text-slate-500',
+  };
+  const levelColor = levelColorMap[log.level] || levelColorMap.unknown;
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
