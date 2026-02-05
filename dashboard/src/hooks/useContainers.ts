@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { containerApi, healthApi } from '../api';
-import type { Container, ContainerInspect, FailureAnalysis, ContainerLogs } from '../api';
+import type { Container, ContainerInspect, FailureAnalysis, ContainerLogs, ContainerStats } from '../api';
 
 // Fetch all containers
 export function useContainers() {
@@ -46,7 +46,18 @@ export function useContainerAnalysis(containerId: string | null) {
   });
 }
 
-// Health check
+// Fetch container stats
+export function useContainerStats(containerId: string | null, enabled: boolean = true) {
+  return useQuery<ContainerStats, Error>({
+    queryKey: ['containerStats', containerId],
+    queryFn: () => containerApi.stats(containerId!),
+    enabled: !!containerId && enabled,
+    refetchInterval: 3000,
+    staleTime: 1000,
+  });
+}
+
+// Health check 
 export function useHealthCheck() {
   return useQuery({
     queryKey: ['health'],

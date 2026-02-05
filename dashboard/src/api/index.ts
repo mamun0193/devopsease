@@ -155,6 +155,21 @@ export interface ContainerLogs {
   stats: LogStats;
 }
 
+export interface ContainerStats {
+  cpu: {
+    usagePercent: number;
+  };
+  memory: {
+    usedMB: number;
+    limitMB: number;
+    usagePercent: number;
+  };
+  network: {
+    rxMB: number;
+    txMB: number;
+  };
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -186,10 +201,15 @@ export const containerApi = {
     const response = await api.get<ApiResponse<ContainerInspect>>(`/containers/${containerId}/inspect`);
     return response.data.data;
   },
-
-  // Get container failure analysis
+  // Get container failure analysis 
   analyze: async (containerId: string): Promise<FailureAnalysis> => {
     const response = await api.get<ApiResponse<FailureAnalysis>>(`/containers/${containerId}/analysis`);
+    return response.data.data;
+  },
+
+  // Get container stats
+  stats: async (containerId: string): Promise<ContainerStats> => {
+    const response = await api.get<ApiResponse<ContainerStats>>(`/containers/${containerId}/stats`);
     return response.data.data;
   },
 };

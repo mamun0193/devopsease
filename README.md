@@ -134,7 +134,7 @@ This project is part of a comprehensive Docker & AWS cloud deployment learning s
 - Repository: [rexpress-docker-aws](https://github.com/mamun0193/rexpress-docker-aws.git)
 - Topics: AWS ECS Fargate, ElastiCache, CloudWatch, CI/CD automation
 
-### Days 16-24 (Current Repository)
+### Days 16-25 (Current Repository)
 
 - [Day 16 — Failure Taxonomy](./docs/DAY_16.md)
 - [Day 17 — Failure Detection & Intelligence](./docs/DAY_17.md)
@@ -145,7 +145,7 @@ This project is part of a comprehensive Docker & AWS cloud deployment learning s
 - [Day 22: Frontend LogViewer Component](./docs/DAY_22.md)
 - [Day 23: Container Control Backend APIs](./docs/DAY_23.md)
 - [Day 24: Container Controls UI (React + Redux)](./docs/DAY_24.md)
-- [Day 23: Container Control APIs](./docs/DAY_23.md)
+- [Day 25: Container Stats & Resource Usage](./docs/DAY_25.md)
 
 ---
 

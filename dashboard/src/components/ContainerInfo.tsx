@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useContainerInspect } from '../hooks/useContainers';
 import { formatTimestamp } from '../utils/formatters';
+import ContainerStatsPanel from './ContainerStatsPanel';
 
 interface ContainerInfoProps {
   containerId: string | null;
@@ -61,7 +62,6 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Help Banner */}
       <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
         <span className="text-lg">📋</span>
         <span className="text-sm text-blue-300">
@@ -70,7 +70,11 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
         </span>
       </div>
 
-      {/* Basic Info */}
+      <ContainerStatsPanel 
+        containerId={containerId} 
+        containerState={info.state?.status || 'unknown'} 
+      />
+
       <Section title="Basic Information" icon={<Server size={18} />}>
         <InfoRow
           label="Name"

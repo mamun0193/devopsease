@@ -9,3 +9,4 @@ export { default as ContainerControls } from './ContainerControls';
 export { default as ConfirmModal } from './ConfirmModal';
 export { default as ActionFeedback } from './ActionFeedback';
 export { default as RefreshButton } from './RefreshButton';
+export { default as ContainerStatsPanel } from './ContainerStatsPanel';

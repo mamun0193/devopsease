@@ -8,6 +8,7 @@ import {
   restartContainer,
   removeContainer,
 } from "../docker/containerActions.js";
+import containerStatsService from "../services/containerStats.service.js";
 
 const router = express.Router();
 
@@ -134,6 +135,29 @@ router.delete("/:id", async (req, res, next) => {
       success: result.success,
       data: result.data,
       message: result.message,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/:id/stats", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await containerStatsService.getContainerStats(id);
+
+    if (!result.success) {
+      return res.status(result.statusCode || 500).json({
+        success: false,
+        data: null,
+        message: result.error
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: result.data,
+      message: 'Container stats retrieved successfully'
     });
   } catch (err) {
     next(err);
