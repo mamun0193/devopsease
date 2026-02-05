@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { containerApi, healthApi } from '../api';
-import type { Container, ContainerInspect, FailureAnalysis, ContainerLogs, ContainerStats } from '../api';
+import { containerApi, healthApi, actionsApi } from '../api';
+import type { Container, ContainerInspect, FailureAnalysis, ContainerLogs, ContainerStats, ActionsResponse, ActionStats } from '../api';
 
 // Fetch all containers
 export function useContainers() {
@@ -64,5 +64,24 @@ export function useHealthCheck() {
     queryFn: healthApi.check,
     refetchInterval: 30000, // Check health every 30 seconds
     staleTime: 15000,
+  });
+}
+
+// Fetch action history
+export function useActions(options?: { containerId?: string; limit?: number; cursor?: string }) {
+  return useQuery<ActionsResponse, Error>({
+    queryKey: ['actions', options?.containerId, options?.limit, options?.cursor],
+    queryFn: () => actionsApi.getActions(options),
+    staleTime: 2000,
+    refetchInterval: 5000, // Auto-refresh every 5 seconds
+  });
+}
+
+// Fetch action stats
+export function useActionStats() {
+  return useQuery<ActionStats, Error>({
+    queryKey: ['actionStats'],
+    queryFn: actionsApi.getStats,
+    staleTime: 10000,
   });
 }

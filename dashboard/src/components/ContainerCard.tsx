@@ -44,7 +44,7 @@ const ContainerCard: React.FC<ContainerCardProps> = ({ container }) => {
   };
 
   return (
-    <Link to={`/container/${container.Id}`}>
+    <Link to={`/container/${truncateId(container.Id)}`}>
       <motion.div
         className={`
           relative bg-slate-900 border rounded-xl overflow-hidden cursor-pointer transition-all h-full flex flex-col

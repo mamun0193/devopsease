@@ -6,19 +6,18 @@ import {
   FileText,
   Shield,
   Info,
-  Activity,
-  Clock,
-  Layers,
-  Network
+  History as HistoryIcon
 } from 'lucide-react';
-import { useContainers } from '../hooks/useContainers';
-import { formatContainerName, truncateId, formatRelativeTime, formatImageName, formatPorts } from '../utils/formatters';
+import { useContainers, useContainerInspect, useContainerStats, useActions } from '../hooks/useContainers';
+import { formatContainerName } from '../utils/formatters';
 import LogViewer from './LogViewer';
 import FailureAnalysis from './FailureAnalysis';
 import ContainerInfo from './ContainerInfo';
+import ContainerHeader from './ContainerHeader';
 import ContainerControls from './ContainerControls';
+import Timeline from './Timeline';
 
-type TabType = 'analysis' | 'logs' | 'info';
+type TabType = 'analysis' | 'logs' | 'info' | 'history';
 
 const ContainerDetailsPage: React.FC = () => {
   const { containerId } = useParams<{ containerId: string }>();
@@ -27,12 +26,41 @@ const ContainerDetailsPage: React.FC = () => {
   const [activeTab, setActiveTab] = React.useState<TabType>('analysis');
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [showStickyControls, setShowStickyControls] = React.useState(false);
+  const [logTimeFilter, setLogTimeFilter] = React.useState<{ since?: number; until?: number } | undefined>();
   const headerRef = React.useRef<HTMLElement>(null);
+
+  // Find the container
+  const container = React.useMemo(() => {
+    if (!containerId) return null;
+    return containers.find(c => c.Id === containerId || c.Id.startsWith(containerId)) || null;
+  }, [containers, containerId]);
+
+  // Fetch additional data for header
+  const { data: inspectData } = useContainerInspect(container?.Id || null);
+  const { data: statsData } = useContainerStats(
+    container?.Id || null, 
+    container?.State.toLowerCase() === 'running'
+  );
+  const { data: actionsData } = useActions({ containerId: container?.Id, limit: 1 });
 
   // Handle container removal - navigate back to dashboard
   const handleContainerRemoved = React.useCallback(() => {
     navigate('/');
   }, [navigate]);
+
+  // Timeline correlation handlers
+  const handleViewLogsFromTimeline = React.useCallback((_containerId: string, timestamp: string) => {
+    const actionTime = new Date(timestamp).getTime() / 1000;
+    const since = Math.floor(actionTime - 30); // 30 seconds before
+    const until = Math.floor(actionTime + 90); // 90 seconds after
+    
+    setLogTimeFilter({ since, until });
+    setActiveTab('logs');
+  }, []);
+
+  const handleViewStatsFromTimeline = React.useCallback(() => {
+    setActiveTab('info'); // Stats are in the Info tab
+  }, []);
 
   // Listen for scroll events
   React.useEffect(() => {
@@ -49,11 +77,6 @@ const ContainerDetailsPage: React.FC = () => {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  const container = React.useMemo(() => {
-    if (!containerId) return null;
-    return containers.find(c => c.Id === containerId || c.Id.startsWith(containerId)) || null;
-  }, [containers, containerId]);
 
   if (isLoading) {
     return (
@@ -86,16 +109,7 @@ const ContainerDetailsPage: React.FC = () => {
   }
 
   const name = formatContainerName(container.Names);
-  const state = container.State.toLowerCase();
-  const isRunning = state === 'running';
-  const hasIssue = ['exited', 'dead'].includes(state);
-
-  const getStatusClasses = () => {
-    if (isRunning) return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
-    if (hasIssue) return 'bg-red-500/15 text-red-400 border-red-500/30';
-    if (state === 'paused') return 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30';
-    return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
-  };
+  const hasIssue = ['exited', 'dead'].includes(container.State.toLowerCase());
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode; hint: string }[] = [
     { 
@@ -116,6 +130,12 @@ const ContainerDetailsPage: React.FC = () => {
       icon: <Info size={18} />,
       hint: 'Container configuration'
     },
+    { 
+      id: 'history', 
+      label: 'History', 
+      icon: <HistoryIcon size={18} />,
+      hint: 'Action timeline'
+    },
   ];
 
   return (
@@ -125,9 +145,9 @@ const ContainerDetailsPage: React.FC = () => {
         ref={headerRef}
         className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800"
       >
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
+        {/* Breadcrumb */}
+        <div className="max-w-7xl mx-auto px-6 pt-4 pb-2">
+          <div className="flex items-center gap-2 text-sm text-slate-500">
             <Link to="/" className="hover:text-slate-300 transition-colors flex items-center gap-1">
               <ArrowLeft size={14} />
               Dashboard
@@ -135,69 +155,17 @@ const ContainerDetailsPage: React.FC = () => {
             <span>/</span>
             <span className="text-slate-300">{name}</span>
           </div>
-
-          {/* Container Info */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-xl bg-slate-800 flex items-center justify-center w-14 h-14">
-                <Box size={28} className="text-blue-400" />
-              </div>
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="font-bold text-slate-100 text-2xl">{name}</h1>
-                  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide border ${getStatusClasses()}`}>
-                    {isRunning && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}
-                    {container.State}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <code className="text-sm text-slate-500 font-mono">{truncateId(container.Id)}</code>
-                  {hasIssue && (
-                    <span className="text-xs text-red-400 flex items-center gap-1">
-                      <Shield size={12} />
-                      Stopped unexpectedly
-                    </span>
-                  )}
-                  {isRunning && (
-                    <span className="text-xs text-emerald-400 flex items-center gap-1">
-                      <Activity size={12} />
-                      Running smoothly
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Right side: Quick Stats + Controls */}
-            <div className="flex flex-col gap-3">
-              {/* Quick Stats */}
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg">
-                  <Layers size={16} className="text-slate-500" />
-                  <span className="text-sm text-slate-300 font-mono">{formatImageName(container.Image)}</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg">
-                  <Clock size={16} className="text-slate-500" />
-                  <span className="text-sm text-slate-300">{formatRelativeTime(container.Created)}</span>
-                </div>
-                <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg">
-                  <Network size={16} className="text-slate-500" />
-                  <span className="text-sm text-slate-300 font-mono">{formatPorts(container.Ports)}</span>
-                </div>
-              </div>
-
-              {/* Container Controls */}
-              <div className="flex justify-start lg:justify-end">
-                <ContainerControls
-                  containerId={container.Id}
-                  containerName={name}
-                  containerState={container.State}
-                  onRemoved={handleContainerRemoved}
-                />
-              </div>
-            </div>
-          </div>
         </div>
+
+        {/* Container Header Component */}
+        <ContainerHeader
+          container={container}
+          containerName={name}
+          inspectData={inspectData}
+          statsData={statsData}
+          lastAction={actionsData?.items?.[0]}
+          onRemoved={handleContainerRemoved}
+        />
       </header>
 
       {/* Tabs - Sticky only for non-logs tabs */}
@@ -257,11 +225,21 @@ const ContainerDetailsPage: React.FC = () => {
               <LogViewer 
                 containerId={container.Id}
                 containerName={name}
+                initialTimeRange={logTimeFilter}
               />
             </div>
           )}
           {activeTab === 'info' && (
             <ContainerInfo containerId={container.Id} />
+          )}
+          {activeTab === 'history' && (
+            <div className="px-4 py-6">
+              <Timeline
+                containerId={container.Id}
+                onViewLogs={handleViewLogsFromTimeline}
+                onViewStats={handleViewStatsFromTimeline}
+              />
+            </div>
           )}
         </div>
       </main>

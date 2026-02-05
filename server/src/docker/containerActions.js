@@ -1,5 +1,6 @@
 import docker from "./client.js";
 import logger from "../utils/logger.js";
+import actionHistoryService from "../services/actionHistory.service.js";
 
 /**
  * Get container current state
@@ -85,6 +86,15 @@ async function startContainer(containerId) {
     
     logger.info("Container started successfully", { containerId });
     
+    actionHistoryService.recordAction({
+      containerId: state.id,
+      containerName: state.name,
+      action: "start",
+      status: "success",
+      reason: `Started from ${state.state} state`,
+      source: "user",
+    });
+    
     return {
       success: true,
       statusCode: 200,
@@ -98,6 +108,16 @@ async function startContainer(containerId) {
     };
   } catch (error) {
     logger.error("Failed to start container", { containerId, error: error.message });
+    
+    actionHistoryService.recordAction({
+      containerId: state.id,
+      containerName: state.name,
+      action: "start",
+      status: "failed",
+      reason: error.message,
+      source: "user",
+    });
+    
     return {
       success: false,
       statusCode: 500,
@@ -156,6 +176,15 @@ async function stopContainer(containerId) {
     
     logger.info("Container stopped successfully", { containerId });
     
+    actionHistoryService.recordAction({
+      containerId: state.id,
+      containerName: state.name,
+      action: "stop",
+      status: "success",
+      reason: `Gracefully stopped from ${state.state} state`,
+      source: "user",
+    });
+    
     return {
       success: true,
       statusCode: 200,
@@ -180,6 +209,16 @@ async function stopContainer(containerId) {
     }
 
     logger.error("Failed to stop container", { containerId, error: error.message });
+    
+    actionHistoryService.recordAction({
+      containerId: state.id,
+      containerName: state.name,
+      action: "stop",
+      status: "failed",
+      reason: error.message,
+      source: "user",
+    });
+    
     return {
       success: false,
       statusCode: 500,
@@ -238,6 +277,15 @@ async function restartContainer(containerId) {
     
     logger.info("Container restarted successfully", { containerId });
     
+    actionHistoryService.recordAction({
+      containerId: state.id,
+      containerName: state.name,
+      action: "restart",
+      status: "success",
+      reason: `Restarted from ${state.state} state`,
+      source: "user",
+    });
+    
     return {
       success: true,
       statusCode: 200,
@@ -251,6 +299,16 @@ async function restartContainer(containerId) {
     };
   } catch (error) {
     logger.error("Failed to restart container", { containerId, error: error.message });
+    
+    actionHistoryService.recordAction({
+      containerId: state.id,
+      containerName: state.name,
+      action: "restart",
+      status: "failed",
+      reason: error.message,
+      source: "user",
+    });
+    
     return {
       success: false,
       statusCode: 500,
@@ -298,6 +356,15 @@ async function removeContainer(containerId, force = false) {
     
     logger.info("Container removed successfully", { containerId, force });
     
+    actionHistoryService.recordAction({
+      containerId: state.id,
+      containerName: state.name,
+      action: "remove",
+      status: "success",
+      reason: force ? `Force removed from ${state.state} state` : `Removed from ${state.state} state`,
+      source: "user",
+    });
+    
     return {
       success: true,
       statusCode: 200,
@@ -311,6 +378,16 @@ async function removeContainer(containerId, force = false) {
     };
   } catch (error) {
     logger.error("Failed to remove container", { containerId, error: error.message });
+    
+    actionHistoryService.recordAction({
+      containerId: state.id,
+      containerName: state.name,
+      action: "remove",
+      status: "failed",
+      reason: error.message,
+      source: "user",
+    });
+    
     return {
       success: false,
       statusCode: 500,

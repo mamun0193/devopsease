@@ -2,6 +2,7 @@ import express from "express";
 import containersRoutes from "./routes/containers.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import analysisRoutes from "./routes/analysis.routes.js";
+import actionsRoutes from "./routes/actions.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import logger from "./utils/logger.js";
 import requestLogger from "./middlewares/requestLogger.js";
@@ -26,6 +27,7 @@ app.use(requestLogger);
 app.use(analysisRoutes);
 app.use("/health", healthRoutes);
 app.use("/containers", containersRoutes);
+app.use("/actions", actionsRoutes);
 
 // Error Handling Middleware
 app.use(errorHandler);

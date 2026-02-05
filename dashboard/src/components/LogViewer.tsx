@@ -106,9 +106,10 @@ function normalizeLogTimestamps(logs: ParsedLogLine[]): NormalizedLogLine[] {
 interface LogViewerProps {
   containerId: string | null;
   containerName: string;
+  initialTimeRange?: { since?: number; until?: number };
 }
 
-const LogViewer: React.FC<LogViewerProps> = ({ containerId, containerName }) => {
+const LogViewer: React.FC<LogViewerProps> = ({ containerId, containerName, initialTimeRange }) => {
   const { data: logsData, isLoading, error, refetch } = useContainerLogs(containerId);
   
   // State
@@ -118,11 +119,15 @@ const LogViewer: React.FC<LogViewerProps> = ({ containerId, containerName }) => 
   const [showOnlyImportant, setShowOnlyImportant] = React.useState(false);
   const [autoScroll, setAutoScroll] = React.useState(true);
   
-  // Time range filter state
-  const [showTimeRange, setShowTimeRange] = React.useState(false);
-  const [startTime, setStartTime] = React.useState<Date | undefined>(undefined);
-  const [endTime, setEndTime] = React.useState<Date | undefined>(undefined);
-  const [timeRangeActive, setTimeRangeActive] = React.useState(false);
+  // Time range filter state - initialize from prop if provided
+  const [showTimeRange, setShowTimeRange] = React.useState(!!initialTimeRange);
+  const [startTime, setStartTime] = React.useState<Date | undefined>(
+    initialTimeRange?.since ? new Date(initialTimeRange.since * 1000) : undefined
+  );
+  const [endTime, setEndTime] = React.useState<Date | undefined>(
+    initialTimeRange?.until ? new Date(initialTimeRange.until * 1000) : undefined
+  );
+  const [timeRangeActive, setTimeRangeActive] = React.useState(!!initialTimeRange);
   
   // Refs
   const logContainerRef = React.useRef<HTMLDivElement>(null);
@@ -268,7 +273,7 @@ const LogViewer: React.FC<LogViewerProps> = ({ containerId, containerName }) => 
           
           {/* Refresh Button */}
           <RefreshButton
-            onRefresh={() => refetch()}
+            onRefresh={() => { refetch(); }}
             isLoading={isLoading}
             size="sm"
             variant="default"

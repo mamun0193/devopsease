@@ -1,13 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Play, 
-  Square, 
-  RotateCcw, 
-  Trash2, 
-  Loader2,
-  CheckCircle,
-  XCircle
+import { motion } from 'framer-motion';
+import {
+  Play,
+  Square,
+  RotateCcw,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -21,12 +19,21 @@ import {
 import type { ContainerAction } from '../store/containersSlice';
 import ConfirmModal from './ConfirmModal';
 
+// Default state to avoid creating new objects in selector
+const DEFAULT_ACTION_STATE = {
+  loading: false,
+  error: null,
+  success: null,
+  lastAction: null,
+};
+
 interface ContainerControlsProps {
   containerId: string;
   containerName: string;
   containerState: string;
   onRemoved?: () => void; // Callback when container is removed
   compact?: boolean; // Show only applicable buttons (hide inactive ones)
+  unified?: boolean; // Show single Start/Stop button based on state
 }
 
 const ContainerControls: React.FC<ContainerControlsProps> = ({
@@ -35,18 +42,14 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
   containerState,
   onRemoved,
   compact = false,
+  unified = false,
 }) => {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
-  
+
   // Get action state from Redux
   const actionState = useAppSelector(
-    state => state.containers.actionStates[containerId] || {
-      loading: false,
-      error: null,
-      success: null,
-      lastAction: null,
-    }
+    state => state.containers.actionStates[containerId] || DEFAULT_ACTION_STATE
   );
 
   // Local state for confirmation modals
@@ -70,6 +73,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
     queryClient.invalidateQueries({ queryKey: ['containerInspect', containerId] });
     queryClient.invalidateQueries({ queryKey: ['containerLogs', containerId] });
     queryClient.invalidateQueries({ queryKey: ['containerAnalysis', containerId] });
+    queryClient.invalidateQueries({ queryKey: ['actions'] }); // Refresh action history
   }, [queryClient, containerId]);
 
   /**
@@ -80,20 +84,20 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
     thunk: ReturnType<typeof startContainer | typeof stopContainer | typeof restartContainer | typeof removeContainer>
   ) => {
     const result = await dispatch(thunk);
-    
+
     // Refresh data after action completes
     if (!result.type.endsWith('/rejected')) {
       // Small delay to allow Docker state to settle
       setTimeout(() => {
         refreshData();
-        
+
         // Handle removal - navigate away
         if (action === 'remove' && onRemoved) {
           onRemoved();
         }
-      }, 500);
+      }, 300);
     }
-    
+
     // Clear success message after 3 seconds
     setTimeout(() => {
       dispatch(clearActionState(containerId));
@@ -136,7 +140,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
       onClick: handleStart,
       // Can start if stopped, exited, dead, or created
       disabled: isRunning || isPaused || actionState.loading,
-      hidden: isRunning, // Hide in compact mode if already running
+      hidden: unified ? isRunning : (compact && isRunning),
       color: 'emerald',
     },
     {
@@ -146,7 +150,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
       onClick: handleStop,
       // Can only stop if running
       disabled: !isRunning || actionState.loading,
-      hidden: !isRunning, // Hide in compact mode if not running
+      hidden: unified ? !isRunning : (compact && !isRunning),
       color: 'amber',
     },
     {
@@ -172,14 +176,14 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
     },
   ];
 
-  // Filter buttons based on compact mode
-  const buttons = compact ? allButtons.filter(btn => !btn.hidden) : allButtons;
+  // Filter buttons based on compact/unified mode
+  const buttons = allButtons.filter(btn => !btn.hidden);
 
   const getButtonClasses = (color: string, disabled: boolean, danger?: boolean) => {
     if (disabled) {
       return 'bg-slate-800 text-slate-500 cursor-not-allowed';
     }
-    
+
     if (danger) {
       return 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30';
     }
@@ -197,7 +201,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
   return (
     <>
       {/* Action Buttons */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap lg:flex-nowrap items-center gap-2">
         {buttons.map((button) => {
           const Icon = button.icon;
           const isLoading = actionState.loading && actionState.lastAction === button.id;
@@ -207,9 +211,10 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
               key={button.id}
               onClick={button.onClick}
               disabled={button.disabled}
+              title={compact ? button.label : undefined}
               className={`
-                flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium
-                transition-all duration-200
+                flex items-center ${compact ? 'justify-center p-2' : 'gap-2 px-4'} h-10 rounded-lg text-sm font-medium whitespace-nowrap
+                transition-all duration-200 shadow-sm
                 ${getButtonClasses(button.color, button.disabled, button.danger)}
               `}
               whileHover={!button.disabled ? { scale: 1.02 } : {}}
@@ -220,7 +225,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
               ) : (
                 <Icon size={16} />
               )}
-              {button.label}
+              {!compact && button.label}
             </motion.button>
           );
         })}
@@ -235,9 +240,8 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
         message={
           confirmModal.action === 'stop'
             ? `Are you sure you want to stop "${containerName}"? Any running processes will be terminated.`
-            : `Are you sure you want to remove "${containerName}"? This action cannot be undone.${
-                isRunning ? ' The container is currently running and will be force stopped.' : ''
-              }`
+            : `Are you sure you want to remove "${containerName}"? This action cannot be undone.${isRunning ? ' The container is currently running and will be force stopped.' : ''
+            }`
         }
         confirmLabel={confirmModal.action === 'stop' ? 'Stop' : 'Remove'}
         isDangerous={confirmModal.action === 'remove'}

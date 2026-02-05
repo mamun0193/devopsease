@@ -1,0 +1,211 @@
+import React from 'react';
+import {
+  Box,
+  Activity,
+  Clock,
+  Layers,
+  Network,
+  Cpu,
+  MemoryStick,
+  RotateCw,
+  History as HistoryIcon,
+} from 'lucide-react';
+import { formatRelativeTime, formatImageName, formatPorts, truncateId } from '../utils/formatters';
+import ContainerControls from './ContainerControls';
+import type { Container, ContainerInspect, ContainerStats, ActionRecord } from '../api';
+
+interface ContainerHeaderProps {
+  container: Container;
+  containerName: string;
+  inspectData?: ContainerInspect;
+  statsData?: ContainerStats;
+  lastAction?: ActionRecord;
+  onRemoved?: () => void;
+}
+
+const ContainerHeader: React.FC<ContainerHeaderProps> = ({
+  container,
+  containerName,
+  inspectData,
+  statsData,
+  lastAction,
+  onRemoved,
+}) => {
+  const state = container.State.toLowerCase();
+  const isRunning = state === 'running';
+
+  // Determine health status and readability
+  const getHealthSentence = () => {
+    if (!isRunning) {
+      return { text: `Container is ${state}`, color: 'text-slate-500' };
+    }
+
+    const hasHealthcheck = inspectData?.healthcheck;
+    const highCpu = statsData && statsData.cpu.usagePercent > 80;
+    const highMemory = statsData && statsData.memory.usagePercent > 80;
+    const manyRestarts = inspectData && inspectData.restartCount > 5;
+
+    if (hasHealthcheck && !inspectData?.state.running) {
+      return { text: 'Container is unhealthy', color: 'text-red-400' };
+    }
+
+    if (highCpu || highMemory) {
+      return { text: 'Container is under high load', color: 'text-yellow-400' };
+    }
+
+    if (manyRestarts) {
+      return { text: 'Container is restarting frequently', color: 'text-yellow-400' };
+    }
+
+    return { text: 'Container is running healthy', color: 'text-emerald-400' };
+  };
+
+  const health = getHealthSentence();
+
+  return (
+    <div className="max-w-7xl mx-auto px-6 py-5">
+      <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/60 rounded-xl p-5 shadow-sm">
+        {/* Main 3-Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1.5fr_auto] gap-4 items-center">
+
+          {/* Left: Identity & Health */}
+          <div className="flex items-center gap-4">
+            <div className="rounded-lg bg-slate-800/50 flex items-center justify-center w-10 h-10 shrink-0 border border-slate-700/50">
+              <Box size={20} className="text-blue-400" />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <h1 className="font-bold text-slate-100 text-lg truncate leading-tight">{containerName}</h1>
+                <span className="text-xs text-slate-500 font-mono bg-slate-800/50 px-1.5 py-0.5 rounded">
+                  {truncateId(container.Id)}
+                </span>
+              </div>
+              <p className={`text-sm ${health.color} font-medium`}>
+                {health.text}
+              </p>
+            </div>
+          </div>
+
+          {/* Middle: Operational Micro-Metrics */}
+          <div className="flex items-center gap-x-6 gap-y-2 flex-wrap text-sm border-l border-slate-800/50 pl-6 lg:ml-2">
+            {isRunning && statsData ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <Cpu size={14} className="text-slate-500" />
+                  <div className="flex flex-col gap-1 leading-none">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">CPU</span>
+                    <span className={`font-mono ${statsData.cpu.usagePercent > 80 ? 'text-red-400' : 'text-slate-300'}`}>
+                      {statsData.cpu.usagePercent.toFixed(1)}%
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <MemoryStick size={14} className="text-slate-500" />
+                  <div className="flex flex-col gap-1 leading-none">
+                    <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Mem</span>
+                    <span className={`font-mono ${statsData.memory.usagePercent > 80 ? 'text-red-400' : 'text-slate-300'}`}>
+                      {statsData.memory.usedMB.toFixed(0)}MB
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 opacity-50">
+                <Activity size={14} className="text-slate-500" />
+                <span className="text-slate-500 italic">Metrics inactive</span>
+              </div>
+            )}
+
+            {inspectData && (
+              <div className="flex items-center gap-2">
+                <RotateCw size={14} className="text-slate-500" />
+                <div className="flex flex-col leading-none">
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Restarts</span>
+                  <span className={`font-mono ${inspectData.restartCount > 5 ? 'text-yellow-400' : 'text-slate-300'}`}>
+                    {inspectData.restartCount}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {lastAction && (
+              <div className="flex items-center gap-2">
+                <HistoryIcon size={14} className="text-slate-500" />
+                <div className="flex flex-col leading-none">
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Last Action</span>
+                  <span className="text-slate-300 capitalize text-xs">
+                    {lastAction.action} <span className="text-slate-500 opacity-70">({formatRelativeTime(new Date(lastAction.timestamp).getTime() / 1000)})</span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Controls */}
+          <div className="flex justify-start lg:justify-end">
+            <ContainerControls
+              containerId={container.Id}
+              containerName={containerName}
+              containerState={container.State}
+              onRemoved={onRemoved}
+              unified={true}
+            />
+          </div>
+        </div>
+
+        {/* Bottom: Compact Metadata Row */}
+        <div className="flex items-center gap-4 mt-6 flex-wrap text-xs text-slate-400 border-t border-slate-800/50 pt-3">
+          <div className="flex items-center gap-2">
+            <Layers size={14} className="text-slate-500" />
+            <span className="text-slate-300 font-mono tracking-tight">{formatImageName(container.Image)}</span>
+          </div>
+
+          <div className="w-px h-3 bg-slate-800" />
+
+          <div className="flex items-center gap-2">
+            <Clock size={14} className="text-slate-500" />
+            <span>Created {formatRelativeTime(container.Created)}</span>
+          </div>
+
+          {inspectData?.state.startedAt && isRunning && (
+            <>
+              <div className="w-px h-3 bg-slate-800" />
+              <div className="flex items-center gap-2">
+                <Activity size={14} className="text-emerald-500" />
+                <span>Up {formatRelativeTime(new Date(inspectData.state.startedAt).getTime() / 1000)}</span>
+              </div>
+            </>
+          )}
+
+          {container.Ports && container.Ports.length > 0 && (
+            <>
+              <div className="w-px h-3 bg-slate-800" />
+              <div className="flex items-center gap-2">
+                <Network size={14} className="text-slate-500" />
+                <span className="font-mono">{formatPorts(container.Ports)}</span>
+              </div>
+            </>
+          )}
+
+          {statsData && (
+            <>
+              <div className="w-px h-3 bg-slate-800" />
+              <div className="flex items-center gap-2">
+                <Network size={14} className="text-blue-400" />
+                <span className="text-slate-300 font-mono">
+                  <span className="text-emerald-400">↓{statsData.network.rxMB.toFixed(1)}</span>
+                  <span className="text-slate-600 mx-0.5">/</span>
+                  <span className="text-amber-400">↑{statsData.network.txMB.toFixed(1)}</span> MB
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ContainerHeader;

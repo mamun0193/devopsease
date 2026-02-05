@@ -170,6 +170,30 @@ export interface ContainerStats {
   };
 }
 
+export interface ActionRecord {
+  id: string;
+  timestamp: string;
+  container: {
+    id: string;
+    name: string | null;
+  };
+  action: 'start' | 'stop' | 'restart' | 'remove';
+  status: 'success' | 'failed';
+  reason: string | null;
+  source: 'user' | 'system';
+}
+
+export interface ActionsResponse {
+  items: ActionRecord[];
+  nextCursor: string | null;
+}
+
+export interface ActionStats {
+  total: number;
+  success: number;
+  failed: number;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -219,6 +243,33 @@ export const healthApi = {
   check: async (): Promise<{ status: string; timestamp: string }> => {
     const response = await api.get('/health');
     return response.data;
+  },
+};
+
+// Action history
+export const actionsApi = {
+  // Get all actions or filtered by containerId
+  getActions: async (options?: { containerId?: string; limit?: number; cursor?: string }): Promise<ActionsResponse> => {
+    const params = new URLSearchParams();
+    if (options?.containerId) params.append('containerId', options.containerId);
+    if (options?.limit) params.append('limit', String(options.limit));
+    if (options?.cursor) params.append('cursor', options.cursor);
+    const queryString = params.toString();
+    const url = `/actions${queryString ? `?${queryString}` : ''}`;
+    const response = await api.get<ApiResponse<ActionsResponse>>(url);
+    return response.data.data;
+  },
+
+  // Get action by ID
+  getActionById: async (actionId: string): Promise<ActionRecord> => {
+    const response = await api.get<ApiResponse<ActionRecord>>(`/actions/${actionId}`);
+    return response.data.data;
+  },
+
+  // Get action stats
+  getStats: async (): Promise<ActionStats> => {
+    const response = await api.get<ApiResponse<ActionStats>>('/actions/stats');
+    return response.data.data;
   },
 };
 
