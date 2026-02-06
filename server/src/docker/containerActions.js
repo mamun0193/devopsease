@@ -1,6 +1,7 @@
 import docker from "./client.js";
 import logger from "../utils/logger.js";
 import actionHistoryService from "../services/actionHistory.service.js";
+import containerCacheService from "../services/containerCache.service.js";
 
 /**
  * Get container current state
@@ -10,7 +11,7 @@ async function getContainerState(containerId) {
   try {
     const container = docker.getContainer(containerId);
     const inspectData = await container.inspect();
-    
+
     return {
       id: inspectData.Id.substring(0, 12),
       name: inspectData.Name.replace("/", ""),
@@ -37,7 +38,7 @@ async function startContainer(containerId) {
 
   // Check current state
   const state = await getContainerState(containerId);
-  
+
   if (!state) {
     logger.warn("Container not found", { containerId });
     return {
@@ -83,9 +84,12 @@ async function startContainer(containerId) {
   try {
     const container = docker.getContainer(containerId);
     await container.start();
-    
+
     logger.info("Container started successfully", { containerId });
-    
+
+    // Invalidate cache after state change
+    containerCacheService.invalidateContainer(state.id);
+
     actionHistoryService.recordAction({
       containerId: state.id,
       containerName: state.name,
@@ -94,7 +98,7 @@ async function startContainer(containerId) {
       reason: `Started from ${state.state} state`,
       source: "user",
     });
-    
+
     return {
       success: true,
       statusCode: 200,
@@ -108,7 +112,7 @@ async function startContainer(containerId) {
     };
   } catch (error) {
     logger.error("Failed to start container", { containerId, error: error.message });
-    
+
     actionHistoryService.recordAction({
       containerId: state.id,
       containerName: state.name,
@@ -117,7 +121,7 @@ async function startContainer(containerId) {
       reason: error.message,
       source: "user",
     });
-    
+
     return {
       success: false,
       statusCode: 500,
@@ -136,7 +140,7 @@ async function stopContainer(containerId) {
 
   // Check current state
   const state = await getContainerState(containerId);
-  
+
   if (!state) {
     logger.warn("Container not found", { containerId });
     return {
@@ -173,9 +177,12 @@ async function stopContainer(containerId) {
     const container = docker.getContainer(containerId);
     // Graceful shutdown with 10 second timeout
     await container.stop({ t: 10 });
-    
+
     logger.info("Container stopped successfully", { containerId });
-    
+
+    // Invalidate cache after state change
+    containerCacheService.invalidateContainer(state.id);
+
     actionHistoryService.recordAction({
       containerId: state.id,
       containerName: state.name,
@@ -184,7 +191,7 @@ async function stopContainer(containerId) {
       reason: `Gracefully stopped from ${state.state} state`,
       source: "user",
     });
-    
+
     return {
       success: true,
       statusCode: 200,
@@ -209,7 +216,7 @@ async function stopContainer(containerId) {
     }
 
     logger.error("Failed to stop container", { containerId, error: error.message });
-    
+
     actionHistoryService.recordAction({
       containerId: state.id,
       containerName: state.name,
@@ -218,7 +225,7 @@ async function stopContainer(containerId) {
       reason: error.message,
       source: "user",
     });
-    
+
     return {
       success: false,
       statusCode: 500,
@@ -237,7 +244,7 @@ async function restartContainer(containerId) {
 
   // Check current state
   const state = await getContainerState(containerId);
-  
+
   if (!state) {
     logger.warn("Container not found", { containerId });
     return {
@@ -274,9 +281,12 @@ async function restartContainer(containerId) {
     const container = docker.getContainer(containerId);
     // Restart with 10 second timeout
     await container.restart({ t: 10 });
-    
+
     logger.info("Container restarted successfully", { containerId });
-    
+
+    // Invalidate cache after state change
+    containerCacheService.invalidateContainer(state.id);
+
     actionHistoryService.recordAction({
       containerId: state.id,
       containerName: state.name,
@@ -285,7 +295,7 @@ async function restartContainer(containerId) {
       reason: `Restarted from ${state.state} state`,
       source: "user",
     });
-    
+
     return {
       success: true,
       statusCode: 200,
@@ -299,7 +309,7 @@ async function restartContainer(containerId) {
     };
   } catch (error) {
     logger.error("Failed to restart container", { containerId, error: error.message });
-    
+
     actionHistoryService.recordAction({
       containerId: state.id,
       containerName: state.name,
@@ -308,7 +318,7 @@ async function restartContainer(containerId) {
       reason: error.message,
       source: "user",
     });
-    
+
     return {
       success: false,
       statusCode: 500,
@@ -327,7 +337,7 @@ async function removeContainer(containerId, force = false) {
 
   // Check current state
   const state = await getContainerState(containerId);
-  
+
   if (!state) {
     logger.warn("Container not found", { containerId });
     return {
@@ -353,9 +363,12 @@ async function removeContainer(containerId, force = false) {
   try {
     const container = docker.getContainer(containerId);
     await container.remove({ force });
-    
+
     logger.info("Container removed successfully", { containerId, force });
-    
+
+    // Invalidate cache after removal
+    containerCacheService.invalidateContainer(state.id);
+
     actionHistoryService.recordAction({
       containerId: state.id,
       containerName: state.name,
@@ -364,7 +377,7 @@ async function removeContainer(containerId, force = false) {
       reason: force ? `Force removed from ${state.state} state` : `Removed from ${state.state} state`,
       source: "user",
     });
-    
+
     return {
       success: true,
       statusCode: 200,
@@ -378,7 +391,7 @@ async function removeContainer(containerId, force = false) {
     };
   } catch (error) {
     logger.error("Failed to remove container", { containerId, error: error.message });
-    
+
     actionHistoryService.recordAction({
       containerId: state.id,
       containerName: state.name,
@@ -387,7 +400,7 @@ async function removeContainer(containerId, force = false) {
       reason: error.message,
       source: "user",
     });
-    
+
     return {
       success: false,
       statusCode: 500,

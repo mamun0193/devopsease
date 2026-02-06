@@ -1,6 +1,6 @@
 import express from "express";
-import { listContainers, getContainerLogs } from "../docker/containers.js";
-import { inspectContainer } from "../services/containerInspect.service.js";
+import { getContainerLogs } from "../docker/containers.js";
+import containerCacheService from "../services/containerCache.service.js";
 import { parseLogs } from "../services/logParser.service.js";
 import {
   startContainer,
@@ -14,7 +14,7 @@ const router = express.Router();
 
 router.get("/", async (req, res, next) => {
   try {
-    const containers = await listContainers();
+    const containers = await containerCacheService.getContainers();
     res.status(200).json({
       success: true,
       data: containers,
@@ -58,7 +58,7 @@ router.get("/:id/inspect", async (req, res, next) => {
         error: 'Container ID is required'
       });
     }
-    const data = await inspectContainer(id);
+    const data = await containerCacheService.getContainerInspect(id);
     res.status(200).json({
       success: true,
       data,

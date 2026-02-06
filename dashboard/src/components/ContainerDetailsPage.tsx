@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { 
+import {
   ArrowLeft,
   Box,
   FileText,
@@ -9,6 +9,7 @@ import {
   History as HistoryIcon
 } from 'lucide-react';
 import { useContainers, useContainerInspect, useContainerStats, useActions } from '../hooks/useContainers';
+import { useContainerPolling } from '../hooks/useContainerPolling';
 import { formatContainerName } from '../utils/formatters';
 import LogViewer from './LogViewer';
 import FailureAnalysis from './FailureAnalysis';
@@ -35,11 +36,18 @@ const ContainerDetailsPage: React.FC = () => {
     return containers.find(c => c.Id === containerId || c.Id.startsWith(containerId)) || null;
   }, [containers, containerId]);
 
-  // Fetch additional data for header
+  // Use centralized polling hook for visibility awareness
+  const { isPageVisible, isRunning: containerIsRunning } = useContainerPolling(
+    container?.Id || null,
+    container?.State || null
+  );
+
+  // Fetch additional data for header with visibility-aware polling
   const { data: inspectData } = useContainerInspect(container?.Id || null);
   const { data: statsData } = useContainerStats(
-    container?.Id || null, 
-    container?.State.toLowerCase() === 'running'
+    container?.Id || null,
+    isPageVisible,
+    containerIsRunning
   );
   const { data: actionsData } = useActions({ containerId: container?.Id, limit: 1 });
 
@@ -53,7 +61,7 @@ const ContainerDetailsPage: React.FC = () => {
     const actionTime = new Date(timestamp).getTime() / 1000;
     const since = Math.floor(actionTime - 30); // 30 seconds before
     const until = Math.floor(actionTime + 90); // 90 seconds after
-    
+
     setLogTimeFilter({ since, until });
     setActiveTab('logs');
   }, []);
@@ -66,14 +74,14 @@ const ContainerDetailsPage: React.FC = () => {
   React.useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
-      
+
       // Check if header is out of view
       if (headerRef.current) {
         const headerBottom = headerRef.current.getBoundingClientRect().bottom;
         setShowStickyControls(headerBottom < 0);
       }
     };
-    
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -96,7 +104,7 @@ const ContainerDetailsPage: React.FC = () => {
           <Box size={64} className="text-slate-600 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-slate-200 mb-2">Container Not Found</h2>
           <p className="text-slate-400 mb-6">The container you're looking for doesn't exist or has been removed.</p>
-          <Link 
+          <Link
             to="/"
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
           >
@@ -112,27 +120,27 @@ const ContainerDetailsPage: React.FC = () => {
   const hasIssue = ['exited', 'dead'].includes(container.State.toLowerCase());
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode; hint: string }[] = [
-    { 
-      id: 'analysis', 
-      label: 'Analysis', 
+    {
+      id: 'analysis',
+      label: 'Analysis',
       icon: <Shield size={18} />,
       hint: hasIssue ? 'See what went wrong' : 'Health check'
     },
-    { 
-      id: 'logs', 
-      label: 'Logs', 
+    {
+      id: 'logs',
+      label: 'Logs',
       icon: <FileText size={18} />,
       hint: 'Application output'
     },
-    { 
-      id: 'info', 
-      label: 'Details', 
+    {
+      id: 'info',
+      label: 'Details',
       icon: <Info size={18} />,
       hint: 'Container configuration'
     },
-    { 
-      id: 'history', 
-      label: 'History', 
+    {
+      id: 'history',
+      label: 'History',
       icon: <HistoryIcon size={18} />,
       hint: 'Action timeline'
     },
@@ -141,7 +149,7 @@ const ContainerDetailsPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950">
       {/* Header - Hidden when scrolled */}
-      <header 
+      <header
         ref={headerRef}
         className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800"
       >
@@ -169,22 +177,19 @@ const ContainerDetailsPage: React.FC = () => {
       </header>
 
       {/* Tabs - Sticky only for non-logs tabs */}
-      <div className={`border-b border-slate-800 bg-slate-900/95 backdrop-blur-xl z-50 ${
-        activeTab !== 'logs' ? 'sticky top-0' : ''
-      } ${
-        isScrolled && activeTab !== 'logs' ? 'shadow-lg shadow-slate-950/50' : ''
-      }`}>
+      <div className={`border-b border-slate-800 bg-slate-900/95 backdrop-blur-xl z-50 ${activeTab !== 'logs' ? 'sticky top-0' : ''
+        } ${isScrolled && activeTab !== 'logs' ? 'shadow-lg shadow-slate-950/50' : ''
+        }`}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex gap-1">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
-                  className={`flex items-center gap-2 px-4 py-3.5 text-sm font-medium transition-all border-b-2 -mb-px ${
-                    activeTab === tab.id 
-                      ? 'text-blue-400 border-blue-500 bg-blue-500/5' 
+                  className={`flex items-center gap-2 px-4 py-3.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeTab === tab.id
+                      ? 'text-blue-400 border-blue-500 bg-blue-500/5'
                       : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-800/30'
-                  }`}
+                    }`}
                   onClick={() => setActiveTab(tab.id)}
                 >
                   {tab.icon}
@@ -193,7 +198,7 @@ const ContainerDetailsPage: React.FC = () => {
                 </button>
               ))}
             </div>
-            
+
             {/* Container Controls in Sticky Tab Bar - only when header is out of view */}
             {showStickyControls && activeTab !== 'logs' && (
               <div className="hidden md:block">
@@ -214,7 +219,7 @@ const ContainerDetailsPage: React.FC = () => {
       <main className="max-w-7xl mx-auto px-2 py-2">
         <div className="transition-opacity duration-150">
           {activeTab === 'analysis' && (
-            <FailureAnalysis 
+            <FailureAnalysis
               containerId={container.Id}
               containerName={name}
               containerState={container.State}
@@ -222,7 +227,7 @@ const ContainerDetailsPage: React.FC = () => {
           )}
           {activeTab === 'logs' && (
             <div className="sticky top-0 z-40">
-              <LogViewer 
+              <LogViewer
                 containerId={container.Id}
                 containerName={name}
                 initialTimeRange={logTimeFilter}
