@@ -8,12 +8,12 @@ const ActionFeedback: React.FC = () => {
   const dispatch = useAppDispatch();
   const lastCompletedAction = useAppSelector(state => state.containers.lastCompletedAction);
 
-  // Auto-dismiss after 4 seconds
+  
   useEffect(() => {
     if (lastCompletedAction) {
       const timer = setTimeout(() => {
         dispatch(clearLastCompletedAction());
-      }, 4000);
+      }, 6000);
 
       return () => clearTimeout(timer);
     }
@@ -29,8 +29,11 @@ const ActionFeedback: React.FC = () => {
       stop: { past: 'stopped', failed: 'stop' },
       restart: { past: 'restarted', failed: 'restart' },
       remove: { past: 'removed', failed: 'remove' },
+      pause: { past: 'paused', failed: 'pause' },
+      unpause: { past: 'unpaused', failed: 'unpause' },
+      create: { past: 'created', failed: 'create' },
     };
-    
+
     const verb = verbs[action] || { past: action, failed: action };
     return success ? verb.past : verb.failed;
   };
@@ -47,10 +50,9 @@ const ActionFeedback: React.FC = () => {
           <div
             className={`
               flex items-center gap-3 px-4 py-3 rounded-xl shadow-2xl backdrop-blur-md cursor-pointer
-              ${
-                lastCompletedAction.success
-                  ? 'bg-emerald-500/20 border border-emerald-500/30'
-                  : 'bg-red-500/20 border border-red-500/30'
+              ${lastCompletedAction.success
+                ? 'bg-emerald-500/20 border border-emerald-500/30'
+                : 'bg-red-500/20 border border-red-500/30'
               }
             `}
             onClick={handleDismiss}
@@ -60,11 +62,10 @@ const ActionFeedback: React.FC = () => {
             ) : (
               <XCircle size={20} className="text-red-400 shrink-0" />
             )}
-            
+
             <div className="flex-1 min-w-0">
-              <p className={`text-sm font-medium ${
-                lastCompletedAction.success ? 'text-emerald-300' : 'text-red-300'
-              }`}>
+              <p className={`text-sm font-medium ${lastCompletedAction.success ? 'text-emerald-300' : 'text-red-300'
+                }`}>
                 {lastCompletedAction.success
                   ? `Container ${getActionVerb(lastCompletedAction.action, true)}`
                   : `Failed to ${getActionVerb(lastCompletedAction.action, false)} container`

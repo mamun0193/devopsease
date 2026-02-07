@@ -4,11 +4,15 @@ import healthRoutes from "./routes/health.routes.js";
 import analysisRoutes from "./routes/analysis.routes.js";
 import actionsRoutes from "./routes/actions.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
+import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
 import requestLogger from "./middlewares/requestLogger.js";
 import dotenv from "dotenv";
 import cors from "cors";
 import { connectRedis, disconnectRedis } from "./redis/client.js";
+import readinessService from "./services/readiness.service.js";
+import actionHistoryService from "./services/actionHistory.service.js";
+import docker from "./docker/client.js";
 
 dotenv.config();
 
@@ -24,6 +28,9 @@ app.use(
 app.use(express.json());
 app.use(requestLogger);
 
+// Readiness gate - returns 503 for non-health routes until fully initialized
+app.use(readinessMiddleware);
+
 // Routes
 app.use(analysisRoutes);
 app.use("/health", healthRoutes);
@@ -33,7 +40,7 @@ app.use("/actions", actionsRoutes);
 // Error Handling Middleware
 app.use(errorHandler);
 
-// Initialize Redis and start server
+// Initialize services and start server
 async function startServer() {
   // Try to connect to Redis (non-blocking - server works without it)
   const redisConnected = await connectRedis();
@@ -43,8 +50,23 @@ async function startServer() {
     logger.warn("Redis not available - caching disabled, using direct Docker API calls");
   }
 
+  // Verify Docker connection
+  try {
+    await docker.ping();
+    readinessService.setDockerReady(true);
+    logger.info("Docker connection verified");
+  } catch (error) {
+    logger.error("Docker connection failed", { error: error.message });
+    readinessService.setDockerReady(false);
+  }
+
+  // Sync action history from Redis to memory (if Redis has data)
+  await actionHistoryService.syncFromRedis();
+  readinessService.setHistoryReady(true);
+
   const server = app.listen(PORT, () => {
     logger.info(`DevOpsEase server running on http://localhost:${PORT}`);
+    logger.info("Server readiness", readinessService.getStatus());
   });
 
   // Graceful shutdown

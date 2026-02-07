@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useActions } from '../hooks/useContainers';
+import { useAppSelector } from '../store/hooks';
 import type { ActionRecord } from '../api';
 import {
   PlayCircle,
@@ -26,6 +27,9 @@ interface TimelineProps {
 export default function Timeline({ containerId, onViewLogs, onViewStats }: TimelineProps) {
   const { data, isLoading, error, refetch } = useActions({ containerId, limit: 50 });
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  
+  // Get loading states for all containers to filter out in-progress actions
+  const actionStates = useAppSelector(state => state.containers.actionStates);
 
   if (isLoading) {
     return (
@@ -67,6 +71,35 @@ export default function Timeline({ containerId, onViewLogs, onViewStats }: Timel
       </div>
     );
   }
+
+  // Filter out ONLY the most recent action for containers with in-progress operations
+  // This prevents the new action from appearing before the spinner stops
+  const filteredActions = data.items.filter((action, index) => {
+    const containerIdFromAction = action.container.id;
+    
+    // Check if there's a loading state for this container
+    for (const [stateContainerId, state] of Object.entries(actionStates)) {
+      if (state.loading && state.lastAction) {
+        // Check if container IDs match
+        const idsMatch = stateContainerId.startsWith(containerIdFromAction) || 
+                        containerIdFromAction.startsWith(stateContainerId);
+        
+        if (idsMatch) {
+          // Only hide if this is the FIRST (most recent) action AND matches the loading action type
+          const isFirstActionForContainer = data.items.findIndex(a => {
+            return a.container.id === containerIdFromAction || 
+                   stateContainerId.startsWith(a.container.id) ||
+                   a.container.id.startsWith(stateContainerId);
+          }) === index;
+          
+          if (isFirstActionForContainer && action.action === state.lastAction) {
+            return false; // Hide only the most recent matching action
+          }
+        }
+      }
+    }
+    return true; // Show all other actions
+  });
 
   const toggleExpand = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
@@ -116,7 +149,7 @@ export default function Timeline({ containerId, onViewLogs, onViewStats }: Timel
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-medium text-slate-400">
-            {data.items.length} {data.items.length === 1 ? 'Action' : 'Actions'}
+            {filteredActions.length} {filteredActions.length === 1 ? 'Action' : 'Actions'}
           </h3>
           <RefreshButton
             onRefresh={() => { refetch(); }}
@@ -134,7 +167,7 @@ export default function Timeline({ containerId, onViewLogs, onViewStats }: Timel
       </div>
 
       <div className="space-y-2">
-        {data.items.map((action, index) => {
+        {filteredActions.map((action, index) => {
           const isExpanded = expandedId === action.id;
           const time = formatTimestamp(action.timestamp);
           const colorClass = getActionColor(action.action, action.status);
@@ -145,7 +178,7 @@ export default function Timeline({ containerId, onViewLogs, onViewStats }: Timel
               className="relative rounded-lg border border-slate-700/50 bg-slate-800/30 transition-colors hover:bg-slate-800/50"
             >
               {/* Timeline connector */}
-              {index < data.items.length - 1 && (
+              {index < filteredActions.length - 1 && (
                 <div className="absolute left-8 top-12 h-6 w-px bg-slate-700/50" />
               )}
 

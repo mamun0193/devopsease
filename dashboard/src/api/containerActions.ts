@@ -19,9 +19,7 @@ interface ApiResponse<T> {
 }
 
 export const containerActionsApi = {
-  /**
-   * Start a stopped container
-   */
+  
   start: async (containerId: string): Promise<ContainerActionResponse> => {
     const response = await api.post<ApiResponse<ContainerActionResponse['data']>>(
       `/containers/${containerId}/start`
@@ -33,9 +31,7 @@ export const containerActionsApi = {
     };
   },
 
-  /**
-   * Stop a running container (graceful shutdown with 10s timeout)
-   */
+  
   stop: async (containerId: string): Promise<ContainerActionResponse> => {
     const response = await api.post<ApiResponse<ContainerActionResponse['data']>>(
       `/containers/${containerId}/stop`
@@ -47,9 +43,7 @@ export const containerActionsApi = {
     };
   },
 
-  /**
-   * Restart a container (stop + start)
-   */
+  
   restart: async (containerId: string): Promise<ContainerActionResponse> => {
     const response = await api.post<ApiResponse<ContainerActionResponse['data']>>(
       `/containers/${containerId}/restart`
@@ -61,13 +55,57 @@ export const containerActionsApi = {
     };
   },
 
-  /**
-   * Remove a container
-   * @param force - If true, force remove even if running
-   */
+  
   remove: async (containerId: string, force: boolean = false): Promise<ContainerActionResponse> => {
     const response = await api.delete<ApiResponse<ContainerActionResponse['data']>>(
       `/containers/${containerId}${force ? '?force=true' : ''}`
+    );
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      message: response.data.message,
+    };
+  },
+
+  
+  pause: async (containerId: string): Promise<ContainerActionResponse> => {
+    const response = await api.post<ApiResponse<ContainerActionResponse['data']>>(
+      `/containers/${containerId}/pause`
+    );
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      message: response.data.message,
+    };
+  },
+
+  
+  unpause: async (containerId: string): Promise<ContainerActionResponse> => {
+    const response = await api.post<ApiResponse<ContainerActionResponse['data']>>(
+      `/containers/${containerId}/unpause`
+    );
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      message: response.data.message,
+    };
+  },
+
+  
+  create: async (params: {
+    image: string;
+    name?: string;
+    ports?: Record<string, number>;
+    env?: Record<string, string>;
+    autoStart?: boolean;
+  }): Promise<{
+    success: boolean;
+    data: { id: string; name: string; status: string } | null;
+    message: string;
+  }> => {
+    const response = await api.post<ApiResponse<{ id: string; name: string; status: string }>>(
+      '/containers',
+      params
     );
     return {
       success: response.data.success,

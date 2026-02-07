@@ -7,6 +7,9 @@ import {
   stopContainer,
   restartContainer,
   removeContainer,
+  pauseContainer,
+  unpauseContainer,
+  createContainer,
 } from "../docker/containerActions.js";
 import containerStatsService from "../services/containerStats.service.js";
 
@@ -19,6 +22,33 @@ router.get("/", async (req, res, next) => {
       success: true,
       data: containers,
       message: "Containers retrieved successfully",
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /containers
+ * Create a new container from an image
+ */
+router.post("/", async (req, res, next) => {
+  try {
+    const { image, name, ports, env, autoStart } = req.body;
+
+    if (!image) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        message: "Image name is required",
+      });
+    }
+
+    const result = await createContainer({ image, name, ports, env, autoStart });
+    res.status(result.statusCode).json({
+      success: result.success,
+      data: result.data,
+      message: result.message,
     });
   } catch (err) {
     next(err);
@@ -112,6 +142,40 @@ router.post("/:id/stop", async (req, res, next) => {
 router.post("/:id/restart", async (req, res, next) => {
   try {
     const result = await restartContainer(req.params.id);
+    res.status(result.statusCode).json({
+      success: result.success,
+      data: result.data,
+      message: result.message,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /containers/:id/pause
+ * Pause a running container
+ */
+router.post("/:id/pause", async (req, res, next) => {
+  try {
+    const result = await pauseContainer(req.params.id);
+    res.status(result.statusCode).json({
+      success: result.success,
+      data: result.data,
+      message: result.message,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /containers/:id/unpause
+ * Unpause a paused container
+ */
+router.post("/:id/unpause", async (req, res, next) => {
+  try {
+    const result = await unpauseContainer(req.params.id);
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,

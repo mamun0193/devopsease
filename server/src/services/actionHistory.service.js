@@ -94,23 +94,12 @@ class ActionHistoryService {
     }
   }
 
-  // Get actions with optional filtering - Tries Redis first, falls back to memory
+  // Get actions with optional filtering - Memory is always the source of truth
   async getActions({ containerId, limit = 50, cursor } = {}) {
-    let actions = [];
+    // Memory is always the source of truth (synced from Redis on startup)
+    let actions = [...this.memoryActions];
 
-    // Try Redis first
-    if (isRedisConnected()) {
-      actions = await this.getFromRedis();
-    }
-
-    // Fall back to memory if Redis returned nothing
-    if (actions.length === 0) {
-      actions = this.memoryActions;
-    }
-
-    const storage = isRedisConnected() && actions !== this.memoryActions
-      ? "redis"
-      : "memory";
+    const storage = isRedisConnected() ? "redis+memory" : "memory";
 
     console.log("🔍 getActions called:", {
       containerId,
@@ -181,6 +170,79 @@ class ActionHistoryService {
         error: error.message,
       });
       return [];
+    }
+  }
+
+  // Sync history from Redis to memory on startup (if Redis has data and memory is empty)
+  async syncFromRedis() {
+    if (!isRedisConnected()) {
+      logger.info("Redis not available, starting with empty history");
+      return;
+    }
+
+    try {
+      const redisActions = await this.getFromRedis();
+      if (redisActions.length > 0 && this.memoryActions.length === 0) {
+        this.memoryActions = redisActions;
+        logger.info("Synced action history from Redis", { count: redisActions.length });
+      } else if (redisActions.length > 0) {
+        logger.info("Memory already has actions, skipping Redis sync", {
+          memoryCount: this.memoryActions.length,
+          redisCount: redisActions.length,
+        });
+      } else {
+        logger.info("Redis has no history data, starting fresh");
+      }
+    } catch (error) {
+      logger.warn("Failed to sync from Redis, starting with empty history", {
+        error: error.message,
+      });
+    }
+  }
+
+  // Update an existing action (for lifecycle: pending → success/failed)
+  async updateAction(actionId, updates) {
+    // Update in memory
+    const index = this.memoryActions.findIndex((a) => a.id === actionId);
+    if (index !== -1) {
+      this.memoryActions[index] = {
+        ...this.memoryActions[index],
+        ...updates,
+      };
+
+      logger.info("Action updated", {
+        actionId,
+        status: updates.status,
+      });
+
+      // Re-persist to Redis (replace the entire list since we don't have update-in-place)
+      if (isRedisConnected()) {
+        this.persistAllToRedis();
+      }
+
+      return this.memoryActions[index];
+    }
+
+    logger.warn("Action not found for update", { actionId });
+    return null;
+  }
+
+  // Persist all actions to Redis (used after updateAction)
+  persistAllToRedis() {
+    if (!isRedisConnected()) return;
+
+    try {
+      // Clear and re-push all actions
+      safeDel(REDIS_KEY);
+      for (const action of [...this.memoryActions].reverse()) {
+        const serialized = JSON.stringify(action);
+        safeLpush(REDIS_KEY, serialized);
+      }
+      safeLtrim(REDIS_KEY, 0, MAX_SIZE - 1);
+    } catch (error) {
+      logger.warn("Failed to persist all actions to Redis", {
+        error: error.message,
+      });
     }
   }
 

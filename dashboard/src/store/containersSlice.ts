@@ -4,7 +4,7 @@ import { containerActionsApi } from '../api/containerActions';
 import type { ContainerActionResponse } from '../api/containerActions';
 
 // Action types supported by the system
-export type ContainerAction = 'start' | 'stop' | 'restart' | 'remove';
+export type ContainerAction = 'start' | 'stop' | 'restart' | 'remove' | 'pause' | 'unpause' | 'create';
 
 // Per-container action state
 interface ActionState {
@@ -102,6 +102,54 @@ export const removeContainer = createAsyncThunk<
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } }; message?: string };
       return rejectWithValue(err.response?.data?.message || err.message || 'Failed to remove container');
+    }
+  }
+);
+
+export const pauseContainer = createAsyncThunk<
+  ContainerActionResponse,
+  { containerId: string; containerName: string },
+  { rejectValue: string }
+>(
+  'containers/pause',
+  async ({ containerId }, { rejectWithValue }) => {
+    try {
+      return await containerActionsApi.pause(containerId);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(err.response?.data?.message || err.message || 'Failed to pause container');
+    }
+  }
+);
+
+export const unpauseContainer = createAsyncThunk<
+  ContainerActionResponse,
+  { containerId: string; containerName: string },
+  { rejectValue: string }
+>(
+  'containers/unpause',
+  async ({ containerId }, { rejectWithValue }) => {
+    try {
+      return await containerActionsApi.unpause(containerId);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(err.response?.data?.message || err.message || 'Failed to unpause container');
+    }
+  }
+);
+
+export const createContainer = createAsyncThunk<
+  { success: boolean; data: { id: string; name: string; status: string } | null; message: string },
+  { image: string; name?: string; ports?: Record<string, number>; env?: Record<string, string>; autoStart?: boolean },
+  { rejectValue: string }
+>(
+  'containers/create',
+  async (params, { rejectWithValue }) => {
+    try {
+      return await containerActionsApi.create(params);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } }; message?: string };
+      return rejectWithValue(err.response?.data?.message || err.message || 'Failed to create container');
     }
   }
 );
@@ -276,6 +324,102 @@ const containersSlice = createSlice({
           'remove',
           action.payload || 'Failed to remove container'
         );
+      });
+
+    // Pause container
+    builder
+      .addCase(pauseContainer.pending, (state, action) => {
+        handlePending(state, action.meta.arg.containerId, 'pause');
+      })
+      .addCase(pauseContainer.fulfilled, (state, action) => {
+        handleFulfilled(
+          state,
+          action.meta.arg.containerId,
+          action.meta.arg.containerName,
+          'pause',
+          action.payload.message
+        );
+      })
+      .addCase(pauseContainer.rejected, (state, action) => {
+        handleRejected(
+          state,
+          action.meta.arg.containerId,
+          action.meta.arg.containerName,
+          'pause',
+          action.payload || 'Failed to pause container'
+        );
+      });
+
+    // Unpause container
+    builder
+      .addCase(unpauseContainer.pending, (state, action) => {
+        handlePending(state, action.meta.arg.containerId, 'unpause');
+      })
+      .addCase(unpauseContainer.fulfilled, (state, action) => {
+        handleFulfilled(
+          state,
+          action.meta.arg.containerId,
+          action.meta.arg.containerName,
+          'unpause',
+          action.payload.message
+        );
+      })
+      .addCase(unpauseContainer.rejected, (state, action) => {
+        handleRejected(
+          state,
+          action.meta.arg.containerId,
+          action.meta.arg.containerName,
+          'unpause',
+          action.payload || 'Failed to unpause container'
+        );
+      });
+
+    // Create container
+    builder
+      .addCase(createContainer.pending, (state) => {
+        // Use a special key for global/creation loading if needed,
+        // but here we track it by the fallback key in CreateContainerModal
+        state.actionStates['create'] = {
+          loading: true,
+          error: null,
+          success: null,
+          lastAction: 'create',
+        };
+      })
+      .addCase(createContainer.fulfilled, (state, action) => {
+        const containerId = action.payload.data?.id || 'create';
+        const containerName = action.payload.data?.name || 'New Container';
+
+        state.actionStates['create'] = {
+          loading: false,
+          error: null,
+          success: action.payload.message,
+          lastAction: 'create',
+        };
+
+        state.lastCompletedAction = {
+          containerId,
+          containerName,
+          action: 'create',
+          success: true,
+          message: action.payload.message,
+        };
+      })
+      .addCase(createContainer.rejected, (state, action) => {
+        state.actionStates['create'] = {
+          loading: false,
+          error: action.payload || 'Failed to create container',
+          success: null,
+          lastAction: 'create',
+        };
+
+        state.lastCompletedAction = {
+          containerId: 'failed',
+          containerName: 'Container',
+          action: 'create',
+          success: false,
+          message: action.payload || 'Failed to create container',
+        };
       });
   },
 });

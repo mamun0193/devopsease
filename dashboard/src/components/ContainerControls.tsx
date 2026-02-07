@@ -2,10 +2,11 @@ import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Play,
-  Square,
   RotateCcw,
   Trash2,
-  Loader2
+  Loader2,
+  Pause,
+  Power
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -14,6 +15,8 @@ import {
   stopContainer,
   restartContainer,
   removeContainer,
+  pauseContainer,
+  unpauseContainer,
   clearActionState,
 } from '../store/containersSlice';
 import type { ContainerAction } from '../store/containersSlice';
@@ -77,17 +80,79 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
   }, [queryClient, containerId]);
 
   /**
-   * Execute container action with refresh
+   * Get expected final state based on action type
+   */
+  const getExpectedState = (action: ContainerAction): string | null => {
+    switch (action) {
+      case 'start': return 'running';
+      case 'stop': return 'exited';
+      case 'restart': return 'running';
+      case 'pause': return 'paused';
+      case 'unpause': return 'running';
+      case 'remove': return null; // Container won't exist
+      default: return null;
+    }
+  };
+
+  /**
+   * Poll container state until it matches expected state or timeout
+   */
+  const pollUntilState = useCallback(async (
+    expectedState: string | null,
+    { timeout = 15000 }: { timeout?: number } = {}
+  ): Promise<boolean> => {
+    if (!expectedState) return true; // No polling needed (e.g., remove)
+
+    const start = Date.now();
+    const pollInterval = 1000; // 1 second between polls
+
+    while (Date.now() - start < timeout) {
+      try {
+        // Force fresh fetch (bypass cache)
+        const data = await queryClient.fetchQuery({
+          queryKey: ['containerInspect', containerId],
+          staleTime: 0,
+        });
+
+        const currentState = (data as { state?: { status?: string } })?.state?.status?.toLowerCase();
+        if (currentState === expectedState) {
+          console.log(`✅ Container reached expected state: ${expectedState}`);
+          return true;
+        }
+
+        console.log(`⏳ Polling state: ${currentState} → expecting ${expectedState}`);
+      } catch (error) {
+        // Container might be removed or temporarily unavailable
+        console.warn('Polling error:', error);
+      }
+
+      await new Promise(r => setTimeout(r, pollInterval));
+    }
+
+    console.warn(`⚠️ Timeout waiting for state: ${expectedState}`);
+    return false;
+  }, [containerId, queryClient]);
+
+  /**
+   * Execute container action with state polling
+   * Loader stays active until Docker state matches expected state
    */
   const executeAction = useCallback(async (
     action: ContainerAction,
-    thunk: ReturnType<typeof startContainer | typeof stopContainer | typeof restartContainer | typeof removeContainer>
+    thunk: ReturnType<typeof startContainer | typeof stopContainer | typeof restartContainer | typeof removeContainer | typeof pauseContainer | typeof unpauseContainer>
   ) => {
     const result = await dispatch(thunk);
 
-    // Refresh data after action completes
+    // Only poll if action succeeded
     if (!result.type.endsWith('/rejected')) {
-      // Small delay to allow Docker state to settle
+      const expectedState = getExpectedState(action);
+
+      // Poll until container reaches expected state
+      if (expectedState) {
+        await pollUntilState(expectedState, { timeout: 15000 });
+      }
+
+      // Small delay then refresh data
       setTimeout(() => {
         refreshData();
 
@@ -98,11 +163,11 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
       }, 300);
     }
 
-    // Clear success message after 3 seconds
+    // Clear success message after action completes
     setTimeout(() => {
       dispatch(clearActionState(containerId));
-    }, 3000);
-  }, [dispatch, containerId, refreshData, onRemoved]);
+    }, 2000);
+  }, [dispatch, containerId, refreshData, onRemoved, pollUntilState]);
 
   // Action handlers
   const handleStart = () => {
@@ -115,6 +180,14 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
 
   const handleRestart = () => {
     executeAction('restart', restartContainer({ containerId, containerName }));
+  };
+
+  const handlePause = () => {
+    executeAction('pause', pauseContainer({ containerId, containerName }));
+  };
+
+  const handleUnpause = () => {
+    executeAction('unpause', unpauseContainer({ containerId, containerName }));
   };
 
   const handleRemove = () => {
@@ -135,33 +208,43 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
   const allButtons = [
     {
       id: 'start' as ContainerAction,
-      icon: Play,
+      icon: Power,
       label: 'Start',
       onClick: handleStart,
       // Can start if stopped, exited, dead, or created
       disabled: isRunning || isPaused || actionState.loading,
       hidden: unified ? isRunning : (compact && isRunning),
-      color: 'emerald',
+      color: 'green',
     },
     {
       id: 'stop' as ContainerAction,
-      icon: Square,
+      icon: Power,
       label: 'Stop',
       onClick: handleStop,
       // Can only stop if running
       disabled: !isRunning || actionState.loading,
       hidden: unified ? !isRunning : (compact && !isRunning),
-      color: 'amber',
+      color: 'red',
     },
     {
       id: 'restart' as ContainerAction,
       icon: RotateCcw,
       label: 'Restart',
       onClick: handleRestart,
-      // Can restart running or stopped containers
-      disabled: isDead || isPaused || actionState.loading,
+      // Can only restart if running (matches user preference for stopped containers)
+      disabled: !isRunning || isDead || isPaused || actionState.loading,
       hidden: false, // Always show
       color: 'blue',
+    },
+    {
+      id: isPaused ? ('unpause' as ContainerAction) : ('pause' as ContainerAction),
+      icon: isPaused ? Play : Pause,
+      label: isPaused ? 'Unpause' : 'Pause',
+      onClick: isPaused ? handleUnpause : handlePause,
+      // Can pause if running, unpause if paused
+      disabled: (!isRunning && !isPaused) || actionState.loading,
+      hidden: unified ? (!isRunning && !isPaused) : (compact && !isRunning && !isPaused),
+      color: isPaused ? 'emerald' : 'purple',
     },
     {
       id: 'remove' as ContainerAction,
@@ -189,9 +272,11 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
     }
 
     const colorMap: Record<string, string> = {
+      green: 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30',
       emerald: 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30',
       amber: 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30',
       blue: 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30',
+      purple: 'bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/30',
       red: 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30',
     };
 
@@ -213,7 +298,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
               disabled={button.disabled}
               title={compact ? button.label : undefined}
               className={`
-                flex items-center ${compact ? 'justify-center p-2' : 'gap-2 px-4'} h-10 rounded-lg text-sm font-medium whitespace-nowrap
+                flex items-center ${compact ? 'justify-center w-10' : 'gap-2 px-4'} h-10 rounded-lg text-sm font-medium whitespace-nowrap
                 transition-all duration-200 shadow-sm
                 ${getButtonClasses(button.color, button.disabled, button.danger)}
               `}

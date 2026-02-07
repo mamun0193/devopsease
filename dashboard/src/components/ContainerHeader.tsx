@@ -11,6 +11,7 @@ import {
   History as HistoryIcon,
 } from 'lucide-react';
 import { formatRelativeTime, formatImageName, formatPorts, truncateId } from '../utils/formatters';
+import { formatNumber, formatPercent, formatMB } from '../utils/numberFormat';
 import ContainerControls from './ContainerControls';
 import type { Container, ContainerInspect, ContainerStats, ActionRecord } from '../api';
 
@@ -95,8 +96,8 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({
                   <Cpu size={14} className="text-slate-500" />
                   <div className="flex flex-col gap-1 leading-none">
                     <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">CPU</span>
-                    <span className={`font-mono ${statsData.cpu.usagePercent > 80 ? 'text-red-400' : 'text-slate-300'}`}>
-                      {statsData.cpu.usagePercent.toFixed(1)}%
+                    <span className={`font-mono ${(statsData.cpu?.usagePercent ?? 0) > 80 ? 'text-red-400' : 'text-slate-300'}`}>
+                      {formatPercent(statsData.cpu?.usagePercent, 1)}
                     </span>
                   </div>
                 </div>
@@ -105,8 +106,8 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({
                   <MemoryStick size={14} className="text-slate-500" />
                   <div className="flex flex-col gap-1 leading-none">
                     <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Mem</span>
-                    <span className={`font-mono ${statsData.memory.usagePercent > 80 ? 'text-red-400' : 'text-slate-300'}`}>
-                      {statsData.memory.usedMB.toFixed(0)}MB
+                    <span className={`font-mono ${(statsData.memory?.usagePercent ?? 0) > 80 ? 'text-red-400' : 'text-slate-300'}`}>
+                      {formatMB(statsData.memory?.usedMB, 0)}
                     </span>
                   </div>
                 </div>
@@ -195,9 +196,9 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({
               <div className="flex items-center gap-2">
                 <Network size={14} className="text-blue-400" />
                 <span className="text-slate-300 font-mono">
-                  <span className="text-emerald-400">↓{statsData.network.rxMB.toFixed(1)}</span>
+                  <span className="text-emerald-400">↓{formatNumber(statsData.network?.rxMB, 1)}</span>
                   <span className="text-slate-600 mx-0.5">/</span>
-                  <span className="text-amber-400">↑{statsData.network.txMB.toFixed(1)}</span> MB
+                  <span className="text-amber-400">↑{formatNumber(statsData.network?.txMB, 1)}</span> MB
                 </span>
               </div>
             </>

@@ -1,12 +1,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Box, 
-  Search, 
-  Filter
+import {
+  Box,
+  Search,
+  Filter,
+  Plus
 } from 'lucide-react';
 import type { Container } from '../api';
 import ContainerCard from './ContainerCard';
+import CreateContainerModal from './CreateContainerModal';
 
 interface ContainerListProps {
   containers: Container[];
@@ -19,6 +21,7 @@ const ContainerList: React.FC<ContainerListProps> = ({
 }) => {
   const [filter, setFilter] = React.useState<'all' | 'running' | 'stopped'>('all');
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
 
   const filteredContainers = React.useMemo(() => {
     let result = containers;
@@ -33,7 +36,7 @@ const ContainerList: React.FC<ContainerListProps> = ({
     // Apply search
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(c => 
+      result = result.filter(c =>
         c.Names.some(n => n.toLowerCase().includes(query)) ||
         c.Image.toLowerCase().includes(query) ||
         c.Id.toLowerCase().includes(query)
@@ -107,6 +110,14 @@ const ContainerList: React.FC<ContainerListProps> = ({
               <option value="stopped">Stopped</option>
             </select>
           </div>
+
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus size={16} />
+            Create Container
+          </button>
         </div>
       </div>
 
@@ -122,7 +133,7 @@ const ContainerList: React.FC<ContainerListProps> = ({
           </p>
         </div>
       ) : (
-        <motion.div 
+        <motion.div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
           layout
         >
@@ -148,6 +159,12 @@ const ContainerList: React.FC<ContainerListProps> = ({
           <p className="text-slate-400 text-sm mt-1">Click on any container to see its details, logs, and if there are issues, we'll explain what's wrong in simple terms.</p>
         </div>
       </div>
+
+      {/* Create Container Modal */}
+      <CreateContainerModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
     </div>
   );
 };

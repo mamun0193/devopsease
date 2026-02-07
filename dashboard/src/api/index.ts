@@ -30,6 +30,15 @@ api.interceptors.response.use(
   },
   (error) => {
     console.error('❌ Response Error:', error.response?.data || error.message);
+
+    // Detect 503 initializing state and emit event for UI handling
+    if (error.response?.status === 503 && error.response?.data?.initializing) {
+      console.warn('⏳ Server is initializing...', error.response.data.status);
+      window.dispatchEvent(new CustomEvent('server-initializing', {
+        detail: error.response.data.status
+      }));
+    }
+
     return Promise.reject(error);
   }
 );
@@ -177,10 +186,11 @@ export interface ActionRecord {
     id: string;
     name: string | null;
   };
-  action: 'start' | 'stop' | 'restart' | 'remove';
-  status: 'success' | 'failed';
+  action: 'start' | 'stop' | 'restart' | 'remove' | 'pause' | 'unpause' | 'create';
+  status: 'pending' | 'success' | 'failed';
   reason: string | null;
   source: 'user' | 'system';
+  completedAt?: string;
 }
 
 export interface ActionsResponse {
