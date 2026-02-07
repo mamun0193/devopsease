@@ -37,6 +37,8 @@ interface ContainerControlsProps {
   onRemoved?: () => void; // Callback when container is removed
   compact?: boolean; // Show only applicable buttons (hide inactive ones)
   unified?: boolean; // Show single Start/Stop button based on state
+  primaryOnly?: boolean; // Show only primary controls (Start/Stop, Restart, Remove)
+  secondaryOnly?: boolean; // Show only secondary controls (Pause/Unpause)
 }
 
 const ContainerControls: React.FC<ContainerControlsProps> = ({
@@ -46,6 +48,8 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
   onRemoved,
   compact = false,
   unified = false,
+  primaryOnly = false,
+  secondaryOnly = false,
 }) => {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
@@ -204,7 +208,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
     setConfirmModal({ open: false, action: null });
   };
 
-  // Button configuration
+  // Button configuration - categorize as primary or secondary
   const allButtons = [
     {
       id: 'start' as ContainerAction,
@@ -215,6 +219,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
       disabled: isRunning || isPaused || actionState.loading,
       hidden: unified ? isRunning : (compact && isRunning),
       color: 'green',
+      isPrimary: true,
     },
     {
       id: 'stop' as ContainerAction,
@@ -225,6 +230,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
       disabled: !isRunning || actionState.loading,
       hidden: unified ? !isRunning : (compact && !isRunning),
       color: 'red',
+      isPrimary: true,
     },
     {
       id: 'restart' as ContainerAction,
@@ -235,6 +241,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
       disabled: !isRunning || isDead || isPaused || actionState.loading,
       hidden: false, // Always show
       color: 'blue',
+      isPrimary: true,
     },
     {
       id: isPaused ? ('unpause' as ContainerAction) : ('pause' as ContainerAction),
@@ -245,6 +252,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
       disabled: (!isRunning && !isPaused) || actionState.loading,
       hidden: unified ? (!isRunning && !isPaused) : (compact && !isRunning && !isPaused),
       color: isPaused ? 'emerald' : 'purple',
+      isPrimary: false,
     },
     {
       id: 'remove' as ContainerAction,
@@ -256,11 +264,18 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
       hidden: false, // Always show
       color: 'red',
       danger: true,
+      isPrimary: true,
     },
   ];
 
-  // Filter buttons based on compact/unified mode
-  const buttons = allButtons.filter(btn => !btn.hidden);
+  // Filter buttons based on compact/unified mode and primary/secondary selection
+  let buttons = allButtons.filter(btn => !btn.hidden);
+
+  if (primaryOnly) {
+    buttons = buttons.filter(btn => btn.isPrimary);
+  } else if (secondaryOnly) {
+    buttons = buttons.filter(btn => !btn.isPrimary);
+  }
 
   const getButtonClasses = (color: string, disabled: boolean, danger?: boolean) => {
     if (disabled) {

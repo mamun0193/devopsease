@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { 
-  AlertTriangle, 
+import {
+  AlertTriangle,
   CheckCircle,
   HelpCircle,
   Zap,
@@ -12,8 +12,7 @@ import {
   Activity,
   Cpu,
   Network,
-  Settings,
-  RefreshCw
+  Settings
 } from 'lucide-react';
 import { useContainerAnalysis } from '../hooks/useContainers';
 import RefreshButton from './RefreshButton';
@@ -24,10 +23,10 @@ interface FailureAnalysisProps {
   containerState: string;
 }
 
-const FailureAnalysis: React.FC<FailureAnalysisProps> = ({ 
-  containerId, 
+const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
+  containerId,
   containerName,
-  containerState 
+  containerState
 }) => {
   const { data: analysis, isLoading, error, refetch } = useContainerAnalysis(containerId);
 
@@ -141,7 +140,7 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
           <h2 className="text-lg font-semibold text-slate-100">Health Status</h2>
         </div>
         <div className="flex flex-col items-center justify-center py-12 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-          <motion.div 
+          <motion.div
             className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
@@ -189,7 +188,7 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
           <span className="text-sm text-slate-500 mt-1">{error.message}</span>
           <div className="mt-4">
             <RefreshButton
-              onRefresh={() => refetch()}
+              onRefresh={() => { refetch(); }}
               label="Retry Analysis"
               size="lg"
               variant="default"
@@ -233,7 +232,7 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
           <h2 className="text-lg font-semibold text-slate-100">Failure Analysis</h2>
         </div>
         <RefreshButton
-          onRefresh={refetch}
+          onRefresh={() => { refetch(); }}
           size="sm"
           variant="ghost"
           showLabel={false}
@@ -241,7 +240,7 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
       </div>
 
       {/* Main Alert Banner */}
-      <motion.div 
+      <motion.div
         className={`p-4 rounded-xl border-l-4 flex items-start gap-4 ${getCategoryClasses(failure.category)}`}
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -262,7 +261,7 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
           <span>Confidence Level</span>
         </div>
         <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-          <div 
+          <div
             className={`h-full transition-all duration-500 ${getConfidenceColor(failure.confidence)}`}
             style={{ width: getConfidenceWidth(failure.confidence) }}
           />
@@ -307,7 +306,7 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
               </h4>
               <ul className="space-y-2">
                 {explanation.likelyCauses.map((cause, index) => (
-                  <motion.li 
+                  <motion.li
                     key={index}
                     className="flex items-start gap-2 text-slate-300 text-sm"
                     initial={{ opacity: 0, x: -10 }}
@@ -331,7 +330,7 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
               </h4>
               <ul className="space-y-2">
                 {explanation.suggestedChecks.map((check, index) => (
-                  <motion.li 
+                  <motion.li
                     key={index}
                     className="flex items-start gap-3 text-slate-300 text-sm"
                     initial={{ opacity: 0, x: -10 }}
@@ -376,8 +375,8 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
         <div>
           <p className="font-medium text-slate-200">Need more help?</p>
           <p className="text-sm text-slate-400 mt-1">
-            This analysis is based on patterns we detected. For more details, check the Logs tab 
-            and look for red error messages. The explanations there will help you understand 
+            This analysis is based on patterns we detected. For more details, check the Logs tab
+            and look for red error messages. The explanations there will help you understand
             what each error means.
           </p>
         </div>

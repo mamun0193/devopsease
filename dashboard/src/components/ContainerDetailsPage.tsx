@@ -17,6 +17,7 @@ import ContainerInfo from './ContainerInfo';
 import ContainerHeader from './ContainerHeader';
 import ContainerControls from './ContainerControls';
 import Timeline from './Timeline';
+import ContainerTerminal from './ContainerTerminal';
 
 type TabType = 'analysis' | 'logs' | 'info' | 'history';
 
@@ -28,6 +29,7 @@ const ContainerDetailsPage: React.FC = () => {
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [showStickyControls, setShowStickyControls] = React.useState(false);
   const [logTimeFilter, setLogTimeFilter] = React.useState<{ since?: number; until?: number } | undefined>();
+  const [showTerminal, setShowTerminal] = React.useState(false);
   const headerRef = React.useRef<HTMLElement>(null);
 
   // Find the container
@@ -173,6 +175,7 @@ const ContainerDetailsPage: React.FC = () => {
           statsData={statsData}
           lastAction={actionsData?.items?.[0]}
           onRemoved={handleContainerRemoved}
+          onOpenShell={() => setShowTerminal(true)}
         />
       </header>
 
@@ -187,8 +190,8 @@ const ContainerDetailsPage: React.FC = () => {
                 <button
                   key={tab.id}
                   className={`flex items-center gap-2 px-4 py-3.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeTab === tab.id
-                      ? 'text-blue-400 border-blue-500 bg-blue-500/5'
-                      : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-800/30'
+                    ? 'text-blue-400 border-blue-500 bg-blue-500/5'
+                    : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-800/30'
                     }`}
                   onClick={() => setActiveTab(tab.id)}
                 >
@@ -248,6 +251,15 @@ const ContainerDetailsPage: React.FC = () => {
           )}
         </div>
       </main>
+
+      {/* Terminal Modal */}
+      {showTerminal && (
+        <ContainerTerminal
+          containerId={container.Id}
+          containerName={name}
+          onClose={() => setShowTerminal(false)}
+        />
+      )}
     </div>
   );
 };

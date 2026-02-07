@@ -52,8 +52,8 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all' })
         <div className="hidden md:flex items-center gap-2">
           <motion.button
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'all'
-                ? 'bg-slate-700 border-slate-600'
-                : 'bg-slate-800/50 border-slate-700 hover:bg-slate-700/50'
+              ? 'bg-slate-700 border-slate-600'
+              : 'bg-slate-800/50 border-slate-700 hover:bg-slate-700/50'
               }`}
             onClick={() => handleFilterClick('all')}
             initial={{ opacity: 0, y: -10 }}
@@ -70,8 +70,8 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all' })
 
           <motion.button
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'running'
-                ? 'bg-emerald-500/20 border-emerald-500/50'
-                : 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20'
+              ? 'bg-emerald-500/20 border-emerald-500/50'
+              : 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20'
               }`}
             onClick={() => handleFilterClick('running')}
             initial={{ opacity: 0, y: -10 }}
@@ -88,8 +88,8 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all' })
 
           <motion.button
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'stopped'
-                ? 'bg-red-500/20 border-red-500/50'
-                : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20'
+              ? 'bg-red-500/20 border-red-500/50'
+              : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20'
               }`}
             onClick={() => handleFilterClick('stopped')}
             initial={{ opacity: 0, y: -10 }}
@@ -107,8 +107,8 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all' })
           {stats.paused > 0 && (
             <motion.button
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'paused'
-                  ? 'bg-yellow-500/20 border-yellow-500/50'
-                  : 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20'
+                ? 'bg-yellow-500/20 border-yellow-500/50'
+                : 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20'
                 }`}
               onClick={() => handleFilterClick('paused')}
               initial={{ opacity: 0, y: -10 }}
@@ -135,7 +135,7 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all' })
           </div>
 
           <RefreshButton
-            onRefresh={() => refetch()}
+            onRefresh={() => { refetch(); }}
             isFetching={isFetching}
             size="md"
             variant="default"

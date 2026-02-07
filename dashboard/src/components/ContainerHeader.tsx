@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import {
   Box,
   Activity,
@@ -9,6 +10,7 @@ import {
   MemoryStick,
   RotateCw,
   History as HistoryIcon,
+  Terminal,
 } from 'lucide-react';
 import { formatRelativeTime, formatImageName, formatPorts, truncateId } from '../utils/formatters';
 import { formatNumber, formatPercent, formatMB } from '../utils/numberFormat';
@@ -22,6 +24,7 @@ interface ContainerHeaderProps {
   statsData?: ContainerStats;
   lastAction?: ActionRecord;
   onRemoved?: () => void;
+  onOpenShell?: () => void;
 }
 
 const ContainerHeader: React.FC<ContainerHeaderProps> = ({
@@ -31,6 +34,7 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({
   statsData,
   lastAction,
   onRemoved,
+  onOpenShell,
 }) => {
   const state = container.State.toLowerCase();
   const isRunning = state === 'running';
@@ -144,15 +148,43 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({
             )}
           </div>
 
-          {/* Right: Controls */}
-          <div className="flex justify-start lg:justify-end">
-            <ContainerControls
-              containerId={container.Id}
-              containerName={containerName}
-              containerState={container.State}
-              onRemoved={onRemoved}
-              unified={true}
-            />
+          {/* Right: Controls - Two Row Layout */}
+          <div className="flex flex-col gap-2 lg:items-start">
+            {/* Row 1: Primary Actions - Start/Stop, Restart, Remove */}
+            <div className="flex justify-start gap-2">
+              <ContainerControls
+                containerId={container.Id}
+                containerName={containerName}
+                containerState={container.State}
+                onRemoved={onRemoved}
+                unified={true}
+                primaryOnly={true}
+              />
+            </div>
+
+            {/* Row 2: Secondary Actions - Open Shell, Pause/Unpause (only when running) */}
+            {isRunning && (
+              <div className="flex justify-start gap-2">
+                {onOpenShell && (
+                  <motion.button
+                    onClick={onOpenShell}
+                    className="flex items-center gap-2 px-4 h-10 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 shadow-sm bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30"
+                    title="Open interactive shell"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Terminal size={16} />
+                    <span className="hidden sm:inline">Open Shell</span>
+                  </motion.button>
+                )}
+                <ContainerControls
+                  containerId={container.Id}
+                  containerName={containerName}
+                  containerState={container.State}
+                  secondaryOnly={true}
+                />
+              </div>
+            )}
           </div>
         </div>
 
