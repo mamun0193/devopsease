@@ -1,5 +1,6 @@
 import express from "express";
 import actionHistoryService from "../services/actionHistory.service.js";
+import AppError from "../utils/AppError.js";
 
 const router = express.Router();
 
@@ -10,11 +11,7 @@ router.get("/", async (req, res, next) => {
     const parsedLimit = limit ? parseInt(limit, 10) : 50;
 
     if (parsedLimit < 1 || parsedLimit > 200) {
-      return res.status(400).json({
-        success: false,
-        data: null,
-        message: "Limit must be between 1 and 200",
-      });
+      throw new AppError("Limit must be between 1 and 200", 400);
     }
 
     console.log('📊 Actions API called:', { containerId, limit: parsedLimit, cursor });
@@ -82,11 +79,7 @@ router.get("/:id", async (req, res, next) => {
     const action = await actionHistoryService.getActionById(id);
 
     if (!action) {
-      return res.status(404).json({
-        success: false,
-        data: null,
-        message: `Action ${id} not found`,
-      });
+      throw new AppError(`Action ${id} not found`, 404);
     }
 
     res.status(200).json({

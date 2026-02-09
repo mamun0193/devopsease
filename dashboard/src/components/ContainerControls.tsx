@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useRole } from '../context/RoleContext';
 import {
   startContainer,
   stopContainer,
@@ -58,6 +59,8 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
   const actionState = useAppSelector(
     state => state.containers.actionStates[containerId] || DEFAULT_ACTION_STATE
   );
+
+  const { role, isViewer } = useRole();
 
   // Local state for confirmation modals
   const [confirmModal, setConfirmModal] = useState<{
@@ -268,8 +271,20 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
     },
   ];
 
+  // Apply RBAC: Disable destructive actions for viewers
+  const rbacButtons = allButtons.map(btn => {
+    if (isViewer && ['start', 'stop', 'restart', 'pause', 'unpause', 'remove'].includes(btn.id)) {
+      return {
+        ...btn,
+        disabled: true,
+        label: compact ? btn.label : `${btn.label} (Operator only)`, // Optional: Append text if space allows
+      };
+    }
+    return btn;
+  });
+
   // Filter buttons based on compact/unified mode and primary/secondary selection
-  let buttons = allButtons.filter(btn => !btn.hidden);
+  let buttons = rbacButtons.filter(btn => !btn.hidden);
 
   if (primaryOnly) {
     buttons = buttons.filter(btn => btn.isPrimary);
@@ -311,7 +326,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
               key={button.id}
               onClick={button.onClick}
               disabled={button.disabled}
-              title={compact ? button.label : undefined}
+              title={isViewer && button.disabled ? "Operator permission required" : (compact ? button.label : undefined)}
               className={`
                 flex items-center ${compact ? 'justify-center w-10' : 'gap-2 px-4'} h-10 rounded-lg text-sm font-medium whitespace-nowrap
                 transition-all duration-200 shadow-sm

@@ -62,7 +62,38 @@ npm run dev
 
 ---
 
-## 🏗️ Architecture
+
+### 🏗️ Architecture & RBAC Flow
+
+The system implements a secure, role-based architecture with centralized error handling and defensive state management.
+
+```mermaid
+graph TD
+    Client[Frontend Client] -->|Request + x-user-role| API[Backend API]
+    
+    subgraph "Backend Core"
+        API --> RBAC{RBAC Middleware}
+        RBAC -- "Viewer (Write Op)" --> 403[403 Forbidden]
+        RBAC -- Allowed --> Controller[Controller Logic]
+        
+        Controller -->|Defensive Check| StateCheck{Valid State?}
+        StateCheck -- No --> AppError[App Error]
+        
+        StateCheck -- Yes --> Docker[Docker API]
+        
+        Docker -->|Success| Response[Success Response]
+        Docker -->|Fail| AppError
+        
+        AppError --> ErrorHandler[Global Error Handler]
+        ErrorHandler -->|Unified JSON| Client
+    end
+    
+    subgraph "Real-time Layer"
+        WS[WS Client] -->|Upgrade + Role| WSHandler
+        WSHandler -- Viewer --> Reject[Block & Close]
+        WSHandler -- Operator --> Shell[Exec Session]
+    end
+```
 
 ### Redis-Backed Caching Layer
 
@@ -93,15 +124,15 @@ The backend uses a tiered caching strategy to minimize Docker API calls while ma
                     └─────────────────────┘
 ```
 
-### Data Classification
+### Data & Caching Strategy
 
-| Data Type | Backend TTL | Frontend Interval | Description |
-|-----------|-------------|-------------------|-------------|
-| CPU, Memory, Network | **No cache** | 2s | Real-time metrics |
-| Container list | 15s | 15s | All containers |
-| Status, health, restarts | 15s | 15s | Container state |
-| Image, ports, labels | 45s | 30s | Static configuration |
-| Action history | Persistent | 10s | Redis list storage |
+| Data Type                | Backend TTL  | Frontend Interval | Description          |
+| ------------------------ | ------------ | ----------------- | -------------------- |
+| CPU, Memory, Network     | **No cache** | 2s                | Real-time metrics    |
+| Container list           | 15s          | 15s               | All containers       |
+| Status, health, restarts | 15s          | 15s               | Container state      |
+| Image, ports, labels     | 45s          | 30s               | Static configuration |
+| Action history           | Persistent   | 10s               | Redis list storage   |
 
 ---
 
@@ -141,9 +172,22 @@ devopsease/
 
 ## 🔧 Key Features
 
+### 🔐 Authentication Note (Day 30)
+
+> **Note:** For demonstration purposes, this version uses a **mock authentication system**.
+>
+> - **Roles are simulated** via the `x-user-role` header (default: `operator`).
+> - **Viewer Role:** Read-only access to containers and logs. destructive actions are blocked.
+> - **Operator Role:** Full control (start, stop, remove, exec).
+>
+> In a production environment, this would be replaced by a real identity provider (e.g., OAuth2, OIDC).
+
 ### Backend
 
 - **Redis Caching**: Tiered cache strategy with automatic invalidation
+- **Role-Based Access Control**: Strict `viewer` vs `operator` permission enforcement
+- **Defensive Coding**: Pre-action state validation to prevent invalid Docker operations
+- **Unified Error Handling**: Standardized error responses and user-friendly messages
 - **Request Deduplication**: Prevents duplicate Docker API calls
 - **Real-time Monitoring**: Live container stats (CPU, memory, network)
 - **Intelligent Analysis**: AI-powered failure classification
@@ -164,12 +208,12 @@ devopsease/
 
 ### Server
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `4000` | Server port |
-| `NODE_ENV` | `development` | Environment mode |
-| `REDIS_HOST` | `localhost` | Redis server hostname |
-| `REDIS_PORT` | `6379` | Redis server port |
+| Variable     | Default       | Description           |
+| ------------ | ------------- | --------------------- |
+| `PORT`       | `4000`        | Server port           |
+| `NODE_ENV`   | `development` | Environment mode      |
+| `REDIS_HOST` | `localhost`   | Redis server hostname |
+| `REDIS_PORT` | `6379`        | Redis server port     |
 
 Create a `.env` file in the `server/` directory:
 
@@ -202,10 +246,10 @@ docker compose down
 
 ### Services
 
-| Service | Port | Description |
-|---------|------|-------------|
-| `redis` | 6379 | Redis cache with persistence |
-| `backend` | 4000 | Express.js API server |
+| Service   | Port | Description                  |
+| --------- | ---- | ---------------------------- |
+| `redis`   | 6379 | Redis cache with persistence |
+| `backend` | 4000 | Express.js API server        |
 
 ---
 
@@ -264,6 +308,10 @@ Key log messages to watch:
 - [Day 25: Container Stats & Resource Usage](./docs/DAY_25.md)
 - [Day 26: Operation History & Timeline](./docs/DAY_26.md)
 - [Day 27: Redis-Backed Caching & Performance Optimization](./docs/DAY_27.md)
+- [Day 28: Container Actions & Error Resilience(pause/unpause and create container)](./docs/DAY_28.md)
+- [Day 29: Real-Time Container Terminal)](./docs/DAY_29.md)
+- [Day 30: Role-Based Access Control](./docs/DAY_30.md)
+
 ---
 
 ## 📖 Additional Resources

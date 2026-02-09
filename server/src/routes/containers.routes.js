@@ -9,9 +9,10 @@ import {
   removeContainer,
   pauseContainer,
   unpauseContainer,
-  createContainer,
 } from "../docker/containerActions.js";
 import containerStatsService from "../services/containerStats.service.js";
+import { requireRole, ROLES } from "../middlewares/rbac.js";
+import AppError from "../utils/AppError.js";
 
 const router = express.Router();
 
@@ -32,19 +33,19 @@ router.get("/", async (req, res, next) => {
  * POST /containers
  * Create a new container from an image
  */
-router.post("/", async (req, res, next) => {
+router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
   try {
     const { image, name, ports, env, autoStart } = req.body;
 
     if (!image) {
-      return res.status(400).json({
-        success: false,
-        data: null,
-        message: "Image name is required",
-      });
+      throw new AppError("Image name is required", 400);
     }
 
     const result = await createContainer({ image, name, ports, env, autoStart });
+    if (!result.success) {
+      throw new AppError(result.message, result.statusCode);
+    }
+
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,
@@ -83,10 +84,7 @@ router.get("/:id/inspect", async (req, res, next) => {
   try {
     const { id } = req.params;
     if (!id) {
-      return res.status(400).json({
-        success: false,
-        error: 'Container ID is required'
-      });
+      throw new AppError("Container ID is required", 400);
     }
     const data = await containerCacheService.getContainerInspect(id);
     res.status(200).json({
@@ -105,9 +103,12 @@ router.get("/:id/inspect", async (req, res, next) => {
  * POST /containers/:id/start
  * Start a stopped container
  */
-router.post("/:id/start", async (req, res, next) => {
+router.post("/:id/start", requireRole(ROLES.OPERATOR), async (req, res, next) => {
   try {
     const result = await startContainer(req.params.id);
+    if (!result.success) {
+      throw new AppError(result.message, result.statusCode);
+    }
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,
@@ -122,9 +123,12 @@ router.post("/:id/start", async (req, res, next) => {
  * POST /containers/:id/stop
  * Stop a running container
  */
-router.post("/:id/stop", async (req, res, next) => {
+router.post("/:id/stop", requireRole(ROLES.OPERATOR), async (req, res, next) => {
   try {
     const result = await stopContainer(req.params.id);
+    if (!result.success) {
+      throw new AppError(result.message, result.statusCode);
+    }
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,
@@ -139,9 +143,12 @@ router.post("/:id/stop", async (req, res, next) => {
  * POST /containers/:id/restart
  * Restart a container (stop + start)
  */
-router.post("/:id/restart", async (req, res, next) => {
+router.post("/:id/restart", requireRole(ROLES.OPERATOR), async (req, res, next) => {
   try {
     const result = await restartContainer(req.params.id);
+    if (!result.success) {
+      throw new AppError(result.message, result.statusCode);
+    }
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,
@@ -156,9 +163,12 @@ router.post("/:id/restart", async (req, res, next) => {
  * POST /containers/:id/pause
  * Pause a running container
  */
-router.post("/:id/pause", async (req, res, next) => {
+router.post("/:id/pause", requireRole(ROLES.OPERATOR), async (req, res, next) => {
   try {
     const result = await pauseContainer(req.params.id);
+    if (!result.success) {
+      throw new AppError(result.message, result.statusCode);
+    }
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,
@@ -173,9 +183,12 @@ router.post("/:id/pause", async (req, res, next) => {
  * POST /containers/:id/unpause
  * Unpause a paused container
  */
-router.post("/:id/unpause", async (req, res, next) => {
+router.post("/:id/unpause", requireRole(ROLES.OPERATOR), async (req, res, next) => {
   try {
     const result = await unpauseContainer(req.params.id);
+    if (!result.success) {
+      throw new AppError(result.message, result.statusCode);
+    }
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,
@@ -191,10 +204,13 @@ router.post("/:id/unpause", async (req, res, next) => {
  * Remove a container
  * Query param: force=true to remove running containers
  */
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", requireRole(ROLES.OPERATOR), async (req, res, next) => {
   try {
     const force = req.query.force === "true";
     const result = await removeContainer(req.params.id, force);
+    if (!result.success) {
+      throw new AppError(result.message, result.statusCode);
+    }
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,

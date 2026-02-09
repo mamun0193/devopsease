@@ -5,6 +5,7 @@ import { store } from './store';
 import HomePage from './pages/HomePage';
 import ContainerDetailsPage from './components/ContainerDetailsPage';
 import ActionFeedback from './components/ActionFeedback';
+import { RoleProvider } from './context/RoleContext';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -19,16 +20,18 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/container/:containerId" element={<ContainerDetailsPage />} />
-          </Routes>
-          {/* Global toast notifications for container actions */}
-          <ActionFeedback />
-        </BrowserRouter>
-      </QueryClientProvider>
+      <RoleProvider>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/container/:containerId" element={<ContainerDetailsPage />} />
+            </Routes>
+            {/* Global toast notifications for container actions */}
+            <ActionFeedback />
+          </BrowserRouter>
+        </QueryClientProvider>
+      </RoleProvider>
     </Provider>
   );
 }

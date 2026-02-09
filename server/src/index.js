@@ -5,6 +5,7 @@ import healthRoutes from "./routes/health.routes.js";
 import analysisRoutes from "./routes/analysis.routes.js";
 import actionsRoutes from "./routes/actions.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
+import { requireRole } from "./middlewares/rbac.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
 import requestLogger from "./middlewares/requestLogger.js";
@@ -65,6 +66,9 @@ async function startServer() {
   httpServer.listen(PORT, () => {
     logger.info(`DevOpsEase server running on http://localhost:${PORT}`);
     logger.info("Server readiness", readinessService.getStatus());
+
+    // Initialize WebSocket Server (Day 29)
+    initializeWebSocketServer(server);
   });
 
   const shutdown = async (signal) => {
