@@ -7,7 +7,8 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "seed": "node src/scripts/seedUser.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
@@ -15,6 +16,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "ioredis": "^5.9.2",
+    "mongoose": "^9.1.6",
     "ws": "^8.19.0"
   }
 }

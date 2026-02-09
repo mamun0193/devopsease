@@ -1,5 +1,6 @@
 import express from "express";
 import readinessService from "../services/readiness.service.js";
+import { isDBConnected } from "../config/db.js";
 
 const router = express.Router();
 
@@ -8,6 +9,7 @@ router.get("/", (req, res) => {
     success: true,
     data: {
       status: "running",
+      database: isDBConnected() ? "connected" : "disconnected",
       timestamp: new Date().toISOString(),
     },
     message: "Health check passed",

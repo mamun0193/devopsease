@@ -16,6 +16,7 @@ import readinessService from "./services/readiness.service.js";
 import actionHistoryService from "./services/actionHistory.service.js";
 import docker from "./docker/client.js";
 import { initializeWebSocketServer, closeWebSocketServer } from "./websocket/ws.js";
+import { connectDB, disconnectDB } from "./config/db.js";
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use("/actions", actionsRoutes);
 app.use(errorHandler);
 
 async function startServer() {
+  await connectDB();
   const redisConnected = await connectRedis();
   if (redisConnected) {
     logger.info("Redis caching enabled");
@@ -59,16 +61,15 @@ async function startServer() {
   await actionHistoryService.syncFromRedis();
   readinessService.setHistoryReady(true);
 
-  const httpServer = http.createServer(app);
+  // Correctly create HTTP server to support WebSockets
+  const server = http.createServer(app);
 
-  initializeWebSocketServer(httpServer);
+  // Initialize WebSocket server with the existing HTTP server instance
+  initializeWebSocketServer(server);
 
-  httpServer.listen(PORT, () => {
+  server.listen(PORT, () => {
     logger.info(`DevOpsEase server running on http://localhost:${PORT}`);
     logger.info("Server readiness", readinessService.getStatus());
-
-    // Initialize WebSocket Server (Day 29)
-    initializeWebSocketServer(server);
   });
 
   const shutdown = async (signal) => {
@@ -76,7 +77,8 @@ async function startServer() {
 
     closeWebSocketServer();
 
-    httpServer.close(async () => {
+    server.close(async () => {
+      await disconnectDB();
       await disconnectRedis();
       logger.info("Server shut down complete");
       process.exit(0);
