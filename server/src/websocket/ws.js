@@ -1,18 +1,65 @@
 import { WebSocketServer } from "ws";
 import { parse } from "url";
+import jwt from "jsonwebtoken"; // Added for auth
 import logger from "../utils/logger.js";
 import { handleExecSession } from "./execHandler.js";
 import sessionManager from "./sessionManager.js";
+import { enforceRateLimit } from "../middlewares/rateLimit.middleware.js"; // Added for rate limiting
 
 let wss = null;
 
 export function initializeWebSocketServer(server) {
     wss = new WebSocketServer({ noServer: true });
 
-    server.on("upgrade", (request, socket, head) => {
+    server.on("upgrade", async (request, socket, head) => {
         const { pathname } = parse(request.url);
 
         if (pathname.startsWith("/ws/exec/")) {
+            // 1. Authentication (Cookie-based)
+            const cookieHeader = request.headers.cookie;
+            // Simple parsing for 'auth' cookie
+            const token = cookieHeader && cookieHeader.split(';').find(c => c.trim().startsWith('auth='))?.split('=')[1];
+
+            if (!token) {
+                logger.warn("WebSocket connection rejected: No auth token");
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            let user;
+            try {
+                user = jwt.verify(token, process.env.JWT_SECRET);
+            } catch (err) {
+                logger.warn("WebSocket connection rejected: Invalid token");
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            // 2. Rate Limiting (Exec Action)
+            try {
+                const userId = user._id || user.userId;
+                const userPlan = user.plan || 'free'; // Default to free if missing in token
+
+                // This throws if limit exceeded (429) or Redis down (503)
+                await enforceRateLimit(userId, userPlan, 'exec');
+
+            } catch (error) {
+                logger.warn(`WebSocket exec rejected for user ${user._id || user.userId}: ${error.message}`);
+
+                if (error.statusCode === 503) {
+                    socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n');
+                } else if (error.statusCode === 429) {
+                    socket.write('HTTP/1.1 429 Too Many Requests\r\n\r\n');
+                } else {
+                    socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+                }
+                socket.destroy();
+                return;
+            }
+
+            // 3. Upgrade Connection
             wss.handleUpgrade(request, socket, head, (ws) => {
                 wss.emit("connection", ws, request);
             });

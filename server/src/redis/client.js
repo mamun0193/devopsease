@@ -181,6 +181,31 @@ export async function safeLrange(key, start, stop) {
     }
 }
 
+// Rate Limiting Operations - THROW if Redis unavailable (Fail-Closed)
+export async function rateLimitIncr(key) {
+    if (!isRedisConnected()) {
+        const connected = await connectRedis(); // Try one last reconnect
+        if (!connected) throw new Error("Redis unavailable for rate limiting");
+    }
+    try {
+        return await redis.incr(key);
+    } catch (error) {
+        throw new Error(`Redis INCR failed: ${error.message}`);
+    }
+}
+
+export async function rateLimitExpire(key, ttlSeconds) {
+    if (!isRedisConnected()) {
+        // Optimistic check, but likely already checked by INCR/caller
+        if (!await connectRedis()) throw new Error("Redis unavailable");
+    }
+    try {
+        return await redis.expire(key, ttlSeconds);
+    } catch (error) {
+        throw new Error(`Redis EXPIRE failed: ${error.message}`);
+    }
+}
+
 // Gracefully disconnect from Redis
 export async function disconnectRedis() {
     if (redis) {

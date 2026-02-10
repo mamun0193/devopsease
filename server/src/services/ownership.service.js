@@ -3,6 +3,15 @@ import AppError from '../utils/AppError.js';
 import logger from '../utils/logger.js';
 
 class OwnershipService {
+    // Count active containers owned by a user
+    async countOwnedContainers(ownerId) {
+        if (!ownerId) return 0;
+        return await ContainerOwnership.countDocuments({
+            ownerId,
+            status: 'active'
+        });
+    }
+
     // Atomically register a container to a user.
     // Prevents race conditions via unique index on containerId.
     async registerContainer(ownerId, containerId) {
