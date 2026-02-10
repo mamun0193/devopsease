@@ -28,25 +28,30 @@ class OwnershipService {
         }
     }
 
-    // explicit check for active ownership.
-    // Throws 403 if ownership is invalid.
-    async verifyOwnership(ownerId, containerId) {
-        if (!ownerId || !containerId) {
-            throw new AppError("OwnerId and ContainerId are required", 400);
-        }
+    // Check if a user owns a container (returns boolean)
+    async hasOwnership(ownerId, containerId) {
+        if (!ownerId || !containerId) return false;
 
-        const ownership = await ContainerOwnership.findOne({
+        const count = await ContainerOwnership.countDocuments({
             containerId,
             ownerId,
             status: 'active'
         });
 
-        if (!ownership) {
+        return count > 0;
+    }
+
+    // explicit check for active ownership.
+    // Throws 403 if ownership is invalid.
+    async verifyOwnership(ownerId, containerId) {
+        const hasAccess = await this.hasOwnership(ownerId, containerId);
+
+        if (!hasAccess) {
             logger.warn(`Security Alert: User ${ownerId} attempted to access unowned/other's container ${containerId}`);
             throw new AppError("Access Denied: You do not own this container", 403);
         }
 
-        return ownership;
+        return true; // Return true for consistency if needed, but void/throw is standard for verify
     }
 
     // List all ACTIVE containers owned by a user.

@@ -17,6 +17,7 @@ import AppError from "../utils/AppError.js";
 import { validateDatabase } from "../middlewares/validateDatabase.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
 import ownershipService from "../services/ownership.service.js";
+import { ownershipGuard } from "../middlewares/ownershipGuard.js";
 import logger from "../utils/logger.js";
 
 const router = express.Router();
@@ -25,27 +26,43 @@ const router = express.Router();
 router.use(validateDatabase);
 router.use(authMiddleware);
 
+// GET /containers
+// List owned containers with sanitized details
 router.get("/", async (req, res, next) => {
   try {
     // 1. Get list of IDs owned by this user
+    // This avoids global Docker queries
     const ownedContainerIds = await ownershipService.listOwnedContainers(req.user._id);
 
-    // 2. Get all containers from Docker/Cache
-    const containers = await containerCacheService.getContainers();
-
-    // 3. Filter to show ONLY owned containers
-
-    // 3. Filter to show ONLY owned containers
-    // Docker returns full 64-char IDs. Ownership DB stores 12-char short IDs.
-    // We normalize both to short IDs for comparison.
-    const ownedContainers = containers.filter(c => {
-      const shortId = c.Id.substring(0, 12);
-      return ownedContainerIds.includes(shortId);
+    // 2. Get details for each owned container from Cache/Docker
+    // We use Promise.all to fetch them in parallel
+    const containerPromises = ownedContainerIds.map(async (id) => {
+      try {
+        const data = await containerCacheService.getContainerInspect(id);
+        return { ...data, id }; // Attach ID as it's not in the config/state merge
+      } catch (err) {
+        // If a container exists in DB but not in Docker (orphan), we might get an error
+        logger.warn(`Failed to inspect owned container ${id}`, { error: err.message });
+        return null;
+      }
     });
+
+    const containers = (await Promise.all(containerPromises)).filter(c => c !== null);
+
+    // 3. Sanitize output (Whitelist approach)
+    // Do not return raw Docker inspect object
+    const sanitizedContainers = containers.map(c => ({
+      id: c.id,
+      name: c.name,
+      image: c.image,
+      state: c.state, // { status, running, exitCode, ... }
+      ports: c.ports,
+      created: c.state.startedAt // Approximation if created not available
+    }));
 
     res.status(200).json({
       success: true,
-      data: ownedContainers,
+      data: sanitizedContainers,
       message: "Containers retrieved successfully",
     });
   } catch (err) {
@@ -55,6 +72,8 @@ router.get("/", async (req, res, next) => {
 
 // POST /containers
 // Create a new container from an image
+// Kept ROLES.OPERATOR check as per existing logic, assuming only operators create?
+// If users can create, this should be adjusted.
 router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
   let createdContainerId = null;
   try {
@@ -73,9 +92,7 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
       throw new AppError(result.message, result.statusCode);
     }
 
-    createdContainerId = result.data.id; // Usually short ID if from dockerActions?
-    // Wait, dockerActions.js line 880 returns `id: containerId` which is `Id.substring(0, 12)`
-    // So we are storing SHORT IDs. This is consistent.
+    createdContainerId = result.data.id;
 
     // 2. Register Ownership (Atomic-like via compensating transaction)
     await ownershipService.registerContainer(req.user._id, createdContainerId);
@@ -90,7 +107,6 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
     if (createdContainerId) {
       logger.warn(`Compensating Transaction: Removing orphaned container ${createdContainerId} due to DB failure`);
       try {
-        // Force remove to ensure we clean up, even if it started running
         await removeContainer(createdContainerId, true);
       } catch (cleanupErr) {
         logger.error(`CRITICAL: Failed to cleanup orphaned container ${createdContainerId}`, { error: cleanupErr.message });
@@ -100,10 +116,9 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
   }
 });
 
-router.get("/:id/logs", async (req, res, next) => {
+// GET /containers/:id/logs
+router.get("/:id/logs", ownershipGuard("logs"), async (req, res, next) => {
   try {
-    await ownershipService.verifyOwnership(req.user._id, req.params.id);
-
     const { tail, since, until } = req.query;
     const options = {
       tail: tail ? parseInt(tail, 10) : 500,
@@ -126,15 +141,11 @@ router.get("/:id/logs", async (req, res, next) => {
   }
 });
 
-router.get("/:id/inspect", async (req, res, next) => {
+// GET /containers/:id/inspect
+router.get("/:id/inspect", ownershipGuard("inspect"), async (req, res, next) => {
   try {
-    const { id } = req.params;
-    if (!id) {
-      throw new AppError("Container ID is required", 400);
-    }
-    await ownershipService.verifyOwnership(req.user._id, id);
-
-    const data = await containerCacheService.getContainerInspect(id);
+    // ownership verification handled by middleware
+    const data = await containerCacheService.getContainerInspect(req.params.id);
     res.status(200).json({
       success: true,
       data,
@@ -145,14 +156,9 @@ router.get("/:id/inspect", async (req, res, next) => {
   }
 });
 
-// Container control endpoints
-
 // POST /containers/:id/start
-// Start a stopped container
-router.post("/:id/start", requireRole(ROLES.OPERATOR), async (req, res, next) => {
+router.post("/:id/start", ownershipGuard("start"), async (req, res, next) => {
   try {
-    await ownershipService.verifyOwnership(req.user._id, req.params.id);
-
     const result = await startContainer(req.params.id);
     if (!result.success) {
       throw new AppError(result.message, result.statusCode);
@@ -168,11 +174,8 @@ router.post("/:id/start", requireRole(ROLES.OPERATOR), async (req, res, next) =>
 });
 
 // POST /containers/:id/stop
-// Stop a running container
-router.post("/:id/stop", requireRole(ROLES.OPERATOR), async (req, res, next) => {
+router.post("/:id/stop", ownershipGuard("stop"), async (req, res, next) => {
   try {
-    await ownershipService.verifyOwnership(req.user._id, req.params.id);
-
     const result = await stopContainer(req.params.id);
     if (!result.success) {
       throw new AppError(result.message, result.statusCode);
@@ -188,11 +191,8 @@ router.post("/:id/stop", requireRole(ROLES.OPERATOR), async (req, res, next) => 
 });
 
 // POST /containers/:id/restart
-// Restart a container (stop + start)
-router.post("/:id/restart", requireRole(ROLES.OPERATOR), async (req, res, next) => {
+router.post("/:id/restart", ownershipGuard("restart"), async (req, res, next) => {
   try {
-    await ownershipService.verifyOwnership(req.user._id, req.params.id);
-
     const result = await restartContainer(req.params.id);
     if (!result.success) {
       throw new AppError(result.message, result.statusCode);
@@ -208,11 +208,8 @@ router.post("/:id/restart", requireRole(ROLES.OPERATOR), async (req, res, next) 
 });
 
 // POST /containers/:id/pause
-// Pause a running container
-router.post("/:id/pause", requireRole(ROLES.OPERATOR), async (req, res, next) => {
+router.post("/:id/pause", ownershipGuard("pause"), async (req, res, next) => {
   try {
-    await ownershipService.verifyOwnership(req.user._id, req.params.id);
-
     const result = await pauseContainer(req.params.id);
     if (!result.success) {
       throw new AppError(result.message, result.statusCode);
@@ -228,11 +225,8 @@ router.post("/:id/pause", requireRole(ROLES.OPERATOR), async (req, res, next) =>
 });
 
 // POST /containers/:id/unpause
-// Unpause a paused container
-router.post("/:id/unpause", requireRole(ROLES.OPERATOR), async (req, res, next) => {
+router.post("/:id/unpause", ownershipGuard("unpause"), async (req, res, next) => {
   try {
-    await ownershipService.verifyOwnership(req.user._id, req.params.id);
-
     const result = await unpauseContainer(req.params.id);
     if (!result.success) {
       throw new AppError(result.message, result.statusCode);
@@ -248,12 +242,8 @@ router.post("/:id/unpause", requireRole(ROLES.OPERATOR), async (req, res, next) 
 });
 
 // DELETE /containers/:id
-// Remove a container
-// Query param: force=true to remove running containers
-router.delete("/:id", requireRole(ROLES.OPERATOR), async (req, res, next) => {
+router.delete("/:id", ownershipGuard("remove"), async (req, res, next) => {
   try {
-    await ownershipService.verifyOwnership(req.user._id, req.params.id);
-
     const force = req.query.force === "true";
     const result = await removeContainer(req.params.id, force);
 
@@ -261,7 +251,7 @@ router.delete("/:id", requireRole(ROLES.OPERATOR), async (req, res, next) => {
       throw new AppError(result.message, result.statusCode);
     }
 
-    // Only release ownership if removal from Docker succeeded
+    // Release ownership after successful removal
     await ownershipService.releaseOwnership(req.user._id, req.params.id);
 
     res.status(result.statusCode).json({
@@ -274,12 +264,10 @@ router.delete("/:id", requireRole(ROLES.OPERATOR), async (req, res, next) => {
   }
 });
 
-router.get("/:id/stats", async (req, res, next) => {
+// GET /containers/:id/stats
+router.get("/:id/stats", ownershipGuard("stats"), async (req, res, next) => {
   try {
-    const { id } = req.params;
-    await ownershipService.verifyOwnership(req.user._id, id);
-
-    const result = await containerStatsService.getContainerStats(id);
+    const result = await containerStatsService.getContainerStats(req.params.id);
 
     if (!result.success) {
       return res.status(result.statusCode || 500).json({
