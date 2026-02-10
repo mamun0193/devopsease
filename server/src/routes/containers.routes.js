@@ -15,7 +15,7 @@ import containerStatsService from "../services/containerStats.service.js";
 import { requireRole, ROLES } from "../middlewares/rbac.js";
 import AppError from "../utils/AppError.js";
 import { validateDatabase } from "../middlewares/validateDatabase.js";
-import { authMiddleware } from "../middlewares/auth.middleware.js";
+import authMiddleware from "../middlewares/auth.middleware.js";
 import ownershipService from "../services/ownership.service.js";
 import logger from "../utils/logger.js";
 

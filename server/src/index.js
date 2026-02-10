@@ -1,27 +1,32 @@
+import "dotenv/config";
 import express from "express";
 import http from "http";
 import containersRoutes from "./routes/containers.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import analysisRoutes from "./routes/analysis.routes.js";
 import actionsRoutes from "./routes/actions.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import { requireRole } from "./middlewares/rbac.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
 import requestLogger from "./middlewares/requestLogger.js";
-import dotenv from "dotenv";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import { connectRedis, disconnectRedis } from "./redis/client.js";
 import readinessService from "./services/readiness.service.js";
 import actionHistoryService from "./services/actionHistory.service.js";
 import docker from "./docker/client.js";
 import { initializeWebSocketServer, closeWebSocketServer } from "./websocket/ws.js";
 import { connectDB, disconnectDB } from "./config/db.js";
+import "./config/passport.js";
+import passport from "passport";
 
-dotenv.config();
 
 const PORT = process.env.PORT || 4000;
 const app = express();
+
+app.use(passport.initialize());
 
 app.use(
   cors({
@@ -30,9 +35,10 @@ app.use(
 );
 app.use(express.json());
 app.use(requestLogger);
-
+app.use(cookieParser());
 app.use(readinessMiddleware);
 
+app.use("/auth", authRoutes);
 app.use(analysisRoutes);
 app.use("/health", healthRoutes);
 app.use("/containers", containersRoutes);
