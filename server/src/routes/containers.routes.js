@@ -13,6 +13,8 @@ import {
 } from "../docker/containerActions.js";
 import containerStatsService from "../services/containerStats.service.js";
 import { requireRole, ROLES } from "../middlewares/rbac.js";
+import { requirePermission } from "../middlewares/rbac.middleware.js";
+import { ACTIONS, canPerform } from "../config/permissions.js";
 import AppError from "../utils/AppError.js";
 import { validateDatabase } from "../middlewares/validateDatabase.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
@@ -28,7 +30,7 @@ router.use(authMiddleware);
 
 // GET /containers
 // List owned containers with sanitized details
-router.get("/", async (req, res, next) => {
+router.get("/", requirePermission(ACTIONS.READ), async (req, res, next) => {
   try {
     // 1. Get list of IDs owned by this user
     // This avoids global Docker queries
@@ -60,9 +62,20 @@ router.get("/", async (req, res, next) => {
       created: c.state.startedAt // Approximation if created not available
     }));
 
+    // Calculate Permissions for UI (Soft Enforcement)
+    // Non-admins see only owned resources. Admins see all but have universal access.
+    // In both cases, "ownsResource: true" correctly reflects "Can I act on the items in THIS list?".
+    const permContext = { role: req.user.role, ownsResource: true };
+    const permissions = {
+      canRead: canPerform({ ...permContext, actionType: ACTIONS.READ }),
+      canOperate: canPerform({ ...permContext, actionType: ACTIONS.OPERATE }),
+      canDestroy: canPerform({ ...permContext, actionType: ACTIONS.DESTRUCTIVE }),
+    };
+
     res.status(200).json({
       success: true,
       data: sanitizedContainers,
+      permissions, // <--- Added
       message: "Containers retrieved successfully",
     });
   } catch (err) {
@@ -117,7 +130,7 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
 });
 
 // GET /containers/:id/logs
-router.get("/:id/logs", ownershipGuard("logs"), async (req, res, next) => {
+router.get("/:id/logs", ownershipGuard("logs"), requirePermission(ACTIONS.READ), async (req, res, next) => {
   try {
     const { tail, since, until } = req.query;
     const options = {
@@ -142,13 +155,22 @@ router.get("/:id/logs", ownershipGuard("logs"), async (req, res, next) => {
 });
 
 // GET /containers/:id/inspect
-router.get("/:id/inspect", ownershipGuard("inspect"), async (req, res, next) => {
+router.get("/:id/inspect", ownershipGuard("inspect"), requirePermission(ACTIONS.READ), async (req, res, next) => {
   try {
     // ownership verification handled by middleware
     const data = await containerCacheService.getContainerInspect(req.params.id);
+    // Calculate Permissions for UI
+    const permContext = { role: req.user.role, ownsResource: req.ownsResource };
+    const permissions = {
+      canRead: canPerform({ ...permContext, actionType: ACTIONS.READ }),
+      canOperate: canPerform({ ...permContext, actionType: ACTIONS.OPERATE }),
+      canDestroy: canPerform({ ...permContext, actionType: ACTIONS.DESTRUCTIVE }),
+    };
+
     res.status(200).json({
       success: true,
       data,
+      permissions, // <--- Added
       message: "Container inspection completed successfully"
     });
   } catch (err) {
@@ -157,7 +179,7 @@ router.get("/:id/inspect", ownershipGuard("inspect"), async (req, res, next) => 
 });
 
 // POST /containers/:id/start
-router.post("/:id/start", ownershipGuard("start"), async (req, res, next) => {
+router.post("/:id/start", ownershipGuard("start"), requirePermission(ACTIONS.OPERATE), async (req, res, next) => {
   try {
     const result = await startContainer(req.params.id);
     if (!result.success) {
@@ -174,7 +196,7 @@ router.post("/:id/start", ownershipGuard("start"), async (req, res, next) => {
 });
 
 // POST /containers/:id/stop
-router.post("/:id/stop", ownershipGuard("stop"), async (req, res, next) => {
+router.post("/:id/stop", ownershipGuard("stop"), requirePermission(ACTIONS.OPERATE), async (req, res, next) => {
   try {
     const result = await stopContainer(req.params.id);
     if (!result.success) {
@@ -191,7 +213,7 @@ router.post("/:id/stop", ownershipGuard("stop"), async (req, res, next) => {
 });
 
 // POST /containers/:id/restart
-router.post("/:id/restart", ownershipGuard("restart"), async (req, res, next) => {
+router.post("/:id/restart", ownershipGuard("restart"), requirePermission(ACTIONS.OPERATE), async (req, res, next) => {
   try {
     const result = await restartContainer(req.params.id);
     if (!result.success) {
@@ -208,7 +230,7 @@ router.post("/:id/restart", ownershipGuard("restart"), async (req, res, next) =>
 });
 
 // POST /containers/:id/pause
-router.post("/:id/pause", ownershipGuard("pause"), async (req, res, next) => {
+router.post("/:id/pause", ownershipGuard("pause"), requirePermission(ACTIONS.OPERATE), async (req, res, next) => {
   try {
     const result = await pauseContainer(req.params.id);
     if (!result.success) {
@@ -225,7 +247,7 @@ router.post("/:id/pause", ownershipGuard("pause"), async (req, res, next) => {
 });
 
 // POST /containers/:id/unpause
-router.post("/:id/unpause", ownershipGuard("unpause"), async (req, res, next) => {
+router.post("/:id/unpause", ownershipGuard("unpause"), requirePermission(ACTIONS.OPERATE), async (req, res, next) => {
   try {
     const result = await unpauseContainer(req.params.id);
     if (!result.success) {
@@ -242,7 +264,7 @@ router.post("/:id/unpause", ownershipGuard("unpause"), async (req, res, next) =>
 });
 
 // DELETE /containers/:id
-router.delete("/:id", ownershipGuard("remove"), async (req, res, next) => {
+router.delete("/:id", ownershipGuard("remove"), requirePermission(ACTIONS.DESTRUCTIVE), async (req, res, next) => {
   try {
     const force = req.query.force === "true";
     const result = await removeContainer(req.params.id, force);
@@ -265,7 +287,7 @@ router.delete("/:id", ownershipGuard("remove"), async (req, res, next) => {
 });
 
 // GET /containers/:id/stats
-router.get("/:id/stats", ownershipGuard("stats"), async (req, res, next) => {
+router.get("/:id/stats", ownershipGuard("stats"), requirePermission(ACTIONS.READ), async (req, res, next) => {
   try {
     const result = await containerStatsService.getContainerStats(req.params.id);
 

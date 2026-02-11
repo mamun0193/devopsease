@@ -5,6 +5,8 @@ import logger from "../utils/logger.js";
 import { handleExecSession } from "./execHandler.js";
 import sessionManager from "./sessionManager.js";
 import { enforceRateLimit } from "../middlewares/rateLimit.middleware.js"; // Added for rate limiting
+import { canPerform, ACTIONS, ROLES } from "../config/permissions.js"; // Added for RBAC
+import ownershipService from "../services/ownership.service.js"; // Added for ownership check
 
 let wss = null;
 
@@ -33,6 +35,37 @@ export function initializeWebSocketServer(server) {
             } catch (err) {
                 logger.warn("WebSocket connection rejected: Invalid token");
                 socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            // RBAC Check 
+            const match = pathname.match(/^\/ws\/exec\/(.+)$/);
+            if (!match) {
+                socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+            const containerId = match[1];
+
+            // Determines if user strictly owns the resource
+            let ownsResource = false;
+
+            if (user.role === ROLES.ADMIN) {
+                ownsResource = false; // Admins rely on role permission (ANY), not ownership
+            } else {
+                ownsResource = await ownershipService.hasOwnership(user._id || user.userId, containerId);
+            }
+
+            const allowed = canPerform({
+                role: user.role,
+                ownsResource,
+                actionType: ACTIONS.OPERATE // Exec is always OPERATE
+            });
+
+            if (!allowed) {
+                logger.warn(`WebSocket RBAC Denied: Role ${user.role} tried OPERATE on ${containerId}`);
+                socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
                 socket.destroy();
                 return;
             }

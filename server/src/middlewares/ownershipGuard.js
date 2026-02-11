@@ -5,7 +5,8 @@ import AppError from '../utils/AppError.js';
 import logger from '../utils/logger.js';
 
 // Environment variable to control operator bypass
-const ALLOW_OPERATOR_BYPASS = process.env.ALLOW_OPERATOR_BYPASS === 'true';
+// DISABLED for Day 35: Operators must strictly own resources
+const ALLOW_OPERATOR_BYPASS = false;
 
 /**
  * Middleware factory to guard container routes based on ownership.
@@ -19,27 +20,23 @@ export const ownershipGuard = (actionName) => {
             const containerId = req.params.id; // Assuming route is like /containers/:id/*
 
             if (!containerId) {
-                // If no containerId in params, this middleware might be misplaced or on a general route
-                // For general routes (like list), this guard shouldn't be used or should be adapted.
-                // We proceed if there's no ID to check, but log a warning? 
-                // Actually, strict guard should fail if expected ID is missing.
                 return next(new AppError("Container ID required for ownership check", 400));
             }
 
             // 1. Admin Bypass
             if (userRole === 'admin') {
+                req.ownsResource = false; // Admins bypass ownership; RBAC will handle "any" access
                 return next();
             }
 
-            // 2. Operator Bypass (Configurable)
-            if (userRole === ROLES.OPERATOR && ALLOW_OPERATOR_BYPASS) {
-                return next();
-            }
+            // 2. Operator Bypass - DISABLED
+            // Strict ownership required for Day 35
 
             // 3. Ownership Check
             const hasAccess = await ownershipService.hasOwnership(userId, containerId);
 
             if (hasAccess) {
+                req.ownsResource = true; // Signal for RBAC
                 return next();
             }
 
