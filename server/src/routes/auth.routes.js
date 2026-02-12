@@ -1,7 +1,8 @@
 import express from "express";
 import passport from "passport";
 import { loginSuccess, logout, refresh, register, login } from "../controllers/auth.controller.js";
-import authMiddleware from "../middlewares/auth.middleware.js";
+import { authRateLimit } from "../middlewares/authRateLimit.middleware.js";
+import checkAuthStatus from "../middlewares/authStatus.middleware.js";
 
 const router = express.Router();
 
@@ -29,16 +30,36 @@ router.get(
   loginSuccess
 );
 
-router.post("/register", register);
-router.post("/login", login);
-router.post("/refresh", refresh);
+// Auth endpoints with rate limiting
+router.post("/register", authRateLimit("register"), register);
+router.post("/login", authRateLimit("login"), login);
+router.post("/refresh", authRateLimit("refresh"), refresh);
 router.post("/logout", logout);
 
-import checkAuthStatus from "../middlewares/authStatus.middleware.js";
+// Session probe — returns full user profile
+router.get("/me", checkAuthStatus, async (req, res) => {
+  if (!req.user) return res.json({ isAuthenticated: false, user: null });
 
-// ... (imports)
+  try {
+    const User = (await import("../models/User.js")).default;
+    const dbUser = await User.findById(req.user._id).select("name primaryEmail role plan createdAt").lean();
+    if (dbUser) {
+      return res.json({
+        isAuthenticated: true,
+        user: {
+          _id: dbUser._id,
+          name: dbUser.name,
+          email: dbUser.primaryEmail,
+          role: dbUser.role,
+          plan: dbUser.plan,
+          createdAt: dbUser.createdAt,
+        },
+      });
+    }
+  } catch {
+    // Fallback to JWT payload
+  }
 
-router.get("/me", checkAuthStatus, (req, res) => {
   res.json({ isAuthenticated: !!req.user, user: req.user });
 });
 

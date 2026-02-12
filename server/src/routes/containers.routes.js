@@ -22,6 +22,8 @@ import ownershipService from "../services/ownership.service.js";
 import { ownershipGuard } from "../middlewares/ownershipGuard.js";
 import logger from "../utils/logger.js";
 
+import { PLANS } from "../config/plans.js";
+
 const router = express.Router();
 
 // Apply DB validation and Auth to ALL container routes
@@ -81,6 +83,49 @@ router.get("/", requirePermission(ACTIONS.READ), async (req, res, next) => {
   }
 });
 
+// DELETE /containers/all
+// Remove all containers owned by the current user
+router.delete("/all", requirePermission(ACTIONS.DESTRUCTIVE), async (req, res, next) => {
+  try {
+    const ownedContainerIds = await ownershipService.listOwnedContainers(req.user._id);
+
+    if (ownedContainerIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: { removed: 0 },
+        message: "No containers to remove",
+      });
+    }
+
+    let removed = 0;
+    const errors = [];
+
+    for (const id of ownedContainerIds) {
+      try {
+        const result = await removeContainer(id, true);
+        if (result.success) {
+          await ownershipService.releaseOwnership(req.user._id, id);
+          removed++;
+        } else {
+          errors.push({ id, error: result.message });
+        }
+      } catch (err) {
+        errors.push({ id, error: err.message });
+      }
+    }
+
+    containerCacheService.invalidateContainerList();
+
+    res.status(200).json({
+      success: true,
+      data: { removed, total: ownedContainerIds.length, errors: errors.length > 0 ? errors : undefined },
+      message: `${removed} container${removed !== 1 ? 's' : ''} removed`,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /containers
 // Create a new container from an image
 // Kept ROLES.OPERATOR check as per existing logic, assuming only operators create?
@@ -95,6 +140,18 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
 
     if (!image) {
       throw new AppError("Image name is required", 400);
+    }
+
+    // Enforce plan container limit
+    const userPlan = req.user.plan || 'free';
+    const planConfig = PLANS[userPlan] || PLANS.free;
+    const ownedContainerIds = await ownershipService.listOwnedContainers(req.user._id);
+
+    if (ownedContainerIds.length >= planConfig.maxContainers) {
+      throw new AppError(
+        `Container limit reached. Your ${userPlan} plan allows ${planConfig.maxContainers} containers. Remove an existing container or upgrade your plan.`,
+        403
+      );
     }
 
     // 1. Create in Docker

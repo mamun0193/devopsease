@@ -1,33 +1,27 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext } from 'react';
+import { useAuth } from './AuthContext';
 
-export type UserRole = 'viewer' | 'operator';
+export type UserRole = 'operator' | 'admin';
 
 interface RoleContextType {
     role: UserRole;
-    setRole: (role: UserRole) => void;
+    isAdmin: boolean;
     isOperator: boolean;
-    isViewer: boolean;
+    isViewer: boolean; // kept for backward compat — always false now
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // Initialize from localStorage or default to 'operator'
-    const [role, setRoleState] = useState<UserRole>(() => {
-        const savedRole = localStorage.getItem('devopsease_role');
-        return (savedRole as UserRole) || 'operator';
-    });
+    const { user } = useAuth();
 
-    const setRole = (newRole: UserRole) => {
-        setRoleState(newRole);
-        localStorage.setItem('devopsease_role', newRole);
-    };
-
+    const role: UserRole = user?.role === 'admin' ? 'admin' : 'operator';
+    const isAdmin = role === 'admin';
     const isOperator = role === 'operator';
-    const isViewer = role === 'viewer';
+    const isViewer = false; // No viewer role — all logged-in users can operate
 
     return (
-        <RoleContext.Provider value={{ role, setRole, isOperator, isViewer }}>
+        <RoleContext.Provider value={{ role, isAdmin, isOperator, isViewer }}>
             {children}
         </RoleContext.Provider>
     );

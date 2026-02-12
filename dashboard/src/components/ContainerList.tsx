@@ -1,14 +1,20 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Box,
   Search,
   Filter,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 import type { Container } from '../api';
 import ContainerCard from './ContainerCard';
 import CreateContainerModal from './CreateContainerModal';
+import { containerActionsApi } from '../api/containerActions';
+import { useAppDispatch } from '../store/hooks';
+// fetchContainers removed
+import { addToast } from '../store/toastSlice';
 
 interface ContainerListProps {
   containers: Container[];
@@ -19,9 +25,13 @@ const ContainerList: React.FC<ContainerListProps> = ({
   containers,
   isLoading
 }) => {
+  const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = React.useState<'all' | 'running' | 'stopped'>('all');
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
+  const [isRemoving, setIsRemoving] = React.useState(false);
+  const [showConfirm, setShowConfirm] = React.useState(false);
 
   const filteredContainers = React.useMemo(() => {
     let result = containers;
@@ -55,6 +65,21 @@ const ContainerList: React.FC<ContainerListProps> = ({
       return new Date(b.created).getTime() - new Date(a.created).getTime();
     });
   }, [filteredContainers]);
+
+  const handleRemoveAll = async () => {
+    setShowConfirm(false);
+    setIsRemoving(true);
+    try {
+      const result = await containerActionsApi.removeAll();
+      dispatch(addToast({ message: result.message, type: 'success', duration: 4000 }));
+      // Refresh containers list via React Query
+      queryClient.invalidateQueries({ queryKey: ['containers'] });
+    } catch (err: any) {
+      dispatch(addToast({ message: err?.response?.data?.message || 'Failed to remove containers', type: 'error', duration: 4000 }));
+    } finally {
+      setIsRemoving(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -111,6 +136,17 @@ const ContainerList: React.FC<ContainerListProps> = ({
             </select>
           </div>
 
+          {containers.length > 0 && (
+            <button
+              onClick={() => setShowConfirm(true)}
+              disabled={isRemoving}
+              className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={16} />
+              {isRemoving ? 'Removing...' : 'Remove All'}
+            </button>
+          )}
+
           <button
             onClick={() => setIsCreateModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium transition-colors"
@@ -120,6 +156,36 @@ const ContainerList: React.FC<ContainerListProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-sm shadow-2xl"
+          >
+            <h3 className="text-lg font-semibold text-white mb-2">Remove all containers?</h3>
+            <p className="text-sm text-slate-400 mb-5">
+              This will force-remove all {containers.length} container{containers.length !== 1 ? 's' : ''}. This action cannot be undone.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="px-4 py-2 text-sm text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRemoveAll}
+                className="px-4 py-2 text-sm text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors font-medium"
+              >
+                Remove All
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Container Grid */}
       {sortedContainers.length === 0 ? (

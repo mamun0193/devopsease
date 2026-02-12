@@ -19,14 +19,16 @@ const queryClient = new QueryClient({
 
 import AuthProvider from './context/AuthProvider';
 import LoginPage from './pages/LoginPage';
+import ProfilePage from './pages/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
+import Toast from './components/Toast';
 
 function App() {
   return (
     <Provider store={store}>
-      <RoleProvider>
-        <QueryClientProvider client={queryClient}>
-          <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <RoleProvider>
             <BrowserRouter>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
@@ -39,6 +41,14 @@ function App() {
                   }
                 />
                 <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/container/:containerId"
                   element={
                     <ProtectedRoute>
@@ -47,12 +57,12 @@ function App() {
                   }
                 />
               </Routes>
-              {/* Global toast notifications for container actions */}
               <ActionFeedback />
+              <Toast />
             </BrowserRouter>
-          </AuthProvider>
-        </QueryClientProvider>
-      </RoleProvider>
+          </RoleProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </Provider>
   );
 }

@@ -1,17 +1,16 @@
 export const PLANS = {
     free: {
-        maxContainers: 1,
+        maxContainers: 2,
         rateLimits: {
-            // Actions per window (in seconds)
-            create: { limit: 2, window: 3600 },       // 2 per hour (generous for testing)
-            exec: { limit: 10, window: 60 },          // 10 per minute
-            destructive: { limit: 5, window: 60 },    // 5 per minute (stop, remove, restart)
+            create: { limit: 5, window: 3600 },        // 2 per hour
+            exec: { limit: 10, window: 60 },           // 10 per minute
+            destructive: { limit: 5, window: 60 },     // 5 per minute (stop, remove, restart)
         }
     },
-    paid: {
-        maxContainers: 5, // Configurable limit for paid users
+    pro: {
+        maxContainers: 10,
         rateLimits: {
-            create: { limit: 10, window: 3600 },
+            create: { limit: 20, window: 3600 },
             exec: { limit: 60, window: 60 },
             destructive: { limit: 20, window: 60 },
         }

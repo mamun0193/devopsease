@@ -32,15 +32,22 @@ const DEFAULT_ACTION_STATE = {
   lastAction: null,
 };
 
+interface Permissions {
+  canRead: boolean;
+  canOperate: boolean;
+  canDestroy: boolean;
+}
+
 interface ContainerControlsProps {
   containerId: string;
   containerName: string;
   containerState: string;
-  onRemoved?: () => void; // Callback when container is removed
-  compact?: boolean; // Show only applicable buttons (hide inactive ones)
-  unified?: boolean; // Show single Start/Stop button based on state
-  primaryOnly?: boolean; // Show only primary controls (Start/Stop, Restart, Remove)
-  secondaryOnly?: boolean; // Show only secondary controls (Pause/Unpause)
+  onRemoved?: () => void;
+  compact?: boolean;
+  unified?: boolean;
+  primaryOnly?: boolean;
+  secondaryOnly?: boolean;
+  permissions?: Permissions;
 }
 
 const ContainerControls: React.FC<ContainerControlsProps> = ({
@@ -52,6 +59,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
   unified = false,
   primaryOnly = false,
   secondaryOnly = false,
+  permissions,
 }) => {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
@@ -61,7 +69,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
     state => state.containers.actionStates[containerId] || DEFAULT_ACTION_STATE
   );
 
-  const { role, isViewer } = useRole();
+  const { isViewer } = useRole();
 
   // Local state for confirmation modals
   const [confirmModal, setConfirmModal] = useState<{
@@ -271,14 +279,24 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
     },
   ];
 
-  // Apply RBAC: Disable destructive actions for viewers
+  // Apply RBAC: Use API-provided permissions (fallback to role context)
   const rbacButtons = allButtons.map(btn => {
-    if (isViewer && ['start', 'stop', 'restart', 'pause', 'unpause', 'remove'].includes(btn.id)) {
-      return {
-        ...btn,
-        disabled: true,
-        label: compact ? btn.label : `${btn.label} (Operator only)`, // Optional: Append text if space allows
-      };
+    if (permissions) {
+      // Fine-grained: operate vs destroy
+      const isDestructive = btn.id === 'remove';
+      const isOperational = ['start', 'stop', 'restart', 'pause', 'unpause'].includes(btn.id);
+
+      if (isDestructive && !permissions.canDestroy) {
+        return { ...btn, disabled: true, rbacReason: 'Your role does not allow destructive actions' };
+      }
+      if (isOperational && !permissions.canOperate) {
+        return { ...btn, disabled: true, rbacReason: 'Your role does not allow container operations' };
+      }
+    } else if (isViewer) {
+      // Fallback: no permissions object, use role context
+      if (['start', 'stop', 'restart', 'pause', 'unpause', 'remove'].includes(btn.id)) {
+        return { ...btn, disabled: true, rbacReason: 'Operator permission required' };
+      }
     }
     return btn;
   });
@@ -326,7 +344,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
               key={button.id}
               onClick={button.onClick}
               disabled={button.disabled}
-              title={isViewer && button.disabled ? "Operator permission required" : (compact ? button.label : undefined)}
+              title={(button as any).rbacReason || (compact ? button.label : undefined)}
               className={`
                 flex items-center ${compact ? 'justify-center w-10' : 'gap-2 px-4'} h-10 rounded-lg text-sm font-medium whitespace-nowrap
                 transition-all duration-200 shadow-sm

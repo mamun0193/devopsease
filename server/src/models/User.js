@@ -32,13 +32,13 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["viewer", "operator", "admin"],
+      enum: ["operator", "admin"],
       default: "operator",
     },
 
     plan: {
       type: String,
-      enum: ["free", "pro"],
+      enum: ["free", "pro", "premium"],
       default: "free",
     },
 
@@ -60,4 +60,23 @@ const userSchema = new mongoose.Schema(
   { versionKey: false }
 );
 
-export default mongoose.model("User", userSchema);
+// Auto-cleanup stale indexes on startup (e.g. old `email_1` index)
+const User = mongoose.model("User", userSchema);
+
+User.collection.indexes().then(async (indexes) => {
+  const KEEP = new Set(['_id_', 'primaryEmail_1']);
+  for (const idx of indexes) {
+    if (!KEEP.has(idx.name)) {
+      try {
+        await User.collection.dropIndex(idx.name);
+        console.log(`Dropped stale index: ${idx.name}`);
+      } catch (error) {
+        console.error(`Failed to drop index ${idx.name}:`, error.message);
+      }
+    }
+  }
+}).catch((error) => {
+  console.error('Failed to list indexes:', error.message);
+});
+
+export default User;

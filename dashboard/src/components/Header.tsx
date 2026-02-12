@@ -9,6 +9,7 @@ import {
 import { useContainers, useHealthCheck } from '../hooks/useContainers';
 import { getContainerStats } from '../utils/formatters';
 import RefreshButton from './RefreshButton';
+import UserMenu from './UserMenu';
 
 interface HeaderProps {
   onFilterChange?: (filter: 'all' | 'running' | 'stopped' | 'paused') => void;
@@ -141,6 +142,10 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all' })
             variant="default"
             showLabel={false}
           />
+
+          <div className="w-px h-6 bg-slate-800" />
+
+          <UserMenu />
         </div>
       </div>
     </header>

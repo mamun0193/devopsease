@@ -17,10 +17,10 @@ export function generateAccessToken(user) {
   );
 }
 
-export async function generateRefreshToken(user, ipAddress, userAgent) {
+export async function generateRefreshToken(user, ipAddress, userAgent, expiryDays = REFRESH_TOKEN_EXPIRY_DAYS) {
   const token = crypto.randomBytes(40).toString("hex");
   const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRY_DAYS);
+  expiresAt.setDate(expiresAt.getDate() + expiryDays);
 
   const familyId = crypto.randomUUID();
   const tokenHash = crypto.createHash("sha256").update(token).digest("hex");

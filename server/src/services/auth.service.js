@@ -4,6 +4,7 @@ export async function resolveOAuthUser({
   provider,
   providerId,
   email,
+  name,
 }) {
   if (!email) {
     throw new Error("OAuth provider did not return email");
@@ -26,6 +27,7 @@ export async function resolveOAuthUser({
         [provider]: { id: providerId, email },
       },
       primaryEmail: email,
+      name: name || email.split('@')[0],
       role: "operator",
       plan: "free",
       status: "active",
@@ -36,6 +38,11 @@ export async function resolveOAuthUser({
   if (!user.authProviders[provider]) {
     user.authProviders[provider] = { id: providerId, email };
     await user.save();
+  }
+
+  // Backfill name if missing
+  if (!user.name && name) {
+    user.name = name;
   }
 
   //  Update login time

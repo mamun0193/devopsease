@@ -14,7 +14,8 @@ passport.use(
         provider: "github",
         providerId: profile.id,
         email: profile.emails?.[0]?.value,
-      }); 
+        name: profile.displayName || profile.username || null,
+      });
     }
   )
 );
@@ -31,6 +32,7 @@ passport.use(
         provider: "google",
         providerId: profile.id,
         email: profile.emails?.[0]?.value,
+        name: profile.displayName || null,
       });
     }
   )

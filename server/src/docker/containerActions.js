@@ -753,6 +753,12 @@ async function createContainer({ image, name, ports = {}, env = {}, autoStart = 
     };
   }
 
+  // Sanitize container name: Docker only allows [a-zA-Z0-9][a-zA-Z0-9_.-]
+  if (name) {
+    name = name.replace(/[^a-zA-Z0-9_.-]/g, '-').replace(/^[^a-zA-Z0-9]+/, '');
+    if (!name) name = undefined;
+  }
+
   try {
     // Check if image exists locally, pull if missing
     try {

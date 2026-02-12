@@ -19,7 +19,7 @@ interface ApiResponse<T> {
 }
 
 export const containerActionsApi = {
-  
+
   start: async (containerId: string): Promise<ContainerActionResponse> => {
     const response = await api.post<ApiResponse<ContainerActionResponse['data']>>(
       `/containers/${containerId}/start`
@@ -31,7 +31,7 @@ export const containerActionsApi = {
     };
   },
 
-  
+
   stop: async (containerId: string): Promise<ContainerActionResponse> => {
     const response = await api.post<ApiResponse<ContainerActionResponse['data']>>(
       `/containers/${containerId}/stop`
@@ -43,7 +43,7 @@ export const containerActionsApi = {
     };
   },
 
-  
+
   restart: async (containerId: string): Promise<ContainerActionResponse> => {
     const response = await api.post<ApiResponse<ContainerActionResponse['data']>>(
       `/containers/${containerId}/restart`
@@ -55,7 +55,7 @@ export const containerActionsApi = {
     };
   },
 
-  
+
   remove: async (containerId: string, force: boolean = false): Promise<ContainerActionResponse> => {
     const response = await api.delete<ApiResponse<ContainerActionResponse['data']>>(
       `/containers/${containerId}${force ? '?force=true' : ''}`
@@ -67,7 +67,7 @@ export const containerActionsApi = {
     };
   },
 
-  
+
   pause: async (containerId: string): Promise<ContainerActionResponse> => {
     const response = await api.post<ApiResponse<ContainerActionResponse['data']>>(
       `/containers/${containerId}/pause`
@@ -79,7 +79,7 @@ export const containerActionsApi = {
     };
   },
 
-  
+
   unpause: async (containerId: string): Promise<ContainerActionResponse> => {
     const response = await api.post<ApiResponse<ContainerActionResponse['data']>>(
       `/containers/${containerId}/unpause`
@@ -91,7 +91,7 @@ export const containerActionsApi = {
     };
   },
 
-  
+
   create: async (params: {
     image: string;
     name?: string;
@@ -106,6 +106,21 @@ export const containerActionsApi = {
     const response = await api.post<ApiResponse<{ id: string; name: string; status: string }>>(
       '/containers',
       params
+    );
+    return {
+      success: response.data.success,
+      data: response.data.data,
+      message: response.data.message,
+    };
+  },
+
+  removeAll: async (): Promise<{
+    success: boolean;
+    data: { removed: number; total: number } | null;
+    message: string;
+  }> => {
+    const response = await api.delete<ApiResponse<{ removed: number; total: number }>>(
+      '/containers/all'
     );
     return {
       success: response.data.success,

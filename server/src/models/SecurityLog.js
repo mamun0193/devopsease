@@ -4,11 +4,9 @@ const securityLogSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true,
     },
     containerId: {
         type: String,
-        required: true,
     },
     action: {
         type: String,
@@ -20,6 +18,20 @@ const securityLogSchema = new mongoose.Schema({
         default: 'denied',
         required: true,
     },
+    severity: {
+        type: String,
+        enum: ['INFO', 'WARN', 'HIGH'],
+        default: 'INFO',
+    },
+    email: {
+        type: String,
+    },
+    ip: {
+        type: String,
+    },
+    userAgent: {
+        type: String,
+    },
     metadata: {
         type: Object,
         default: {},
@@ -30,7 +42,7 @@ const securityLogSchema = new mongoose.Schema({
     },
 }, {
     timestamps: true,
-    expires: '30d' // Auto-delete logs after 30 days
+    expires: '30d'
 });
 
 // Index for auditing queries
