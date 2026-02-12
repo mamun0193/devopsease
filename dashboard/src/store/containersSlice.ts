@@ -172,6 +172,16 @@ const containersSlice = createSlice({
       state.actionStates = {};
       state.lastCompletedAction = null;
     },
+    // Manually set the completed action (used to defer toast until after polling)
+    setCompletedAction: (state, action: PayloadAction<{
+      containerId: string;
+      containerName: string;
+      action: ContainerAction;
+      success: boolean;
+      message: string;
+    }>) => {
+      state.lastCompletedAction = action.payload;
+    },
   },
   extraReducers: (builder) => {
     // Helper to handle pending state
@@ -188,23 +198,18 @@ const containersSlice = createSlice({
     const handleFulfilled = (
       state: ContainersState,
       containerId: string,
-      containerName: string,
+      _containerName: string,
       action: ContainerAction,
       message: string
     ) => {
       state.actionStates[containerId] = {
-        loading: false,
+        loading: true, // Keep loading until executeAction completes (polling + data refresh)
         error: null,
         success: message,
         lastAction: action,
       };
-      state.lastCompletedAction = {
-        containerId,
-        containerName,
-        action,
-        success: true,
-        message,
-      };
+      // NOTE: lastCompletedAction (toast) is NOT set here.
+      // It is deferred to executeAction after polling + data refresh.
     };
 
     // Helper to handle rejected state
@@ -424,5 +429,5 @@ const containersSlice = createSlice({
   },
 });
 
-export const { clearActionState, clearLastCompletedAction, clearAllActionStates } = containersSlice.actions;
+export const { clearActionState, clearLastCompletedAction, clearAllActionStates, setCompletedAction } = containersSlice.actions;
 export default containersSlice.reducer;

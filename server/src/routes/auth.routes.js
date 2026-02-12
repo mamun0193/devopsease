@@ -1,7 +1,6 @@
 import express from "express";
 import passport from "passport";
-import { resolveOAuthUser } from "../services/auth.service.js";
-import { generateToken } from "../utils/jwt.js";
+import { loginSuccess, logout, refresh, register, login } from "../controllers/auth.controller.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
@@ -15,22 +14,7 @@ router.get(
 router.get(
   "/github/callback",
   passport.authenticate("github", { session: false }),
-  async (req, res, next) => {
-    try {
-      const user = await resolveOAuthUser(req.user);
-      const token = generateToken(user);
-
-      res.cookie("auth", token, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: false, // set true in prod
-      });
-
-      res.redirect("http://localhost:3497");
-    } catch (err) {
-      next(err);
-    }
-  }
+  loginSuccess
 );
 
 // Google
@@ -42,26 +26,20 @@ router.get(
 router.get(
   "/google/callback",
   passport.authenticate("google", { session: false }),
-  async (req, res, next) => {
-    try {
-      const user = await resolveOAuthUser(req.user);
-      const token = generateToken(user);
-
-      res.cookie("auth", token, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: false,
-      });
-
-      res.redirect("http://localhost:3497");
-    } catch (err) {
-      next(err);
-    }
-  }
+  loginSuccess
 );
 
-router.get("/me", authMiddleware, (req, res) => {
-  res.json(req.user);
+router.post("/register", register);
+router.post("/login", login);
+router.post("/refresh", refresh);
+router.post("/logout", logout);
+
+import checkAuthStatus from "../middlewares/authStatus.middleware.js";
+
+// ... (imports)
+
+router.get("/me", checkAuthStatus, (req, res) => {
+  res.json({ isAuthenticated: !!req.user, user: req.user });
 });
 
 export default router;

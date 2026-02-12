@@ -36,12 +36,11 @@ router.get("/", requirePermission(ACTIONS.READ), async (req, res, next) => {
     // This avoids global Docker queries
     const ownedContainerIds = await ownershipService.listOwnedContainers(req.user._id);
 
-    // 2. Get details for each owned container from Cache/Docker
-    // We use Promise.all to fetch them in parallel
+    // 2. Get lightweight summary for each owned container (single inspect call, cached)
     const containerPromises = ownedContainerIds.map(async (id) => {
       try {
-        const data = await containerCacheService.getContainerInspect(id);
-        return { ...data, id }; // Attach ID as it's not in the config/state merge
+        const summary = await containerCacheService.getContainerSummary(id);
+        return { ...summary, id };
       } catch (err) {
         // If a container exists in DB but not in Docker (orphan), we might get an error
         logger.warn(`Failed to inspect owned container ${id}`, { error: err.message });
@@ -51,15 +50,14 @@ router.get("/", requirePermission(ACTIONS.READ), async (req, res, next) => {
 
     const containers = (await Promise.all(containerPromises)).filter(c => c !== null);
 
-    // 3. Sanitize output (Whitelist approach)
-    // Do not return raw Docker inspect object
+    // 3. Response is already sanitized by getContainerSummary
     const sanitizedContainers = containers.map(c => ({
       id: c.id,
       name: c.name,
       image: c.image,
-      state: c.state, // { status, running, exitCode, ... }
+      state: c.state,
       ports: c.ports,
-      created: c.state.startedAt // Approximation if created not available
+      created: c.state?.startedAt
     }));
 
     // Calculate Permissions for UI (Soft Enforcement)

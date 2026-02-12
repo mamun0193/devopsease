@@ -31,6 +31,7 @@ app.use(passport.initialize());
 app.use(
   cors({
     origin: "http://localhost:5173",
+    credentials: true,
   }),
 );
 app.use(express.json());
@@ -47,18 +48,16 @@ app.use("/actions", actionsRoutes);
 app.use(errorHandler);
 
 async function startServer() {
+  // Connect services
   await connectDB();
+  logger.info("MongoDB connected");
+
   const redisConnected = await connectRedis();
-  if (redisConnected) {
-    logger.info("Redis caching enabled");
-  } else {
-    logger.warn("Redis not available - caching disabled, using direct Docker API calls");
-  }
+  logger.info(redisConnected ? "Redis connected — caching enabled" : "Redis unavailable — caching disabled");
 
   try {
     await docker.ping();
     readinessService.setDockerReady(true);
-    logger.info("Docker connection verified");
   } catch (error) {
     logger.error("Docker connection failed", { error: error.message });
     readinessService.setDockerReady(false);
@@ -67,15 +66,12 @@ async function startServer() {
   await actionHistoryService.syncFromRedis();
   readinessService.setHistoryReady(true);
 
-  // Correctly create HTTP server to support WebSockets
   const server = http.createServer(app);
-
-  // Initialize WebSocket server with the existing HTTP server instance
   initializeWebSocketServer(server);
+  logger.info("Docker + WebSocket ready");
 
   server.listen(PORT, () => {
     logger.info(`DevOpsEase server running on http://localhost:${PORT}`);
-    logger.info("Server readiness", readinessService.getStatus());
   });
 
   const shutdown = async (signal) => {

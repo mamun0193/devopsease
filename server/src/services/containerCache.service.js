@@ -22,6 +22,39 @@ class ContainerCacheService {
         );
     }
 
+    // Lightweight summary for the containers list endpoint (single Docker inspect, 15s cache)
+    async getContainerSummary(containerId) {
+        if (!containerId) {
+            throw new Error("containerId is required");
+        }
+
+        return cacheService.getOrFetch(
+            `container:${containerId}:summary`,
+            async () => {
+                const container = docker.getContainer(containerId);
+                const inspectData = await container.inspect();
+                const exitCode = inspectData.State?.ExitCode;
+                const exitAnalysis = analyzeExitCode(exitCode);
+
+                return {
+                    name: (inspectData.Name || '').replace(/^\//, ''),
+                    image: inspectData.Config?.Image,
+                    state: {
+                        status: inspectData.State?.Status,
+                        exitCode,
+                        exitCodeReason: exitAnalysis?.reason || null,
+                        running: inspectData.State?.Running,
+                        paused: inspectData.State?.Paused,
+                        startedAt: inspectData.State?.StartedAt,
+                        finishedAt: inspectData.State?.FinishedAt,
+                    },
+                    ports: inspectData.NetworkSettings?.Ports || {},
+                };
+            },
+            TTL.CONTAINER_STATE
+        );
+    }
+
     // Get container inspection data with tiered caching (state & config cached separately)
     async getContainerInspect(containerId) {
         if (!containerId) {

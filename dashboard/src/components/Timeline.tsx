@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useActions } from '../hooks/useContainers';
 import { useAppSelector } from '../store/hooks';
+import { actionsApi } from '../api';
 import type { ActionRecord } from '../api';
 import {
   PlayCircle,
@@ -27,7 +28,22 @@ interface TimelineProps {
 export default function Timeline({ containerId, onViewLogs, onViewStats }: TimelineProps) {
   const { data, isLoading, error, refetch } = useActions({ containerId, limit: 50 });
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
+  const handleClearAll = async () => {
+    setIsClearing(true);
+    try {
+      await actionsApi.clearHistory(containerId);
+      await refetch();
+    } catch (err) {
+      console.error('Failed to clear history:', err);
+    } finally {
+      setIsClearing(false);
+      setShowClearConfirm(false);
+    }
+  };
+
   // Get loading states for all containers to filter out in-progress actions
   const actionStates = useAppSelector(state => state.containers.actionStates);
 
@@ -64,8 +80,8 @@ export default function Timeline({ containerId, onViewLogs, onViewStats }: Timel
         </div>
         <h3 className="mt-4 font-medium text-slate-300">No action history yet</h3>
         <p className="mt-2 text-sm text-slate-500">
-          {containerId 
-            ? 'Actions performed on this container will appear here' 
+          {containerId
+            ? 'Actions performed on this container will appear here'
             : 'Start, stop, restart, or remove containers to see history'}
         </p>
       </div>
@@ -76,22 +92,22 @@ export default function Timeline({ containerId, onViewLogs, onViewStats }: Timel
   // This prevents the new action from appearing before the spinner stops
   const filteredActions = data.items.filter((action, index) => {
     const containerIdFromAction = action.container.id;
-    
+
     // Check if there's a loading state for this container
     for (const [stateContainerId, state] of Object.entries(actionStates)) {
       if (state.loading && state.lastAction) {
         // Check if container IDs match
-        const idsMatch = stateContainerId.startsWith(containerIdFromAction) || 
-                        containerIdFromAction.startsWith(stateContainerId);
-        
+        const idsMatch = stateContainerId.startsWith(containerIdFromAction) ||
+          containerIdFromAction.startsWith(stateContainerId);
+
         if (idsMatch) {
           // Only hide if this is the FIRST (most recent) action AND matches the loading action type
           const isFirstActionForContainer = data.items.findIndex(a => {
-            return a.container.id === containerIdFromAction || 
-                   stateContainerId.startsWith(a.container.id) ||
-                   a.container.id.startsWith(stateContainerId);
+            return a.container.id === containerIdFromAction ||
+              stateContainerId.startsWith(a.container.id) ||
+              a.container.id.startsWith(stateContainerId);
           }) === index;
-          
+
           if (isFirstActionForContainer && action.action === state.lastAction) {
             return false; // Hide only the most recent matching action
           }
@@ -123,7 +139,7 @@ export default function Timeline({ containerId, onViewLogs, onViewStats }: Timel
     if (status === 'failed') {
       return 'text-red-400 bg-red-500/10 border-red-500/20';
     }
-    
+
     switch (action) {
       case 'start':
         return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
@@ -159,11 +175,40 @@ export default function Timeline({ containerId, onViewLogs, onViewStats }: Timel
             showLabel={false}
           />
         </div>
-        {data.nextCursor && (
-          <button className="text-xs text-purple-400 hover:text-purple-300">
-            Load more
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!showClearConfirm ? (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+              title="Clear all history"
+            >
+              <Trash2 className="size-3.5" />
+              Clear All
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-1.5">
+              <span className="text-xs text-red-400">Delete all history?</span>
+              <button
+                onClick={handleClearAll}
+                disabled={isClearing}
+                className="rounded px-2 py-0.5 text-xs font-medium text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 transition-colors"
+              >
+                {isClearing ? 'Clearing...' : 'Yes'}
+              </button>
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="rounded px-2 py-0.5 text-xs font-medium text-slate-400 hover:text-slate-300 transition-colors"
+              >
+                No
+              </button>
+            </div>
+          )}
+          {data.nextCursor && (
+            <button className="text-xs text-purple-400 hover:text-purple-300">
+              Load more
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">

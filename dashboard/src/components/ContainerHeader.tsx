@@ -15,6 +15,7 @@ import {
 import { formatRelativeTime, formatImageName, formatPorts, truncateId } from '../utils/formatters';
 import { formatNumber, formatPercent, formatMB } from '../utils/numberFormat';
 import ContainerControls from './ContainerControls';
+import { useAppSelector } from '../store/hooks';
 import type { Container, ContainerInspect, ContainerStats, ActionRecord } from '../api';
 
 interface ContainerHeaderProps {
@@ -36,8 +37,11 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({
   onRemoved,
   onOpenShell,
 }) => {
-  const state = container.State.toLowerCase();
+  const state = (container.state?.status || 'unknown').toLowerCase();
   const isRunning = state === 'running';
+  const isActionLoading = useAppSelector(
+    s => s.containers.actionStates[container.id]?.loading ?? false
+  );
 
   // Determine health status and readability
   const getHealthSentence = () => {
@@ -83,7 +87,7 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({
               <div className="flex items-center gap-2 mb-2">
                 <h1 className="font-bold text-slate-100 text-lg truncate leading-tight">{containerName}</h1>
                 <span className="text-xs text-slate-500 font-mono bg-slate-800/50 px-1.5 py-0.5 rounded">
-                  {truncateId(container.Id)}
+                  {truncateId(container.id)}
                 </span>
               </div>
               <p className={`text-sm ${health.color} font-medium`}>
@@ -153,34 +157,38 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({
             {/* Row 1: Primary Actions - Start/Stop, Restart, Remove */}
             <div className="flex justify-start gap-2">
               <ContainerControls
-                containerId={container.Id}
+                containerId={container.id}
                 containerName={containerName}
-                containerState={container.State}
+                containerState={container.state?.status}
                 onRemoved={onRemoved}
                 unified={true}
                 primaryOnly={true}
               />
             </div>
 
-            {/* Row 2: Secondary Actions - Open Shell, Pause/Unpause (only when running) */}
-            {isRunning && (
+            {/* Row 2: Secondary Actions - Open Shell, Pause/Unpause */}
+            {(isRunning || state === 'paused') && (
               <div className="flex justify-start gap-2">
-                {onOpenShell && (
+                {onOpenShell && isRunning && (
                   <motion.button
                     onClick={onOpenShell}
-                    className="flex items-center gap-2 px-4 h-10 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 shadow-sm bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30"
-                    title="Open interactive shell"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    disabled={isActionLoading}
+                    className={`flex items-center gap-2 px-4 h-10 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 shadow-sm border ${isActionLoading
+                        ? 'bg-slate-700/30 text-slate-500 border-slate-700/30 cursor-not-allowed pointer-events-none'
+                        : 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/30'
+                      }`}
+                    title={isActionLoading ? 'Action in progress...' : 'Open interactive shell'}
+                    whileHover={isActionLoading ? {} : { scale: 1.02 }}
+                    whileTap={isActionLoading ? {} : { scale: 0.98 }}
                   >
                     <Terminal size={16} />
                     <span className="hidden sm:inline">Open Shell</span>
                   </motion.button>
                 )}
                 <ContainerControls
-                  containerId={container.Id}
+                  containerId={container.id}
                   containerName={containerName}
-                  containerState={container.State}
+                  containerState={container.state?.status}
                   secondaryOnly={true}
                 />
               </div>
@@ -192,14 +200,14 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({
         <div className="flex items-center gap-4 mt-6 flex-wrap text-xs text-slate-400 border-t border-slate-800/50 pt-3">
           <div className="flex items-center gap-2">
             <Layers size={14} className="text-slate-500" />
-            <span className="text-slate-300 font-mono tracking-tight">{formatImageName(container.Image)}</span>
+            <span className="text-slate-300 font-mono tracking-tight">{formatImageName(container.image)}</span>
           </div>
 
           <div className="w-px h-3 bg-slate-800" />
 
           <div className="flex items-center gap-2">
             <Clock size={14} className="text-slate-500" />
-            <span>Created {formatRelativeTime(container.Created)}</span>
+            <span>Created {formatRelativeTime(container.created)}</span>
           </div>
 
           {inspectData?.state.startedAt && isRunning && (
@@ -212,12 +220,12 @@ const ContainerHeader: React.FC<ContainerHeaderProps> = ({
             </>
           )}
 
-          {container.Ports && container.Ports.length > 0 && (
+          {container.ports && container.ports.length > 0 && (
             <>
               <div className="w-px h-3 bg-slate-800" />
               <div className="flex items-center gap-2">
                 <Network size={14} className="text-slate-500" />
-                <span className="font-mono">{formatPorts(container.Ports)}</span>
+                <span className="font-mono">{formatPorts(container.ports)}</span>
               </div>
             </>
           )}

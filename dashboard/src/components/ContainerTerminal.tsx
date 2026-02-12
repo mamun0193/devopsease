@@ -211,7 +211,7 @@ const TerminalContent: React.FC<TerminalContentProps> = ({
             checkScrollPosition();
         });
 
-        const ws = new WebSocket(`ws://localhost:4000/ws/exec/${containerId}`);
+        const ws = new WebSocket(`ws://localhost:3497/ws/exec/${containerId}`);
         wsRef.current = ws;
 
         ws.onopen = () => {

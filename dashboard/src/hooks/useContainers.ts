@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { containerApi, healthApi, actionsApi } from '../api';
 import type { Container, ContainerInspect, FailureAnalysis, ContainerLogs, ContainerStats, ActionsResponse, ActionStats } from '../api';
 import api from '../api';
@@ -17,6 +17,7 @@ export function useContainers() {
     queryFn: containerApi.getAll,
     refetchInterval,
     staleTime: 10000,
+    placeholderData: keepPreviousData,
   });
 }
 

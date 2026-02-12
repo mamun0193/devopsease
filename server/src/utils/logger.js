@@ -13,4 +13,7 @@ export default {
   info: (msg, meta) => log("info", msg, meta),
   warn: (msg, meta) => log("warn", msg, meta),
   error: (msg, meta) => log("error", msg, meta),
+  debug: (msg, meta) => {
+    if (process.env.LOG_DEBUG === "true") log("debug", msg, meta);
+  },
 };

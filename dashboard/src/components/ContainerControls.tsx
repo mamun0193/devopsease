@@ -19,6 +19,7 @@ import {
   pauseContainer,
   unpauseContainer,
   clearActionState,
+  setCompletedAction,
 } from '../store/containersSlice';
 import type { ContainerAction } from '../store/containersSlice';
 import ConfirmModal from './ConfirmModal';
@@ -69,22 +70,10 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
   }>({ open: false, action: null });
 
   // Derive container state flags
-  const state = containerState.toLowerCase();
+  const state = (containerState || 'unknown').toLowerCase();
   const isRunning = state === 'running';
   const isPaused = state === 'paused';
   const isDead = state === 'dead';
-
-  /**
-   * Refresh container data after action
-   * This triggers React Query to refetch, updating UI across all tabs
-   */
-  const refreshData = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['containers'] });
-    queryClient.invalidateQueries({ queryKey: ['containerInspect', containerId] });
-    queryClient.invalidateQueries({ queryKey: ['containerLogs', containerId] });
-    queryClient.invalidateQueries({ queryKey: ['containerAnalysis', containerId] });
-    queryClient.invalidateQueries({ queryKey: ['actions'] }); // Refresh action history
-  }, [queryClient, containerId]);
 
   /**
    * Get expected final state based on action type
@@ -159,22 +148,33 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
         await pollUntilState(expectedState, { timeout: 15000 });
       }
 
-      // Small delay then refresh data
-      setTimeout(() => {
-        refreshData();
+      // Refresh data and wait for it to complete
+      await queryClient.refetchQueries({ queryKey: ['containers'] });
+      queryClient.invalidateQueries({ queryKey: ['containerInspect', containerId] });
+      queryClient.invalidateQueries({ queryKey: ['containerLogs', containerId] });
+      queryClient.invalidateQueries({ queryKey: ['containerAnalysis', containerId] });
+      queryClient.invalidateQueries({ queryKey: ['actions'] });
 
-        // Handle removal - navigate away
-        if (action === 'remove' && onRemoved) {
-          onRemoved();
-        }
-      }, 300);
+      // NOW show the toast — after state is confirmed and data is refreshed
+      dispatch(setCompletedAction({
+        containerId,
+        containerName,
+        action,
+        success: true,
+        message: `Container ${action}ed successfully`,
+      }));
+
+      // Handle removal - navigate away
+      if (action === 'remove' && onRemoved) {
+        onRemoved();
+      }
     }
 
     // Clear success message after action completes
     setTimeout(() => {
       dispatch(clearActionState(containerId));
     }, 2000);
-  }, [dispatch, containerId, refreshData, onRemoved, pollUntilState]);
+  }, [dispatch, containerId, containerName, queryClient, onRemoved, pollUntilState]);
 
   // Action handlers
   const handleStart = () => {

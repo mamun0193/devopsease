@@ -92,4 +92,22 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
+// DELETE /actions - Clear action history (optionally for a specific container)
+router.delete("/", async (req, res, next) => {
+  try {
+    const { containerId } = req.query;
+    await actionHistoryService.clear(containerId);
+
+    res.status(200).json({
+      success: true,
+      data: null,
+      message: containerId
+        ? `Action history cleared for container ${containerId}`
+        : "All action history cleared",
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

@@ -10,6 +10,15 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
 
+    password: {
+      type: String,
+      select: false,
+    },
+
+    name: {
+      type: String,
+    },
+
     authProviders: {
       github: {
         id: String,

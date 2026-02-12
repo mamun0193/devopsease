@@ -17,7 +17,7 @@ export const connectDB = async () => {
         });
 
         isConnected = true;
-        logger.info(`MongoDB Connected: ${conn.connection.host}`);
+        // MongoDB connected (verbose log suppressed)
 
         // Update readiness service if available
         if (readinessService && typeof readinessService.setDatabaseReady === 'function') {

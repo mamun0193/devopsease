@@ -184,7 +184,7 @@ class ActionHistoryService {
       const redisActions = await this.getFromRedis();
       if (redisActions.length > 0 && this.memoryActions.length === 0) {
         this.memoryActions = redisActions;
-        logger.info("Synced action history from Redis", { count: redisActions.length });
+        // Synced from Redis (verbose log suppressed)
       } else if (redisActions.length > 0) {
         logger.info("Memory already has actions, skipping Redis sync", {
           memoryCount: this.memoryActions.length,
@@ -252,17 +252,24 @@ class ActionHistoryService {
     return items.find((action) => action.id === actionId) || null;
   }
 
-  // Clear all action history
-  async clear() {
-    // Clear memory
-    this.memoryActions = [];
-
-    // Clear Redis (fire-and-forget)
-    if (isRedisConnected()) {
-      safeDel(REDIS_KEY);
+  // Clear action history (optionally for a specific container)
+  async clear(containerId) {
+    if (containerId) {
+      // Filter out actions for the specific container
+      this.memoryActions = this.memoryActions.filter(
+        (a) => a.container.id !== containerId && !a.container.id.startsWith(containerId) && !containerId.startsWith(a.container.id)
+      );
+      // Persist filtered list to Redis
+      await this.persistAllToRedis();
+      logger.info(`Action history cleared for container ${containerId}`);
+    } else {
+      // Clear all
+      this.memoryActions = [];
+      if (isRedisConnected()) {
+        safeDel(REDIS_KEY);
+      }
+      logger.info("All action history cleared");
     }
-
-    logger.info("Action history cleared");
   }
 
   // Get action statistics

@@ -28,18 +28,18 @@ const ContainerList: React.FC<ContainerListProps> = ({
 
     // Apply state filter
     if (filter === 'running') {
-      result = result.filter(c => c.State.toLowerCase() === 'running');
+      result = result.filter(c => c.state?.status?.toLowerCase() === 'running');
     } else if (filter === 'stopped') {
-      result = result.filter(c => ['exited', 'dead'].includes(c.State.toLowerCase()));
+      result = result.filter(c => ['exited', 'dead'].includes(c.state?.status?.toLowerCase()));
     }
 
     // Apply search
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       result = result.filter(c =>
-        c.Names.some(n => n.toLowerCase().includes(query)) ||
-        c.Image.toLowerCase().includes(query) ||
-        c.Id.toLowerCase().includes(query)
+        c.name?.toLowerCase().includes(query) ||
+        c.image?.toLowerCase().includes(query) ||
+        c.id?.toLowerCase().includes(query)
       );
     }
 
@@ -49,10 +49,10 @@ const ContainerList: React.FC<ContainerListProps> = ({
   // Sort: running first, then by creation time
   const sortedContainers = React.useMemo(() => {
     return [...filteredContainers].sort((a, b) => {
-      const aRunning = a.State.toLowerCase() === 'running' ? 1 : 0;
-      const bRunning = b.State.toLowerCase() === 'running' ? 1 : 0;
+      const aRunning = a.state?.status?.toLowerCase() === 'running' ? 1 : 0;
+      const bRunning = b.state?.status?.toLowerCase() === 'running' ? 1 : 0;
       if (aRunning !== bRunning) return bRunning - aRunning;
-      return b.Created - a.Created;
+      return new Date(b.created).getTime() - new Date(a.created).getTime();
     });
   }, [filteredContainers]);
 
@@ -139,7 +139,7 @@ const ContainerList: React.FC<ContainerListProps> = ({
         >
           {sortedContainers.map((container, index) => (
             <motion.div
-              key={container.Id}
+              key={container.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}

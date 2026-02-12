@@ -20,7 +20,7 @@ export function initializeWebSocketServer(server) {
             // 1. Authentication (Cookie-based)
             const cookieHeader = request.headers.cookie;
             // Simple parsing for 'auth' cookie
-            const token = cookieHeader && cookieHeader.split(';').find(c => c.trim().startsWith('auth='))?.split('=')[1];
+            const token = cookieHeader && cookieHeader.split(';').find(c => c.trim().startsWith('access_token='))?.split('=')[1];
 
             if (!token) {
                 logger.warn("WebSocket connection rejected: No auth token");
@@ -121,7 +121,7 @@ export function initializeWebSocketServer(server) {
         logger.error("WebSocket server error", { error: error.message });
     });
 
-    logger.info("WebSocket server initialized");
+    // WebSocket initialized
 }
 
 export function closeWebSocketServer() {

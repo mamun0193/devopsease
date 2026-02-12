@@ -13,11 +13,11 @@ const HomePage: React.FC = () => {
   const filteredContainers = React.useMemo(() => {
     switch (activeFilter) {
       case 'running':
-        return containers.filter(c => c.State.toLowerCase() === 'running');
+        return containers.filter(c => c.state?.status?.toLowerCase() === 'running');
       case 'stopped':
-        return containers.filter(c => ['exited', 'dead'].includes(c.State.toLowerCase()));
+        return containers.filter(c => ['exited', 'dead'].includes(c.state?.status?.toLowerCase() || ''));
       case 'paused':
-        return containers.filter(c => c.State.toLowerCase() === 'paused');
+        return containers.filter(c => c.state?.status?.toLowerCase() === 'paused');
       default:
         return containers;
     }
@@ -37,7 +37,7 @@ const HomePage: React.FC = () => {
               <ul className="space-y-2 text-slate-400">
                 <li className="flex items-start gap-2">
                   <span className="text-blue-400 mt-1">•</span>
-                  <span>The server is running at <code className="bg-slate-700 px-2 py-0.5 rounded text-blue-400">http://localhost:4000</code></span>
+                  <span>The server is running at <code className="bg-slate-700 px-2 py-0.5 rounded text-blue-400">http://localhost:3497</code></span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-blue-400 mt-1">•</span>
@@ -63,14 +63,13 @@ const HomePage: React.FC = () => {
           <div className="max-w-7xl mx-auto mb-4">
             <div className="flex items-center gap-2 text-sm text-slate-400">
               <span>Filtering:</span>
-              <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-                activeFilter === 'running' ? 'bg-emerald-500/20 text-emerald-400' :
+              <span className={`px-2 py-1 rounded-lg text-xs font-medium ${activeFilter === 'running' ? 'bg-emerald-500/20 text-emerald-400' :
                 activeFilter === 'stopped' ? 'bg-red-500/20 text-red-400' :
-                'bg-yellow-500/20 text-yellow-400'
-              }`}>
+                  'bg-yellow-500/20 text-yellow-400'
+                }`}>
                 {activeFilter.charAt(0).toUpperCase() + activeFilter.slice(1)}
               </span>
-              <button 
+              <button
                 onClick={() => setActiveFilter('all')}
                 className="text-slate-500 hover:text-slate-300 underline"
               >

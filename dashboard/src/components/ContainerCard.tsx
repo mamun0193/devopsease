@@ -1,19 +1,19 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  Box, 
-  Clock, 
-  Layers, 
+import {
+  Box,
+  Clock,
+  Layers,
   Network,
   ChevronRight,
   AlertCircle,
   Activity
 } from 'lucide-react';
 import type { Container } from '../api';
-import { 
-  formatContainerName, 
-  truncateId, 
+import {
+  formatContainerName,
+  truncateId,
   formatRelativeTime,
   formatPorts,
   formatImageName
@@ -24,8 +24,8 @@ interface ContainerCardProps {
 }
 
 const ContainerCard: React.FC<ContainerCardProps> = ({ container }) => {
-  const name = formatContainerName(container.Names);
-  const state = container.State.toLowerCase();
+  const name = container.name || 'Unknown';
+  const state = (container.state?.status || 'unknown').toLowerCase();
   const isRunning = state === 'running';
   const hasIssue = ['exited', 'dead'].includes(state);
 
@@ -44,7 +44,7 @@ const ContainerCard: React.FC<ContainerCardProps> = ({ container }) => {
   };
 
   return (
-    <Link to={`/container/${truncateId(container.Id)}`}>
+    <Link to={`/container/${truncateId(container.id)}`}>
       <motion.div
         className={`
           relative bg-slate-900 border rounded-xl overflow-hidden cursor-pointer transition-all h-full flex flex-col
@@ -70,7 +70,7 @@ const ContainerCard: React.FC<ContainerCardProps> = ({ container }) => {
             <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide border ${getStatusClasses()}`}>
               {isRunning && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
               {hasIssue && <AlertCircle size={12} />}
-              <span>{container.State}</span>
+              <span>{container.state?.status || 'Unknown'}</span>
             </div>
           </div>
 
@@ -79,8 +79,8 @@ const ContainerCard: React.FC<ContainerCardProps> = ({ container }) => {
             <div className="flex items-center gap-2 text-sm">
               <Layers size={14} className="text-slate-500 shrink-0" />
               <span className="text-slate-500">Image</span>
-              <span className="text-slate-300 truncate ml-auto font-mono text-xs" title={container.Image}>
-                {formatImageName(container.Image)}
+              <span className="text-slate-300 truncate ml-auto font-mono text-xs" title={container.image}>
+                {formatImageName(container.image)}
               </span>
             </div>
 
@@ -88,7 +88,7 @@ const ContainerCard: React.FC<ContainerCardProps> = ({ container }) => {
               <Clock size={14} className="text-slate-500 shrink-0" />
               <span className="text-slate-500">Created</span>
               <span className="text-slate-300 ml-auto">
-                {formatRelativeTime(container.Created)}
+                {formatRelativeTime(container.created)}
               </span>
             </div>
 
@@ -96,14 +96,14 @@ const ContainerCard: React.FC<ContainerCardProps> = ({ container }) => {
               <Network size={14} className="text-slate-500 shrink-0" />
               <span className="text-slate-500">Ports</span>
               <span className="text-slate-300 ml-auto font-mono text-xs">
-                {formatPorts(container.Ports)}
+                {formatPorts(container.ports)}
               </span>
             </div>
           </div>
 
           {/* ID & Arrow */}
           <div className="flex items-center justify-between pt-3 border-t border-slate-800">
-            <code className="text-xs text-slate-500 font-mono">{truncateId(container.Id)}</code>
+            <code className="text-xs text-slate-500 font-mono">{truncateId(container.id)}</code>
             <ChevronRight size={16} className="text-slate-600 group-hover:text-slate-400 transition-colors" />
           </div>
 

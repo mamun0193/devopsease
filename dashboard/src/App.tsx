@@ -17,19 +17,40 @@ const queryClient = new QueryClient({
   },
 });
 
+import AuthProvider from './context/AuthProvider';
+import LoginPage from './pages/LoginPage';
+import ProtectedRoute from './components/ProtectedRoute';
+
 function App() {
   return (
     <Provider store={store}>
       <RoleProvider>
         <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/container/:containerId" element={<ContainerDetailsPage />} />
-            </Routes>
-            {/* Global toast notifications for container actions */}
-            <ActionFeedback />
-          </BrowserRouter>
+          <AuthProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <HomePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/container/:containerId"
+                  element={
+                    <ProtectedRoute>
+                      <ContainerDetailsPage />
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+              {/* Global toast notifications for container actions */}
+              <ActionFeedback />
+            </BrowserRouter>
+          </AuthProvider>
         </QueryClientProvider>
       </RoleProvider>
     </Provider>

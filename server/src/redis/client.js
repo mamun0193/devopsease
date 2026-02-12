@@ -29,12 +29,12 @@ function createRedisClient() {
 
     // Connection state tracking
     client.on("connect", () => {
-        logger.info("Redis connecting...", { host: REDIS_HOST, port: REDIS_PORT });
+        // Redis connecting (verbose log suppressed)
     });
 
     client.on("ready", () => {
         isRedisAvailable = true;
-        logger.info("Redis ready - caching enabled");
+        isRedisAvailable = true;
     });
 
     client.on("error", (err) => {
@@ -49,12 +49,12 @@ function createRedisClient() {
     });
 
     client.on("reconnecting", () => {
-        logger.info("Redis reconnecting...");
+        // Redis reconnecting
         isRedisAvailable = false;
     });
 
     client.on("end", () => {
-        logger.info("Redis connection ended");
+        // Redis ended
         isRedisAvailable = false;
     });
 

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:4000';
+const API_BASE_URL = 'http://localhost:3497';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -8,6 +8,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Request interceptor for logging
@@ -27,13 +28,86 @@ api.interceptors.request.use(
 );
 
 // Response interceptor for error handling
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (value?: unknown) => void; reject: (reason?: any) => void }> = [];
+
+const processQueue = (error: any, token: any = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+
+  failedQueue = [];
+};
+
 api.interceptors.response.use(
   (response) => {
     console.log(`✅ API Response: ${response.config.url}`, response.data);
     return response;
   },
-  (error) => {
-    console.error('❌ Response Error:', error.response?.data || error.message);
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Handle 401 Unauthorized (Token Expiry)
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise(function (resolve, reject) {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => {
+            return api(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      // Multi-tab coordination using Web Locks API
+      try {
+        await navigator.locks.request('refresh_token_lock', async () => {
+          // Check if another tab already refreshed the token while we were waiting for the lock
+          // We can do this by attempting a lightweight call or just checking cookie existence (if accessible)
+          // But since cookies are HttpOnly, we blindly attempt refresh. The backend should handle rotation gracefully.
+
+          // However, if we just acquired the lock, we should proceed. 
+          // If another tab processed it, we might want to verify if we are still unauthenticated?
+          // Actually, the simplest 'multi-tab' protection for 401 is simply mostly handled by the lock preventing concurrent calls.
+          // But `isRefreshing` memory flag only protects the *current* tab.
+          // The Lock API ensures that across tabs, only ONE refresh request is in flight.
+
+          try {
+            await api.post('/auth/refresh');
+            processQueue(null);
+          } catch (refreshError) {
+            processQueue(refreshError, null);
+            // Verify if it's a real failure or just handled by another tab? 
+            // If refresh fails, we generally redirect to login.
+            if (!originalRequest.url?.endsWith('/auth/me')) {
+              window.location.href = '/login';
+            }
+            return Promise.reject(refreshError);
+          }
+        });
+
+        return api(originalRequest);
+
+      } catch (err) {
+        return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // Suppress logging for 401s as they are handled by the refresh flow
+    if (error.response?.status !== 401) {
+      console.error('❌ Response Error:', error.response?.data || error.message);
+    }
 
     // Detect 503 initializing state and emit event for UI handling
     if (error.response?.status === 503 && error.response?.data?.initializing) {
@@ -48,34 +122,17 @@ api.interceptors.response.use(
 );
 
 export interface Container {
-  Id: string;
-  Names: string[];
-  Image: string;
-  ImageID: string;
-  Command: string;
-  Created: number;
-  Ports: Array<{
-    IP?: string;
-    PrivatePort: number;
-    PublicPort?: number;
-    Type: string;
-  }>;
-  Labels: Record<string, string>;
-  State: string;
-  Status: string;
-  HostConfig: {
-    NetworkMode: string;
+  id: string; // Changed from Id
+  name: string; // Changed from Names[] to name (backend sanitization)
+  image: string; // Changed from Image
+  state: {     // Changed from State: string
+    status: string;
+    running: boolean;
+    [key: string]: any;
   };
-  NetworkSettings: {
-    Networks: Record<string, unknown>;
-  };
-  Mounts: Array<{
-    Type: string;
-    Source: string;
-    Destination: string;
-    Mode: string;
-    RW: boolean;
-  }>;
+  ports: any[]; // Simplified for now
+  created: string; // Changed from Created: number
+  // Remove other fields not returned by backend
 }
 
 export interface ContainerInspect {
@@ -284,6 +341,12 @@ export const actionsApi = {
   getStats: async (): Promise<ActionStats> => {
     const response = await api.get<ApiResponse<ActionStats>>('/actions/stats');
     return response.data.data;
+  },
+
+  // Clear action history (for a specific container or all)
+  clearHistory: async (containerId?: string): Promise<void> => {
+    const params = containerId ? `?containerId=${containerId}` : '';
+    await api.delete(`/actions${params}`);
   },
 };
 

@@ -9,12 +9,12 @@ class ReadinessService {
 
     setDockerReady(ready) {
         this.dockerReady = ready;
-        logger.info("Docker readiness updated", { ready });
+
     }
 
     setHistoryReady(ready) {
         this.historyReady = ready;
-        logger.info("History readiness updated", { ready });
+
     }
 
     isReady() {

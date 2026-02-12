@@ -24,7 +24,7 @@ type TabType = 'analysis' | 'logs' | 'info' | 'history';
 const ContainerDetailsPage: React.FC = () => {
   const { containerId } = useParams<{ containerId: string }>();
   const navigate = useNavigate();
-  const { data: containers = [], isLoading } = useContainers();
+  const { data: containers = [], isLoading, isFetching } = useContainers();
   const [activeTab, setActiveTab] = React.useState<TabType>('analysis');
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [showStickyControls, setShowStickyControls] = React.useState(false);
@@ -35,23 +35,23 @@ const ContainerDetailsPage: React.FC = () => {
   // Find the container
   const container = React.useMemo(() => {
     if (!containerId) return null;
-    return containers.find(c => c.Id === containerId || c.Id.startsWith(containerId)) || null;
+    return containers.find(c => c.id === containerId || c.id.startsWith(containerId)) || null;
   }, [containers, containerId]);
 
   // Use centralized polling hook for visibility awareness
   const { isPageVisible, isRunning: containerIsRunning } = useContainerPolling(
-    container?.Id || null,
-    container?.State || null
+    container?.id || null,
+    container?.state?.status || null
   );
 
   // Fetch additional data for header with visibility-aware polling
-  const { data: inspectData } = useContainerInspect(container?.Id || null);
+  const { data: inspectData } = useContainerInspect(container?.id || null);
   const { data: statsData } = useContainerStats(
-    container?.Id || null,
+    container?.id || null,
     isPageVisible,
     containerIsRunning
   );
-  const { data: actionsData } = useActions({ containerId: container?.Id, limit: 1 });
+  const { data: actionsData } = useActions({ containerId: container?.id, limit: 1 });
 
   // Handle container removal - navigate back to dashboard
   const handleContainerRemoved = React.useCallback(() => {
@@ -100,6 +100,17 @@ const ContainerDetailsPage: React.FC = () => {
   }
 
   if (!container) {
+    // If we're refetching, show a loader instead of "Not Found"
+    if (isFetching) {
+      return (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-slate-400">Refreshing container state...</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
         <div className="text-center">
@@ -118,8 +129,8 @@ const ContainerDetailsPage: React.FC = () => {
     );
   }
 
-  const name = formatContainerName(container.Names);
-  const hasIssue = ['exited', 'dead'].includes(container.State.toLowerCase());
+  const name = formatContainerName(container.name);
+  const hasIssue = ['exited', 'dead'].includes((container.state?.status || 'unknown').toLowerCase());
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode; hint: string }[] = [
     {
@@ -206,9 +217,9 @@ const ContainerDetailsPage: React.FC = () => {
             {showStickyControls && activeTab !== 'logs' && (
               <div className="hidden md:block">
                 <ContainerControls
-                  containerId={container.Id}
+                  containerId={container.id}
                   containerName={name}
-                  containerState={container.State}
+                  containerState={container.state?.status}
                   onRemoved={handleContainerRemoved}
                   compact
                 />
@@ -223,27 +234,27 @@ const ContainerDetailsPage: React.FC = () => {
         <div className="transition-opacity duration-150">
           {activeTab === 'analysis' && (
             <FailureAnalysis
-              containerId={container.Id}
+              containerId={container.id}
               containerName={name}
-              containerState={container.State}
+              containerState={container.state?.status}
             />
           )}
           {activeTab === 'logs' && (
             <div className="sticky top-0 z-40">
               <LogViewer
-                containerId={container.Id}
+                containerId={container.id}
                 containerName={name}
                 initialTimeRange={logTimeFilter}
               />
             </div>
           )}
           {activeTab === 'info' && (
-            <ContainerInfo containerId={container.Id} />
+            <ContainerInfo containerId={container.id} />
           )}
           {activeTab === 'history' && (
             <div className="px-4 py-6">
               <Timeline
-                containerId={container.Id}
+                containerId={container.id}
                 onViewLogs={handleViewLogsFromTimeline}
                 onViewStats={handleViewStatsFromTimeline}
               />
@@ -255,7 +266,7 @@ const ContainerDetailsPage: React.FC = () => {
       {/* Terminal Modal */}
       {showTerminal && (
         <ContainerTerminal
-          containerId={container.Id}
+          containerId={container.id}
           containerName={name}
           onClose={() => setShowTerminal(false)}
         />
