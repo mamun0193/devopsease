@@ -56,15 +56,22 @@ async function findAvailableShell(container) {
     return { path: "/bin/sh", type: "sh", prompt: "$ " };
 }
 
-export async function handleExecSession(ws, containerId) {
+import metricsRegistry from "../observability/metricsRegistry.js";
+
+export async function handleExecSession(ws, containerId) { // No change to function signature, just adding import above
     let execStream = null;
     let exec = null;
     let cleanedUp = false;
     let currentSession = null;
+    let metricsIncremented = false; // Track if we incremented to avoid double decrement
 
     const cleanup = () => {
         if (cleanedUp) return;
         cleanedUp = true;
+
+        if (metricsIncremented) {
+            metricsRegistry.decrement("activeExecSessions");
+        }
 
         try {
             if (execStream) {
@@ -180,6 +187,8 @@ export async function handleExecSession(ws, containerId) {
         }
 
         logger.info("Exec session started", { containerId, shell: shellConfig.path });
+        metricsRegistry.increment("activeExecSessions");
+        metricsIncremented = true;
 
         ws.send(JSON.stringify({
             type: "connected",

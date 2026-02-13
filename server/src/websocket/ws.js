@@ -7,6 +7,7 @@ import sessionManager from "./sessionManager.js";
 import { enforceRateLimit } from "../middlewares/rateLimit.middleware.js"; // Added for rate limiting
 import { canPerform, ACTIONS, ROLES } from "../config/permissions.js"; // Added for RBAC
 import ownershipService from "../services/ownership.service.js"; // Added for ownership check
+import metricsRegistry from "../observability/metricsRegistry.js"; // Added for metrics
 
 let wss = null;
 
@@ -102,6 +103,16 @@ export function initializeWebSocketServer(server) {
     });
 
     wss.on("connection", (ws, request) => {
+        metricsRegistry.increment("activeWebSockets");
+        let closed = false;
+
+        ws.on("close", () => {
+            if (!closed) {
+                metricsRegistry.decrement("activeWebSockets");
+                closed = true;
+            }
+        });
+
         const { pathname } = parse(request.url);
         const match = pathname.match(/^\/ws\/exec\/(.+)$/);
 

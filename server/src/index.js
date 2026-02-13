@@ -3,6 +3,7 @@ import express from "express";
 import http from "http";
 import containersRoutes from "./routes/containers.routes.js";
 import healthRoutes from "./routes/health.routes.js";
+import metricsRoutes from "./routes/metrics.routes.js";
 import analysisRoutes from "./routes/analysis.routes.js";
 import actionsRoutes from "./routes/actions.routes.js";
 import authRoutes from "./routes/auth.routes.js";
@@ -42,6 +43,7 @@ app.use(readinessMiddleware);
 app.use("/auth", authRoutes);
 app.use(analysisRoutes);
 app.use("/health", healthRoutes);
+app.use("/metrics", metricsRoutes);
 app.use("/containers", containersRoutes);
 app.use("/actions", actionsRoutes);
 

@@ -5,6 +5,7 @@ import { checkBruteForce, recordFailedAttempt, resetAttempts } from "../services
 import { logAuthEvent, AUTH_EVENTS } from "../services/authAudit.service.js";
 import User from "../models/User.js";
 import bcrypt from "bcryptjs";
+import metricsRegistry from "../observability/metricsRegistry.js";
 
 const REMEMBER_ME_DAYS = 7;
 const DEFAULT_REFRESH_DAYS = 1;
@@ -110,6 +111,7 @@ export const login = async (req, res, next) => {
         const user = await User.findOne({ primaryEmail: email }).select("+password");
         if (!user || !user.password) {
             await recordFailedAttempt(email);
+            metricsRegistry.increment("failedLogins");
             logAuthEvent({
                 event: AUTH_EVENTS.LOGIN_FAILED,
                 email,
@@ -122,6 +124,7 @@ export const login = async (req, res, next) => {
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
             await recordFailedAttempt(email);
+            metricsRegistry.increment("failedLogins");
             logAuthEvent({
                 event: AUTH_EVENTS.LOGIN_FAILED,
                 userId: user._id,
@@ -244,6 +247,8 @@ export const refresh = async (req, res, next) => {
             userId: doc.userId?._id || doc.userId,
             ...extractMeta(req),
         });
+
+        metricsRegistry.increment("tokenRefreshCount");
 
         res.json({ success: true, expiresAt: Date.now() + ACCESS_TOKEN_MAX_AGE });
 

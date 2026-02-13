@@ -25,6 +25,7 @@ import PublicRoute from './components/PublicRoute';
 import { LandingPage } from './pages/LandingPage';
 import { DocsPage } from './pages/DocsPage';
 import Toast from './components/Toast';
+import AdminObservabilityPage from './pages/AdminObservabilityPage';
 
 function App() {
   return (
@@ -55,6 +56,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/observability"
+                  element={
+                    <ProtectedRoute>
+                      <AdminObservabilityPage />
                     </ProtectedRoute>
                   }
                 />

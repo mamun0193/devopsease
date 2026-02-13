@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, LogOut, ChevronDown, Shield } from 'lucide-react';
+import { User, LogOut, ChevronDown, Shield, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -91,6 +91,16 @@ const UserMenu: React.FC = () => {
                                 <Shield size={16} />
                                 Security
                             </button>
+
+                            {user.role === 'admin' && (
+                                <button
+                                    onClick={() => { setOpen(false); navigate('/admin/observability'); }}
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 transition-colors"
+                                >
+                                    <Activity size={16} />
+                                    System Status
+                                </button>
+                            )}
                         </div>
 
                         {/* Logout */}

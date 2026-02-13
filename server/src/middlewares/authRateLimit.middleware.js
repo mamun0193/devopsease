@@ -1,5 +1,6 @@
 import { rateLimitIncr, rateLimitExpire } from '../redis/client.js';
 import logger from '../utils/logger.js';
+import metricsRegistry from "../observability/metricsRegistry.js";
 
 const AUTH_LIMITS = {
     login: { limit: 10, window: 900 },   // 10 per 15 min
@@ -27,6 +28,7 @@ export const authRateLimit = (action) => {
 
             if (count > config.limit) {
                 logger.warn(`Auth rate limit hit`, { action, ip, count, limit: config.limit });
+                metricsRegistry.increment("rateLimitHits");
 
                 res.setHeader('Retry-After', config.window);
                 return res.status(429).json({

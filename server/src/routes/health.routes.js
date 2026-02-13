@@ -1,29 +1,42 @@
 import express from "express";
-import readinessService from "../services/readiness.service.js";
-import { isDBConnected } from "../config/db.js";
+import docker from "../docker/client.js";
+import metricsRegistry from "../observability/metricsRegistry.js";
+import logger from "../utils/logger.js";
 
 const router = express.Router();
 
-router.get("/", (req, res) => {
-  res.status(200).json({
-    success: true,
-    data: {
-      status: "running",
-      database: isDBConnected() ? "connected" : "disconnected",
-      timestamp: new Date().toISOString(),
-    },
-    message: "Health check passed",
-  });
-});
+const getHealth = async (req, res) => {
+  const health = {
+    status: "ok",
+    uptimeSeconds: metricsRegistry.getUptimeSeconds(),
+    timestamp: new Date().toISOString(),
+    memoryUsage: process.memoryUsage(),
+    metrics: metricsRegistry.getHealthSnapshot(),
+    services: {
+      docker: "unknown",
+    }
+  };
 
-router.get("/ready", (req, res) => {
-  const status = readinessService.getStatus();
-  const statusCode = status.ready ? 200 : 503;
-  res.status(statusCode).json({
-    success: status.ready,
-    data: status,
-    message: status.ready ? "Server is ready" : "Server is initializing...",
-  });
-});
+  try {
+    // Non-blocking Docker check with timeout
+    const dockerPing = Promise.race([
+      docker.ping().then(() => "connected"),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timed out")), 1000))
+    ]);
+
+    await dockerPing;
+    health.services.docker = "connected";
+  } catch (error) {
+    health.status = "degraded";
+    health.services.docker = "disconnected";
+    logger.warn("Health check degraded: Docker unreachable", { error: error.message });
+  }
+
+  // Always return 200 OK, even if degraded (liveness probe)
+  res.json(health);
+};
+
+router.get("/", getHealth);
+router.post("/", getHealth); // Allow POST for flexibility
 
 export default router;
