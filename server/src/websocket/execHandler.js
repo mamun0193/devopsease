@@ -4,6 +4,8 @@ import sessionManager from "./sessionManager.js";
 
 const SHELL_CONFIGS = [
     { path: "/bin/bash", type: "bash", prompt: "\\u@\\h:\\w\\$ " },
+    { path: "/usr/bin/bash", type: "bash", prompt: "\\u@\\h:\\w\\$ " },
+    { path: "bash", type: "bash", prompt: "\\u@\\h:\\w\\$ " },
     { path: "/bin/sh", type: "sh", prompt: "$ " },
     { path: "sh", type: "sh", prompt: "$ " }
 ];
@@ -144,6 +146,7 @@ export async function handleExecSession(ws, containerId) {
             `TERM=xterm-256color`,
             `PS1=${shellConfig.prompt}`,
             `HOME=/root`,
+            `SHELL=${shellConfig.path}`,
         ];
 
         exec = await container.exec({

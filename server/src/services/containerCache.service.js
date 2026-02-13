@@ -36,9 +36,15 @@ class ContainerCacheService {
                 const exitCode = inspectData.State?.ExitCode;
                 const exitAnalysis = analyzeExitCode(exitCode);
 
+                // Port logic: NetworkSettings.Ports (running) -> HostConfig.PortBindings (created/stopped)
+                const networkPorts = inspectData.NetworkSettings?.Ports;
+                const hostPorts = inspectData.HostConfig?.PortBindings;
+                const rawPorts = (networkPorts && Object.keys(networkPorts).length > 0) ? networkPorts : hostPorts;
+
                 return {
                     name: (inspectData.Name || '').replace(/^\//, ''),
                     image: inspectData.Config?.Image,
+                    created: inspectData.Created, // Add real creation time
                     state: {
                         status: inspectData.State?.Status,
                         exitCode,
@@ -48,7 +54,16 @@ class ContainerCacheService {
                         startedAt: inspectData.State?.StartedAt,
                         finishedAt: inspectData.State?.FinishedAt,
                     },
-                    ports: inspectData.NetworkSettings?.Ports || {},
+                    ports: Object.entries(rawPorts || {}).flatMap(([key, bindings]) => {
+                        if (!bindings) return [];
+                        const [privatePort, type] = key.split('/');
+                        return bindings.map(binding => ({
+                            PrivatePort: parseInt(privatePort, 10),
+                            PublicPort: parseInt(binding.HostPort, 10),
+                            Type: type,
+                            IP: binding.HostIp
+                        }));
+                    }),
                 };
             },
             TTL.CONTAINER_STATE

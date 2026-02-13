@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Github, Lock, User, ArrowRight, Loader2, Mail } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useDispatch } from 'react-redux';
 import { addToast } from '../store/toastSlice';
 
 const LoginPage: React.FC = () => {
-    const [isLogin, setIsLogin] = useState(true);
+    const [searchParams] = useSearchParams();
+    const [isLogin, setIsLogin] = useState(searchParams.get('tab') !== 'register');
     const [form, setForm] = useState({ email: '', password: '', name: '' });
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
@@ -17,7 +18,7 @@ const LoginPage: React.FC = () => {
     const location = useLocation();
     const dispatch = useDispatch();
 
-    const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+    const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
 
     useEffect(() => {
         if (isAuthenticated) {

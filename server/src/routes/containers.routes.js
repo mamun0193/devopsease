@@ -59,7 +59,7 @@ router.get("/", requirePermission(ACTIONS.READ), async (req, res, next) => {
       image: c.image,
       state: c.state,
       ports: c.ports,
-      created: c.state?.startedAt
+      created: c.created
     }));
 
     // Calculate Permissions for UI (Soft Enforcement)

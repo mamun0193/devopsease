@@ -21,6 +21,9 @@ import AuthProvider from './context/AuthProvider';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
 import ProtectedRoute from './components/ProtectedRoute';
+import PublicRoute from './components/PublicRoute';
+import { LandingPage } from './pages/LandingPage';
+import { DocsPage } from './pages/DocsPage';
 import Toast from './components/Toast';
 
 function App() {
@@ -32,14 +35,21 @@ function App() {
             <BrowserRouter>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
+
+                <Route path="/" element={<LandingPage />} />
+
+                <Route path="/docs" element={<DocsPage />} />
+
+                {/* Protected Dashboard Routes */}
                 <Route
-                  path="/"
+                  path="/dashboard"
                   element={
                     <ProtectedRoute>
                       <HomePage />
                     </ProtectedRoute>
                   }
                 />
+
                 <Route
                   path="/profile"
                   element={
