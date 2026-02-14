@@ -199,6 +199,28 @@ export interface FailureAnalysis {
   } | null;
 }
 
+export interface FailureIntelligence {
+  containerId: string;
+  containerName: string;
+  type: 'CONFIG_ERROR' | 'RESOURCE_EXHAUSTION' | 'PORT_CONFLICT' | 'PERMISSION_ERROR' | 'CRASH_LOOP' | 'GRACEFUL_STOP' | 'HEALTHY' | 'PENDING' | 'PAUSED' | 'UNKNOWN';
+  confidenceScore: number;
+  summary: string;
+  evidence: string[];
+  restartCount: number;
+  exitCode: number;
+  state: string;
+  stabilityInsight: string;
+  analyzedAt: string;
+  explanation: {
+    summary: string;
+    confidence: number;
+    explanation: string;
+    likelyCauses: string[];
+    suggestedChecks: string[];
+    signalsObserved: string[];
+  } | null;
+}
+
 export interface ParsedLogLine {
   id: number;
   timestamp: string | null;
@@ -305,6 +327,12 @@ export const containerApi = {
   // Get container stats
   stats: async (containerId: string): Promise<ContainerStats> => {
     const response = await api.get<ApiResponse<ContainerStats>>(`/containers/${containerId}/stats`);
+    return response.data.data;
+  },
+
+  // Get failure intelligence analysis
+  failureAnalysis: async (containerId: string): Promise<FailureIntelligence> => {
+    const response = await api.get<ApiResponse<FailureIntelligence>>(`/containers/${containerId}/failure-analysis`);
     return response.data.data;
   },
 };

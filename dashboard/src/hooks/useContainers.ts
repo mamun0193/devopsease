@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { containerApi, healthApi, actionsApi } from '../api';
-import type { Container, ContainerInspect, FailureAnalysis, ContainerLogs, ContainerStats, ActionsResponse, ActionStats } from '../api';
+import type { Container, ContainerInspect, FailureAnalysis, FailureIntelligence, ContainerLogs, ContainerStats, ActionsResponse, ActionStats } from '../api';
 import api from '../api';
 import { useVisibilityInterval } from './useContainerPolling';
 
@@ -60,6 +60,19 @@ export function useContainerAnalysis(containerId: string | null) {
     enabled: !!containerId,
     refetchInterval,
     staleTime: 15000,
+  });
+}
+
+// Fetch failure intelligence analysis - Poll every 10s, pause when hidden
+export function useFailureAnalysis(containerId: string | null) {
+  const refetchInterval = useVisibilityInterval(10000);
+
+  return useQuery<FailureIntelligence, Error>({
+    queryKey: ['failureAnalysis', containerId],
+    queryFn: () => containerApi.failureAnalysis(containerId!),
+    enabled: !!containerId,
+    refetchInterval,
+    staleTime: 0,
   });
 }
 
@@ -132,12 +145,16 @@ interface MutationResult {
 export function useContainerMutations(containerId: string) {
   const queryClient = useQueryClient();
 
-  const invalidateContainerQueries = () => {
-    queryClient.invalidateQueries({ queryKey: ['containers'] });
-    queryClient.invalidateQueries({ queryKey: ['containerInspect', containerId] });
-    queryClient.invalidateQueries({ queryKey: ['containerStats', containerId] });
-    queryClient.invalidateQueries({ queryKey: ['containerAnalysis', containerId] });
-    queryClient.invalidateQueries({ queryKey: ['actions'] });
+  const invalidateContainerQueries = async () => {
+    // Use refetchQueries to force immediate refetch instead of just marking as stale
+    await Promise.all([
+      queryClient.refetchQueries({ queryKey: ['containers'] }),
+      queryClient.refetchQueries({ queryKey: ['containerInspect', containerId] }),
+      queryClient.refetchQueries({ queryKey: ['containerStats', containerId] }),
+      queryClient.refetchQueries({ queryKey: ['containerAnalysis', containerId] }),
+      queryClient.refetchQueries({ queryKey: ['failureAnalysis', containerId] }),
+      queryClient.refetchQueries({ queryKey: ['actions'] }),
+    ]);
   };
 
   const start = useMutation<MutationResult, Error>({
@@ -170,14 +187,29 @@ export function useContainerMutations(containerId: string) {
       return response.data;
     },
     onSuccess: () => {
-      // After removal, we don't need to refetch container-specific queries
       queryClient.invalidateQueries({ queryKey: ['containers'] });
       queryClient.invalidateQueries({ queryKey: ['actions'] });
-      // Remove stale data for this container
       queryClient.removeQueries({ queryKey: ['containerInspect', containerId] });
       queryClient.removeQueries({ queryKey: ['containerStats', containerId] });
       queryClient.removeQueries({ queryKey: ['containerAnalysis', containerId] });
+      queryClient.removeQueries({ queryKey: ['failureAnalysis', containerId] });
     },
+  });
+
+  const pause = useMutation<MutationResult, Error>({
+    mutationFn: async () => {
+      const response = await api.post(`/containers/${containerId}/pause`);
+      return response.data;
+    },
+    onSuccess: invalidateContainerQueries,
+  });
+
+  const unpause = useMutation<MutationResult, Error>({
+    mutationFn: async () => {
+      const response = await api.post(`/containers/${containerId}/unpause`);
+      return response.data;
+    },
+    onSuccess: invalidateContainerQueries,
   });
 
   return {
@@ -185,6 +217,8 @@ export function useContainerMutations(containerId: string) {
     stop,
     restart,
     remove,
-    isLoading: start.isPending || stop.isPending || restart.isPending || remove.isPending,
+    pause,
+    unpause,
+    isLoading: start.isPending || stop.isPending || restart.isPending || remove.isPending || pause.isPending || unpause.isPending,
   };
 }

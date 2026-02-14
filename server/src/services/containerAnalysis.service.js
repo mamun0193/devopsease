@@ -1,20 +1,49 @@
 import docker from "../docker/client.js";
 import { collectSignals } from "../intelligence/signals/index.js";
-import { classifyFailure } from "../intelligence/classifier.js";
+import { classifyFailure, FAILURE_TYPES } from "../intelligence/classifier.js";
 import { explainFailure } from "../intelligence/explainer.js";
 import {
   recordFailure,
   getFailureHistory,
 } from "../intelligence/history/failureHistory.store.js";
-
 import {
   boostConfidence,
   generateStabilityInsight,
 } from "../intelligence/history/confidenceBoost.js";
+import logger from "../utils/logger.js";
 
-/**
- * Analyze a container and return failure intelligence
- */
+const CACHE_TTL_MS = 60_000;
+const analysisCache = new Map();
+
+export function invalidateAnalysisCache(containerId) {
+  analysisCache.delete(containerId);
+}
+
+function getCachedResult(containerId, currentRestartCount, currentState) {
+  const cached = analysisCache.get(containerId);
+  if (!cached) return null;
+
+  if (Date.now() > cached.expiresAt) {
+    analysisCache.delete(containerId);
+    return null;
+  }
+
+  if (cached.restartCount !== currentRestartCount || cached.state !== currentState) {
+    analysisCache.delete(containerId);
+    return null;
+  }
+
+  return cached.result;
+}
+
+function setCachedResult(containerId, result, restartCount, state) {
+  analysisCache.set(containerId, {
+    result,
+    restartCount,
+    state,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  });
+}
 
 export async function analyzeContainer(containerId) {
   if (!containerId) {
@@ -22,12 +51,17 @@ export async function analyzeContainer(containerId) {
   }
 
   const container = docker.getContainer(containerId);
-
-  // Inspect container
   const inspectData = await container.inspect();
   const state = inspectData.State;
+  const restartCount = inspectData.RestartCount || 0;
+  const exitCode = state?.ExitCode;
 
-  // Fetch recent logs (last 200 lines)
+  const cached = getCachedResult(containerId, restartCount, state?.Status);
+  if (cached) {
+    logger.debug(`Cache hit for failure analysis: ${containerId}`);
+    return cached;
+  }
+
   let logs = "";
   try {
     logs = await container.logs({
@@ -37,50 +71,60 @@ export async function analyzeContainer(containerId) {
     });
     logs = logs.toString();
   } catch (err) {
-    // Logs may not always be available
     logs = "";
   }
 
-  // Collect failure signals
   const signals = collectSignals({
     state,
-    exitCode: state?.ExitCode,
-    restartCount: state?.RestartCount,
+    exitCode,
+    restartCount,
     logs,
   });
 
-  // Classify failure
-  const failure = classifyFailure(signals);
+  const classification = classifyFailure(signals, {
+    state,
+    exitCode,
+    restartCount,
+    logs,
+  });
+
   const containerKey = inspectData.Id || inspectData.Name;
 
-  // Record meaningful failures only
-  if (failure.category !== "unknown") {
-    recordFailure(containerKey, failure);
+  if (classification.type !== FAILURE_TYPES.UNKNOWN) {
+    recordFailure(containerKey, {
+      category: classification.type,
+      confidence: classification.confidenceScore,
+    });
   }
 
-  // Get failure history(recent 10)
   const history = getFailureHistory(containerKey);
+  const boostedConfidence = boostConfidence(classification.confidenceScore, history);
+  if (typeof boostedConfidence === "number") {
+    classification.confidenceScore = boostedConfidence;
+  }
 
-  // Boost confidence based on history
-  failure.confidence = boostConfidence(failure.confidence, history);
+  const explanation = explainFailure({
+    category: classification.type,
+    confidence: classification.confidenceScore,
+    reasons: classification.evidence,
+  });
 
-  // Attach history data to failure metadata
-  
-   failure.metadata = {
-    ...failure.metadata,
-    historyInsight: generateStabilityInsight(history),
-    recentFailures: history
-  };
-
-  // Generate human explanation
-  const explanation = explainFailure(failure);
-
-  // Final analysis result
-  return {
+  const result = {
     containerId,
     containerName: inspectData.Name,
+    type: classification.type,
+    confidenceScore: classification.confidenceScore,
+    summary: classification.summary,
+    evidence: classification.evidence,
+    restartCount,
+    exitCode,
     state: state?.Status,
-    failure,
     explanation,
+    stabilityInsight: generateStabilityInsight(history),
+    analyzedAt: new Date().toISOString(),
   };
+
+  setCachedResult(containerId, result, restartCount, state?.Status);
+
+  return result;
 }

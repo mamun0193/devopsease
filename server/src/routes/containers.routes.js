@@ -1,6 +1,7 @@
 import express from "express";
 import { getContainerLogs } from "../docker/containers.js";
 import containerCacheService from "../services/containerCache.service.js";
+import { invalidateAnalysisCache } from "../services/containerAnalysis.service.js";
 import { parseLogs } from "../services/logParser.service.js";
 import {
   startContainer,
@@ -233,6 +234,11 @@ router.get("/:id/inspect", ownershipGuard("inspect"), requirePermission(ACTIONS.
   }
 });
 
+// ... existing code ...
+// ... imports ...
+
+// ... existing code ...
+
 // POST /containers/:id/start
 router.post("/:id/start", ownershipGuard("start"), requirePermission(ACTIONS.OPERATE), async (req, res, next) => {
   try {
@@ -240,6 +246,7 @@ router.post("/:id/start", ownershipGuard("start"), requirePermission(ACTIONS.OPE
     if (!result.success) {
       throw new AppError(result.message, result.statusCode);
     }
+    invalidateAnalysisCache(req.params.id); // Invalidate analysis cache
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,
@@ -257,6 +264,7 @@ router.post("/:id/stop", ownershipGuard("stop"), requirePermission(ACTIONS.OPERA
     if (!result.success) {
       throw new AppError(result.message, result.statusCode);
     }
+    invalidateAnalysisCache(req.params.id); // Invalidate analysis cache
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,
@@ -274,6 +282,7 @@ router.post("/:id/restart", ownershipGuard("restart"), requirePermission(ACTIONS
     if (!result.success) {
       throw new AppError(result.message, result.statusCode);
     }
+    invalidateAnalysisCache(req.params.id); // Invalidate analysis cache
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,
@@ -291,6 +300,7 @@ router.post("/:id/pause", ownershipGuard("pause"), requirePermission(ACTIONS.OPE
     if (!result.success) {
       throw new AppError(result.message, result.statusCode);
     }
+    invalidateAnalysisCache(req.params.id); // Invalidate analysis cache
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,
@@ -308,6 +318,7 @@ router.post("/:id/unpause", ownershipGuard("unpause"), requirePermission(ACTIONS
     if (!result.success) {
       throw new AppError(result.message, result.statusCode);
     }
+    invalidateAnalysisCache(req.params.id); // Invalidate analysis cache
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,

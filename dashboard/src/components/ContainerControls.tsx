@@ -157,11 +157,14 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
       }
 
       // Refresh data and wait for it to complete
-      await queryClient.refetchQueries({ queryKey: ['containers'] });
-      queryClient.invalidateQueries({ queryKey: ['containerInspect', containerId] });
-      queryClient.invalidateQueries({ queryKey: ['containerLogs', containerId] });
-      queryClient.invalidateQueries({ queryKey: ['containerAnalysis', containerId] });
-      queryClient.invalidateQueries({ queryKey: ['actions'] });
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['containers'] }),
+        queryClient.refetchQueries({ queryKey: ['containerInspect', containerId] }),
+        queryClient.refetchQueries({ queryKey: ['containerLogs', containerId] }),
+        queryClient.refetchQueries({ queryKey: ['containerAnalysis', containerId] }),
+        queryClient.refetchQueries({ queryKey: ['failureAnalysis', containerId] }),
+        queryClient.refetchQueries({ queryKey: ['actions'] }),
+      ]);
 
       // NOW show the toast — after state is confirmed and data is refreshed
       dispatch(setCompletedAction({
