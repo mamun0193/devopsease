@@ -1,13 +1,13 @@
 import { WebSocketServer } from "ws";
 import { parse } from "url";
-import jwt from "jsonwebtoken"; // Added for auth
+import jwt from "jsonwebtoken";
 import logger from "../utils/logger.js";
 import { handleExecSession } from "./execHandler.js";
-import sessionManager from "./sessionManager.js";
-import { enforceRateLimit } from "../middlewares/rateLimit.middleware.js"; // Added for rate limiting
-import { canPerform, ACTIONS, ROLES } from "../config/permissions.js"; // Added for RBAC
-import ownershipService from "../services/ownership.service.js"; // Added for ownership check
-import metricsRegistry from "../observability/metricsRegistry.js"; // Added for metrics
+import execSessionRegistry from "./execSessionRegistry.js";
+import { enforceRateLimit } from "../middlewares/rateLimit.middleware.js";
+import { canPerform, ACTIONS, ROLES } from "../config/permissions.js";
+import ownershipService from "../services/ownership.service.js";
+import metricsRegistry from "../observability/metricsRegistry.js";
 
 let wss = null;
 
@@ -20,7 +20,6 @@ export function initializeWebSocketServer(server) {
         if (pathname.startsWith("/ws/exec/")) {
             // 1. Authentication (Cookie-based)
             const cookieHeader = request.headers.cookie;
-            // Simple parsing for 'auth' cookie
             const token = cookieHeader && cookieHeader.split(';').find(c => c.trim().startsWith('access_token='))?.split('=')[1];
 
             if (!token) {
@@ -49,11 +48,10 @@ export function initializeWebSocketServer(server) {
             }
             const containerId = match[1];
 
-            // Determines if user strictly owns the resource
             let ownsResource = false;
 
             if (user.role === ROLES.ADMIN) {
-                ownsResource = false; // Admins rely on role permission (ANY), not ownership
+                ownsResource = false;
             } else {
                 ownsResource = await ownershipService.hasOwnership(user._id || user.userId, containerId);
             }
@@ -61,7 +59,7 @@ export function initializeWebSocketServer(server) {
             const allowed = canPerform({
                 role: user.role,
                 ownsResource,
-                actionType: ACTIONS.OPERATE // Exec is always OPERATE
+                actionType: ACTIONS.OPERATE
             });
 
             if (!allowed) {
@@ -74,9 +72,8 @@ export function initializeWebSocketServer(server) {
             // 2. Rate Limiting (Exec Action)
             try {
                 const userId = user._id || user.userId;
-                const userPlan = user.plan || 'free'; // Default to free if missing in token
+                const userPlan = user.plan || 'free';
 
-                // This throws if limit exceeded (429) or Redis down (503)
                 await enforceRateLimit(userId, userPlan, 'exec');
 
             } catch (error) {
@@ -92,6 +89,9 @@ export function initializeWebSocketServer(server) {
                 socket.destroy();
                 return;
             }
+
+            // Attach user info to the request for downstream use
+            request._user = user;
 
             // 3. Upgrade Connection
             wss.handleUpgrade(request, socket, head, (ws) => {
@@ -123,21 +123,20 @@ export function initializeWebSocketServer(server) {
         }
 
         const containerId = match[1];
-        logger.info("WebSocket connection established", { containerId });
+        const userId = request._user?._id || request._user?.userId || "unknown";
+        logger.info("WebSocket connection established", { containerId, userId });
 
-        handleExecSession(ws, containerId);
+        handleExecSession(ws, containerId, userId);
     });
 
     wss.on("error", (error) => {
         logger.error("WebSocket server error", { error: error.message });
     });
-
-    // WebSocket initialized
 }
 
-export function closeWebSocketServer() {
+export async function closeWebSocketServer() {
     if (wss) {
-        sessionManager.cleanup();
+        await execSessionRegistry.terminateAllSessions("server_shutdown");
 
         wss.clients.forEach((client) => {
             if (client.readyState === client.OPEN) {

@@ -2,7 +2,7 @@ import docker from "./client.js";
 import logger from "../utils/logger.js";
 import actionHistoryService from "../services/actionHistory.service.js";
 import containerCacheService from "../services/containerCache.service.js";
-import sessionManager from "../websocket/sessionManager.js";
+import execSessionRegistry from "../websocket/execSessionRegistry.js";
 
 /**
  * Get container current state
@@ -224,29 +224,13 @@ async function stopContainer(containerId) {
 
     logger.info("Container stop command completed", { containerId });
 
-    // Clean up any active exec session for this container
-    if (sessionManager.hasActiveSession(containerId) || sessionManager.hasActiveSession(state.id)) {
-      const session = sessionManager.getSession(containerId) || sessionManager.getSession(state.id);
-      if (session?.stream) {
-        try {
-          session.stream.destroy();
-        } catch (e) {
-          logger.debug("Error destroying exec stream on stop", { error: e.message });
-        }
-      }
-      if (session?.ws && session.ws.readyState === session.ws.OPEN) {
-        try {
-          session.ws.send(JSON.stringify({
-            type: "disconnected",
-            message: "Container stopped"
-          }));
-          session.ws.close();
-        } catch (e) {
-          logger.debug("Error closing WebSocket on stop", { error: e.message });
-        }
-      }
-      sessionManager.removeSession(containerId) || sessionManager.removeSession(state.id);
-      logger.info("Exec session cleaned up on container stop", { containerId });
+    // Clean up any active exec sessions for this container
+    const stopSessions = execSessionRegistry.getSessionsByContainer(containerId)
+      .concat(execSessionRegistry.getSessionsByContainer(state.id));
+    for (const s of stopSessions) {
+      await execSessionRegistry.forceKillSession(s.sessionId, "container_stopped").catch((e) => {
+        logger.debug("Error cleaning exec session on stop", { error: e.message });
+      });
     }
 
     // Wait for container to reach exited state
@@ -360,29 +344,13 @@ async function restartContainer(containerId) {
 
     logger.info("Container restart command completed", { containerId });
 
-    // Clean up any active exec session for this container (restart kills the shell)
-    if (sessionManager.hasActiveSession(containerId) || sessionManager.hasActiveSession(state.id)) {
-      const session = sessionManager.getSession(containerId) || sessionManager.getSession(state.id);
-      if (session?.stream) {
-        try {
-          session.stream.destroy();
-        } catch (e) {
-          logger.debug("Error destroying exec stream on restart", { error: e.message });
-        }
-      }
-      if (session?.ws && session.ws.readyState === session.ws.OPEN) {
-        try {
-          session.ws.send(JSON.stringify({
-            type: "disconnected",
-            message: "Container restarted"
-          }));
-          session.ws.close();
-        } catch (e) {
-          logger.debug("Error closing WebSocket on restart", { error: e.message });
-        }
-      }
-      sessionManager.removeSession(containerId) || sessionManager.removeSession(state.id);
-      logger.info("Exec session cleaned up on container restart", { containerId });
+    // Clean up any active exec sessions for this container (restart kills the shell)
+    const restartSessions = execSessionRegistry.getSessionsByContainer(containerId)
+      .concat(execSessionRegistry.getSessionsByContainer(state.id));
+    for (const s of restartSessions) {
+      await execSessionRegistry.forceKillSession(s.sessionId, "container_restarted").catch((e) => {
+        logger.debug("Error cleaning exec session on restart", { error: e.message });
+      });
     }
 
     // Wait for container to reach running state
@@ -473,29 +441,13 @@ async function removeContainer(containerId, force = false) {
 
     logger.info("Container removed successfully", { containerId, force });
 
-    // Clean up any active exec session for this container
-    if (sessionManager.hasActiveSession(containerId) || sessionManager.hasActiveSession(state.id)) {
-      const session = sessionManager.getSession(containerId) || sessionManager.getSession(state.id);
-      if (session?.stream) {
-        try {
-          session.stream.destroy();
-        } catch (e) {
-          logger.debug("Error destroying exec stream on remove", { error: e.message });
-        }
-      }
-      if (session?.ws && session.ws.readyState === session.ws.OPEN) {
-        try {
-          session.ws.send(JSON.stringify({
-            type: "disconnected",
-            message: "Container removed"
-          }));
-          session.ws.close();
-        } catch (e) {
-          logger.debug("Error closing WebSocket on remove", { error: e.message });
-        }
-      }
-      sessionManager.removeSession(containerId) || sessionManager.removeSession(state.id);
-      logger.info("Exec session cleaned up on container remove", { containerId });
+    // Clean up any active exec sessions for this container
+    const removeSessions = execSessionRegistry.getSessionsByContainer(containerId)
+      .concat(execSessionRegistry.getSessionsByContainer(state.id));
+    for (const s of removeSessions) {
+      await execSessionRegistry.forceKillSession(s.sessionId, "container_removed").catch((e) => {
+        logger.debug("Error cleaning exec session on remove", { error: e.message });
+      });
     }
 
     // Invalidate cache after removal
@@ -578,29 +530,13 @@ async function pauseContainer(containerId) {
 
     logger.info("Container pause command completed", { containerId });
 
-    // Clean up any active exec session for this container (paused containers can't exec)
-    if (sessionManager.hasActiveSession(containerId) || sessionManager.hasActiveSession(state.id)) {
-      const session = sessionManager.getSession(containerId) || sessionManager.getSession(state.id);
-      if (session?.stream) {
-        try {
-          session.stream.destroy();
-        } catch (e) {
-          logger.debug("Error destroying exec stream on pause", { error: e.message });
-        }
-      }
-      if (session?.ws && session.ws.readyState === session.ws.OPEN) {
-        try {
-          session.ws.send(JSON.stringify({
-            type: "disconnected",
-            message: "Container paused"
-          }));
-          session.ws.close();
-        } catch (e) {
-          logger.debug("Error closing WebSocket on pause", { error: e.message });
-        }
-      }
-      sessionManager.removeSession(containerId) || sessionManager.removeSession(state.id);
-      logger.info("Exec session cleaned up on container pause", { containerId });
+    // Clean up any active exec sessions for this container (paused containers can't exec)
+    const pauseSessions = execSessionRegistry.getSessionsByContainer(containerId)
+      .concat(execSessionRegistry.getSessionsByContainer(state.id));
+    for (const s of pauseSessions) {
+      await execSessionRegistry.forceKillSession(s.sessionId, "container_paused").catch((e) => {
+        logger.debug("Error cleaning exec session on pause", { error: e.message });
+      });
     }
 
     // Wait for container to reach paused state

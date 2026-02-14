@@ -1,13 +1,12 @@
 import docker from "../docker/client.js";
 import logger from "../utils/logger.js";
-import sessionManager from "./sessionManager.js";
+import execSessionRegistry from "./execSessionRegistry.js";
 
 const SHELL_CONFIGS = [
     { path: "/bin/bash", type: "bash", prompt: "\\u@\\h:\\w\\$ " },
     { path: "/usr/bin/bash", type: "bash", prompt: "\\u@\\h:\\w\\$ " },
     { path: "bash", type: "bash", prompt: "\\u@\\h:\\w\\$ " },
     { path: "/bin/sh", type: "sh", prompt: "$ " },
-    { path: "sh", type: "sh", prompt: "$ " }
 ];
 
 async function getContainerState(containerId) {
@@ -40,7 +39,7 @@ async function findAvailableShell(container) {
                 AttachStderr: false,
             });
 
-            const result = await exec.start({ Detach: false });
+            await exec.start({ Detach: false });
             const inspection = await exec.inspect();
 
             if (inspection.ExitCode === 0) {
@@ -56,99 +55,53 @@ async function findAvailableShell(container) {
     return { path: "/bin/sh", type: "sh", prompt: "$ " };
 }
 
-import metricsRegistry from "../observability/metricsRegistry.js";
-
-export async function handleExecSession(ws, containerId) { // No change to function signature, just adding import above
-    let execStream = null;
-    let exec = null;
-    let cleanedUp = false;
-    let currentSession = null;
-    let metricsIncremented = false; // Track if we incremented to avoid double decrement
-
-    const cleanup = () => {
-        if (cleanedUp) return;
-        cleanedUp = true;
-
-        if (metricsIncremented) {
-            metricsRegistry.decrement("activeExecSessions");
-        }
-
-        try {
-            if (execStream) {
-                execStream.destroy();
-                execStream = null;
-            }
-            // Only remove from session manager if WE are the active session
-            const activeSession = sessionManager.getSession(containerId);
-            if (activeSession === currentSession) {
-                sessionManager.removeSession(containerId);
-                logger.info("Exec session cleaned up", { containerId });
-            }
-        } catch (error) {
-            logger.error("Error during exec cleanup", { containerId, error: error.message });
-        }
-    };
+export async function handleExecSession(ws, containerId, userId) {
+    let session = null;
 
     try {
-        // 1. Force cleanup of any existing session (preemption)
-        // Atomic session creation: Force create a new session, getting back any old one
-        const { session, previousSession } = sessionManager.forceCreateSession(containerId, {
-            ws,
-            status: "initializing",
-            startTime: new Date().toISOString()
-        });
-
-        currentSession = session;
-
-        // Clean up the previous session if one existed
-        if (previousSession) {
-            logger.warn("Cleaning up preempted session", { containerId });
-            try {
-                if (previousSession.stream) previousSession.stream.destroy();
-                if (previousSession.ws && previousSession.ws.readyState === previousSession.ws.OPEN) {
-                    previousSession.ws.close();
-                }
-            } catch (e) {
-                logger.debug("Error cleaning preempted session", { containerId, error: e.message });
-            }
+        // Terminate any existing sessions for this container from this user
+        const existingSessions = execSessionRegistry.getSessionsByContainer(containerId);
+        for (const existing of existingSessions) {
+            logger.warn("Preempting existing exec session", { sessionId: existing.sessionId, containerId });
+            await execSessionRegistry.forceKillSession(existing.sessionId, "session_preempted");
         }
 
+        // Create new session in the registry
+        session = execSessionRegistry.createSession({ containerId, userId, ws });
+        const { sessionId } = session;
+
+        // Validate container state
         const state = await getContainerState(containerId);
-
-        // CHECK: Have we been preempted?
-        if (sessionManager.getSession(containerId) !== currentSession) {
-            logger.debug("Session initialization preempted by new connection", { containerId });
-            return; // Stop silently, new connection will take over
-        }
 
         if (!state) {
             ws.send(JSON.stringify({ type: "error", message: "Container not found" }));
-            ws.close();
+            await execSessionRegistry.terminateSession(sessionId, "container_not_found");
             return;
         }
 
         if (!state.running) {
             ws.send(JSON.stringify({ type: "error", message: `Container is ${state.state}. Only running containers can execute shell` }));
-            ws.close();
+            await execSessionRegistry.terminateSession(sessionId, "container_not_running");
             return;
         }
 
         if (state.paused) {
             ws.send(JSON.stringify({ type: "error", message: "Container is paused. Unpause to execute shell" }));
-            ws.close();
+            await execSessionRegistry.terminateSession(sessionId, "container_paused");
             return;
         }
 
+        // Find available shell (bash only)
         const container = docker.getContainer(containerId);
         const shellConfig = await findAvailableShell(container);
 
-        // CHECK: Have we been preempted?
-        if (sessionManager.getSession(containerId) !== currentSession) {
-            logger.debug("Session initialization preempted by new connection", { containerId });
+        // Check session is still active (not preempted during async work)
+        const currentSession = execSessionRegistry.getSession(sessionId);
+        if (!currentSession || currentSession.status !== "active") {
+            logger.debug("Session preempted during initialization", { sessionId });
             return;
         }
 
-        // Env variables based on shell type
         const env = [
             `TERM=xterm-256color`,
             `PS1=${shellConfig.prompt}`,
@@ -156,8 +109,7 @@ export async function handleExecSession(ws, containerId) { // No change to funct
             `SHELL=${shellConfig.path}`,
         ];
 
-        exec = await container.exec({
-            // Use login shell (-l) and interactive (-i) for proper environment loading
+        const exec = await container.exec({
             Cmd: [shellConfig.path, "-l", "-i"],
             AttachStdin: true,
             AttachStdout: true,
@@ -166,113 +118,116 @@ export async function handleExecSession(ws, containerId) { // No change to funct
             Env: env,
         });
 
-        execStream = await exec.start({
+        const execStream = await exec.start({
             hijack: true,
             stdin: true,
             Tty: true,
         });
 
-        // Update the reserved session with actual exec data
-        // Check if we are still the active session before updating
-        if (sessionManager.getSession(containerId) === currentSession) {
-            Object.assign(currentSession, {
-                shell: shellConfig.path,
-                exec,
-                stream: execStream,
-                status: "active"
-            });
-        } else {
-            logger.warn("Session preempted during start, aborting update", { containerId });
+        // Check session is still active after exec start
+        const activeSession = execSessionRegistry.getSession(sessionId);
+        if (!activeSession || activeSession.status !== "active") {
+            logger.warn("Session preempted during exec start", { sessionId });
+            try { execStream.destroy(); } catch (_) { /* ignore */ }
             return;
         }
 
-        logger.info("Exec session started", { containerId, shell: shellConfig.path });
-        metricsRegistry.increment("activeExecSessions");
-        metricsIncremented = true;
+        // Attach Docker resources to session
+        activeSession.dockerStream = execStream;
+        activeSession.dockerExecInstance = exec;
+
+        logger.info("Exec session started", { sessionId, containerId, shell: shellConfig.path });
 
         ws.send(JSON.stringify({
             type: "connected",
-            message: `Connected to ${state.name} (${shellConfig.path})`
+            message: `Connected to ${state.name} (${shellConfig.path})`,
+            sessionId,
         }));
 
+        // Docker stream → WebSocket
         execStream.on("data", (data) => {
+            execSessionRegistry.updateLastIO(sessionId);
             try {
                 if (ws.readyState === ws.OPEN) {
                     ws.send(JSON.stringify({
                         type: "output",
-                        data: data.toString("utf-8")
+                        data: data.toString("utf-8"),
                     }));
                 }
             } catch (error) {
-                logger.error("Error sending output to WebSocket", { containerId, error: error.message });
+                logger.error("Error sending output to WebSocket", { sessionId, error: error.message });
             }
         });
 
         execStream.on("end", () => {
-            logger.info("Exec stream ended", { containerId });
-            cleanup();
-            if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({
-                    type: "disconnected",
-                    message: "Exec session ended"
-                }));
-                ws.close();
-            }
+            logger.info("Exec stream ended", { sessionId });
+            execSessionRegistry.terminateSession(sessionId, "stream_ended").catch((err) => {
+                logger.error("Error during stream end cleanup", { sessionId, error: err.message });
+            });
         });
 
         execStream.on("error", (error) => {
-            logger.error("Exec stream error", { containerId, error: error.message });
-            cleanup();
-            if (ws.readyState === ws.OPEN) {
-                ws.send(JSON.stringify({
-                    type: "error",
-                    message: `Stream error: ${error.message}`
-                }));
-                ws.close();
-            }
+            logger.error("Exec stream error", { sessionId, error: error.message });
+            execSessionRegistry.terminateSession(sessionId, "stream_error").catch((err) => {
+                logger.error("Error during stream error cleanup", { sessionId, error: err.message });
+            });
         });
 
+        // WebSocket → Docker stream
         ws.on("message", (message) => {
             try {
                 const data = JSON.parse(message);
 
-                if (data.type === "input" && execStream && !execStream.destroyed) {
-                    execStream.write(data.data);
-                } else if (data.type === "resize" && exec) {
-                    const { cols, rows } = data;
-                    if (cols && rows) {
-                        exec.resize({ h: rows, w: cols }).catch(() => { });
+                if (data.type === "input") {
+                    const currentSess = execSessionRegistry.getSession(sessionId);
+                    if (currentSess?.dockerStream && !currentSess.dockerStream.destroyed) {
+                        currentSess.dockerStream.write(data.data);
+                        execSessionRegistry.updateLastIO(sessionId);
                     }
+                } else if (data.type === "resize") {
+                    const currentSess = execSessionRegistry.getSession(sessionId);
+                    const { cols, rows } = data;
+                    if (cols && rows && currentSess?.dockerExecInstance) {
+                        currentSess.dockerExecInstance.resize({ h: rows, w: cols }).catch(() => { });
+                    }
+                } else if (data.type === "terminate") {
+                    logger.info("Client requested session termination", { sessionId });
+                    execSessionRegistry.terminateSession(sessionId, "manual_termination").catch((err) => {
+                        logger.error("Error during manual termination", { sessionId, error: err.message });
+                    });
                 }
             } catch (error) {
-                logger.error("Error processing WebSocket message", { containerId, error: error.message });
+                logger.error("Error processing WebSocket message", { sessionId, error: error.message });
             }
         });
 
         ws.on("close", () => {
-            logger.info("WebSocket closed by client", { containerId });
-            cleanup();
+            logger.info("WebSocket closed by client", { sessionId });
+            execSessionRegistry.terminateSession(sessionId, "client_disconnected").catch((err) => {
+                logger.error("Error during client disconnect cleanup", { sessionId, error: err.message });
+            });
         });
 
         ws.on("error", (error) => {
-            logger.error("WebSocket error", { containerId, error: error.message });
-            cleanup();
+            logger.error("WebSocket error", { sessionId, error: error.message });
+            execSessionRegistry.terminateSession(sessionId, "websocket_error").catch((err) => {
+                logger.error("Error during WebSocket error cleanup", { sessionId, error: err.message });
+            });
         });
 
     } catch (error) {
         logger.error("Failed to create exec session", { containerId, error: error.message });
 
-        // Remove session if it's ours
-        if (currentSession && sessionManager.getSession(containerId) === currentSession) {
-            sessionManager.removeSession(containerId);
+        if (session) {
+            await execSessionRegistry.forceKillSession(session.sessionId, "initialization_error").catch((err) => {
+                logger.error("Error during init error cleanup", { error: err.message });
+            });
         }
-
-        cleanup();
 
         if (ws.readyState === ws.OPEN) {
             ws.send(JSON.stringify({
                 type: "error",
-                message: `Failed to create exec session: ${error.message}`
+                message: `Failed to create exec session: ${error.message}`,
             }));
             ws.close();
         }

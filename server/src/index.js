@@ -19,6 +19,7 @@ import readinessService from "./services/readiness.service.js";
 import actionHistoryService from "./services/actionHistory.service.js";
 import docker from "./docker/client.js";
 import { initializeWebSocketServer, closeWebSocketServer } from "./websocket/ws.js";
+import execSessionRegistry from "./websocket/execSessionRegistry.js";
 import { connectDB, disconnectDB } from "./config/db.js";
 import "./config/passport.js";
 import passport from "passport";
@@ -79,7 +80,8 @@ async function startServer() {
   const shutdown = async (signal) => {
     logger.info(`${signal} received, shutting down gracefully`);
 
-    closeWebSocketServer();
+    await execSessionRegistry.terminateAllSessions(signal.toLowerCase());
+    await closeWebSocketServer();
 
     server.close(async () => {
       await disconnectDB();
