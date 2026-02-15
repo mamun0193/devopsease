@@ -204,6 +204,9 @@ export interface FailureIntelligence {
   containerName: string;
   type: 'CONFIG_ERROR' | 'RESOURCE_EXHAUSTION' | 'PORT_CONFLICT' | 'PERMISSION_ERROR' | 'CRASH_LOOP' | 'GRACEFUL_STOP' | 'HEALTHY' | 'PENDING' | 'PAUSED' | 'UNKNOWN';
   confidenceScore: number;
+  instabilityScore: number;
+  isUnstable: boolean;
+  mtbfSeconds: number | null;
   summary: string;
   evidence: string[];
   restartCount: number;

@@ -2,6 +2,7 @@ import docker from "../docker/client.js";
 import { collectSignals } from "../intelligence/signals/index.js";
 import { classifyFailure, FAILURE_TYPES } from "../intelligence/classifier.js";
 import { explainFailure } from "../intelligence/explainer.js";
+import { analyzeInstability } from "../intelligence/instabilityAnalyzer.js";
 import {
   recordFailure,
   getFailureHistory,
@@ -28,7 +29,12 @@ function getCachedResult(containerId, currentRestartCount, currentState) {
     return null;
   }
 
-  if (cached.restartCount !== currentRestartCount || cached.state !== currentState) {
+  // Refined cache validation: Check RestartCount, Status, AND Running state
+  if (
+    cached.restartCount !== currentRestartCount ||
+    cached.status !== currentState?.Status ||
+    cached.isRunning !== currentState?.Running
+  ) {
     analysisCache.delete(containerId);
     return null;
   }
@@ -40,7 +46,8 @@ function setCachedResult(containerId, result, restartCount, state) {
   analysisCache.set(containerId, {
     result,
     restartCount,
-    state,
+    status: state?.Status,
+    isRunning: state?.Running,
     expiresAt: Date.now() + CACHE_TTL_MS,
   });
 }
@@ -56,7 +63,8 @@ export async function analyzeContainer(containerId) {
   const restartCount = inspectData.RestartCount || 0;
   const exitCode = state?.ExitCode;
 
-  const cached = getCachedResult(containerId, restartCount, state?.Status);
+  // Pass full state object for validation
+  const cached = getCachedResult(containerId, restartCount, state);
   if (cached) {
     logger.debug(`Cache hit for failure analysis: ${containerId}`);
     return cached;
@@ -88,6 +96,9 @@ export async function analyzeContainer(containerId) {
     logs,
   });
 
+  // Day 42: Instability Analysis
+  const instability = analyzeInstability(state, restartCount, classification);
+
   const containerKey = inspectData.Id || inspectData.Name;
 
   if (classification.type !== FAILURE_TYPES.UNKNOWN) {
@@ -114,6 +125,9 @@ export async function analyzeContainer(containerId) {
     containerName: inspectData.Name,
     type: classification.type,
     confidenceScore: classification.confidenceScore,
+    instabilityScore: instability.instabilityScore,
+    isUnstable: instability.isUnstable,
+    mtbfSeconds: instability.mtbfSeconds,
     summary: classification.summary,
     evidence: classification.evidence,
     restartCount,
@@ -124,7 +138,7 @@ export async function analyzeContainer(containerId) {
     analyzedAt: new Date().toISOString(),
   };
 
-  setCachedResult(containerId, result, restartCount, state?.Status);
+  setCachedResult(containerId, result, restartCount, state);
 
   return result;
 }

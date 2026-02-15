@@ -11,6 +11,8 @@ import {
   Shield,
   Loader2,
   Pause,
+  Activity,
+  Timer,
 } from 'lucide-react';
 import { useFailureAnalysis } from '../hooks/useContainers';
 import RefreshButton from './RefreshButton';
@@ -90,6 +92,27 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
     if (score >= 0.85) return 'High';
     if (score >= 0.6) return 'Medium';
     return 'Low';
+  };
+
+  const getInstabilityColor = (score: number) => {
+    if (score >= 0.7) return 'bg-red-500';
+    if (score >= 0.4) return 'bg-orange-500';
+    return 'bg-emerald-500';
+  };
+
+  const getInstabilityLabel = (score: number) => {
+    if (score >= 0.7) return { text: 'Unstable', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' };
+    if (score >= 0.4) return { text: 'At Risk', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' };
+    return { text: 'Stable', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' };
+  };
+
+  const formatMTBF = (seconds: number | null) => {
+    if (seconds === null) return 'N/A';
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    return `${hours}h ${mins}m`;
   };
 
   if (!containerId) {
@@ -212,6 +235,7 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
   };
 
   const styles = colorStyles[color as keyof typeof colorStyles] || colorStyles.slate;
+  const instabilityStatus = getInstabilityLabel(data.instabilityScore || 0);
 
   return (
     <div className="p-6 space-y-6">
@@ -243,6 +267,53 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
           <p className="text-sm opacity-80 mt-1">{data.summary}</p>
         </div>
       </motion.div>
+
+      {/* Instability Section - Day 42 */}
+      <div className="bg-slate-800/50 rounded-xl p-4 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-slate-300 font-medium">
+            <Activity size={16} className={instabilityStatus.color} />
+            <span>Stability Assessment</span>
+          </div>
+          <div className={`px-2 py-0.5 rounded text-xs font-semibold border ${instabilityStatus.bg} ${instabilityStatus.text} ${instabilityStatus.border}`}>
+            {instabilityStatus.text}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <div className="flex justify-between text-xs text-slate-400">
+            <span>Instability Score</span>
+            <span>{Math.round((data.instabilityScore || 0) * 100)}%</span>
+          </div>
+          <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+            <motion.div
+              className={`h-full ${getInstabilityColor(data.instabilityScore || 0)}`}
+              initial={{ width: 0 }}
+              animate={{ width: `${(data.instabilityScore || 0) * 100}%` }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            />
+          </div>
+        </div>
+
+        {data.restartCount > 0 && data.mtbfSeconds !== null && (
+          <div className="pt-2 border-t border-slate-700/50 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <Timer size={14} />
+              <span>Mean Time Between Failures</span>
+            </div>
+            <div className="font-mono text-slate-200">
+              {formatMTBF(data.mtbfSeconds)}
+            </div>
+          </div>
+        )}
+
+        {data.restartCount === 0 && (
+          <div className="pt-2 border-t border-slate-700/50 text-xs text-emerald-400 flex items-center gap-1.5">
+            <CheckCircle size={14} />
+            <span>Zero failures recorded</span>
+          </div>
+        )}
+      </div>
 
       {/* Confidence Indicator */}
       <div className="bg-slate-800/50 rounded-xl p-4 space-y-3">
