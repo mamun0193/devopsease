@@ -38,7 +38,7 @@ const ProfilePage: React.FC = () => {
             <header className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 sticky top-0 z-50 h-16">
                 <div className="max-w-3xl mx-auto px-6 h-full flex items-center gap-4">
                     <motion.button
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate('/dashboard')}
                         className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}

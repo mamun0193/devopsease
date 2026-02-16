@@ -8,6 +8,7 @@ import analysisRoutes from "./routes/analysis.routes.js";
 import actionsRoutes from "./routes/actions.routes.js";
 import failureAnalysisRoutes from "./routes/failureAnalysis.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import { requireRole } from "./middlewares/rbac.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
@@ -49,6 +50,7 @@ app.use("/metrics", metricsRoutes);
 app.use("/containers", containersRoutes);
 app.use("/containers", failureAnalysisRoutes);
 app.use("/actions", actionsRoutes);
+app.use("/admin", adminRoutes);
 
 app.use(errorHandler);
 

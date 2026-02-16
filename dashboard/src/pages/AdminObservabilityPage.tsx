@@ -81,7 +81,10 @@ const AdminObservabilityPage: React.FC = () => {
                             <MetricCard title="Token Refreshes" value={metrics.tokenRefreshCount} color="indigo" />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Suspicious Activity Panel */}
+                        <SuspiciousActivityPanel />
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
                             <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg">
                                 <h2 className="text-xl font-semibold mb-4 text-gray-300">Security Events</h2>
                                 <div className="space-y-4">
@@ -102,6 +105,118 @@ const AdminObservabilityPage: React.FC = () => {
                     </>
                 ) : null}
             </div>
+        </div>
+    );
+};
+
+// --- Subcomponents ---
+
+interface SuspiciousUser {
+    userId: string;
+    anomalyScore: number;
+    isSuspicious: boolean;
+    execCountLastMinute: number;
+    restartCountLastMinute: number;
+    containerCreateCountLastMinute: number;
+}
+
+const SuspiciousActivityPanel = () => {
+    const [users, setUsers] = useState<SuspiciousUser[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchAnomalyReport = async () => {
+        try {
+            const response = await api.get('/admin/anomaly-report');
+            if (response.data.success) {
+                setUsers(response.data.data.users);
+            }
+        } catch (error) {
+            console.error("Failed to fetch anomaly report", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchAnomalyReport();
+        const interval = setInterval(fetchAnomalyReport, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
+    if (loading && users.length === 0) return null;
+
+    return (
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg mb-8">
+            <h2 className="text-xl font-semibold mb-4 flex items-center">
+                <span className="mr-2">🚨</span>
+                <span className="text-gray-200">Suspicious Activity</span>
+                {users.length > 0 && (
+                    <span className="ml-3 px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs border border-red-500/30">
+                        {users.length} Users Detected
+                    </span>
+                )}
+            </h2>
+
+            {users.length === 0 ? (
+                <div className="flex items-center text-emerald-400 bg-emerald-900/10 p-4 rounded-lg border border-emerald-900/20">
+                    <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    No suspicious activity detected
+                </div>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="text-gray-400 text-sm border-b border-gray-700">
+                                <th className="pb-3 font-medium">User ID</th>
+                                <th className="pb-3 font-medium">Risk Score</th>
+                                <th className="pb-3 font-medium">Status</th>
+                                <th className="pb-3 font-medium text-right">Exec (60s)</th>
+                                <th className="pb-3 font-medium text-right">Restart (60s)</th>
+                                <th className="pb-3 font-medium text-right">Create (60s)</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-700/50">
+                            {users.map((user) => (
+                                <tr key={user.userId} className="text-sm">
+                                    <td className="py-3 font-mono text-gray-300">{user.userId}</td>
+                                    <td className="py-3">
+                                        <div className="w-24">
+                                            <div className="flex justify-between text-xs mb-1">
+                                                <span className="text-gray-400">Score</span>
+                                                <span className={user.anomalyScore >= 0.7 ? "text-red-400 font-bold" : "text-orange-400 font-bold"}>
+                                                    {user.anomalyScore.toFixed(2)}
+                                                </span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-gray-700 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full ${user.anomalyScore >= 0.7 ? "bg-red-500" : "bg-orange-500"}`}
+                                                    style={{ width: `${user.anomalyScore * 100}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="py-3">
+                                        {user.isSuspicious ? (
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-900/30 text-red-400 border border-red-800/50">
+                                                Suspicious
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-900/30 text-orange-400 border border-orange-800/50">
+                                                At Risk
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="py-3 text-right text-gray-300">{user.execCountLastMinute}</td>
+                                    <td className="py-3 text-right text-gray-300">{user.restartCountLastMinute}</td>
+                                    <td className="py-3 text-right text-gray-300">{user.containerCreateCountLastMinute}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     );
 };

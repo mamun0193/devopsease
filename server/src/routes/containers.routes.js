@@ -22,6 +22,7 @@ import authMiddleware from "../middlewares/auth.middleware.js";
 import ownershipService from "../services/ownership.service.js";
 import { ownershipGuard } from "../middlewares/ownershipGuard.js";
 import logger from "../utils/logger.js";
+import activityMonitor from "../security/activityMonitor.js";
 
 import { PLANS } from "../config/plans.js";
 
@@ -166,6 +167,9 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
     // 2. Register Ownership (Atomic-like via compensating transaction)
     await ownershipService.registerContainer(req.user._id, createdContainerId);
 
+    // Track Activity
+    activityMonitor.recordContainerCreate(req.user._id);
+
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,
@@ -283,6 +287,10 @@ router.post("/:id/restart", ownershipGuard("restart"), requirePermission(ACTIONS
       throw new AppError(result.message, result.statusCode);
     }
     invalidateAnalysisCache(req.params.id); // Invalidate analysis cache
+
+    // Track Activity
+    activityMonitor.recordRestart(req.user._id);
+
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,

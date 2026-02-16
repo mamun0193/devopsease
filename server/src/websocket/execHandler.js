@@ -1,6 +1,7 @@
 import docker from "../docker/client.js";
 import logger from "../utils/logger.js";
 import execSessionRegistry from "./execSessionRegistry.js";
+import activityMonitor from "../security/activityMonitor.js";
 
 const SHELL_CONFIGS = [
     { path: "/bin/bash", type: "bash", prompt: "\\u@\\h:\\w\\$ " },
@@ -137,6 +138,7 @@ export async function handleExecSession(ws, containerId, userId) {
         activeSession.dockerExecInstance = exec;
 
         logger.info("Exec session started", { sessionId, containerId, shell: shellConfig.path });
+        activityMonitor.recordExec(userId);
 
         ws.send(JSON.stringify({
             type: "connected",
