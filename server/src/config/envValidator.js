@@ -1,0 +1,28 @@
+import logger from "../utils/logger.js";
+
+const REQUIRED_VARS = [
+    "PORT",
+    "MONGO_URI",
+    "JWT_SECRET",
+    // "GITHUB_CLIENT_ID", // Optional if auth not enabled? But present in .env
+    // "GITHUB_CLIENT_SECRET",
+    // "GOOGLE_CLIENT_ID",
+    // "GOOGLE_CLIENT_SECRET",
+    // "ADMIN_EMAIL",
+    // "ADMIN_PASSWORD"
+];
+
+export function validateEnv() {
+    const missing = REQUIRED_VARS.filter((key) => !process.env[key]);
+
+    if (missing.length > 0) {
+        logger.error("CRTICAL: Missing required environment variables", { missing });
+        // forceful exit is okay here as it's startup
+        process.exit(1);
+    }
+
+    logger.info("Environment validated", {
+        nodeEnv: process.env.NODE_ENV,
+        dockerSocket: process.env.DOCKER_SOCKET_PATH
+    });
+}

@@ -24,7 +24,7 @@ class ActivityMonitor {
         ActivityMonitor.instance = this;
         logger.info("Activity Monitor initialized (Rolling Window: 60s)");
     }
-//get create stats for a user
+    //get create stats for a user
     _getUserStats(userId) {
         if (!this.activityMap.has(userId)) {
             this.activityMap.set(userId, {
@@ -38,7 +38,7 @@ class ActivityMonitor {
         return this.activityMap.get(userId);
     }
 
-//prune old timestamps and update scores
+    //prune old timestamps and update scores
 
     _updateUser(userId) {
         const stats = this.activityMap.get(userId);
@@ -58,6 +58,7 @@ class ActivityMonitor {
         const createCount = stats.containerCreateTimestamps.length;
 
         // Calculate Score
+        let score = 0;
         if (execCount > 0) score += (execCount / this.THRESHOLDS.EXEC_COUNT) * this.WEIGHTS.EXEC;
         if (restartCount > 0) score += (restartCount / this.THRESHOLDS.RESTART_COUNT) * this.WEIGHTS.RESTART;
         if (createCount > 0) score += (createCount / this.THRESHOLDS.CREATE_COUNT) * this.WEIGHTS.CREATE;

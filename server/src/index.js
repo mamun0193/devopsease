@@ -10,22 +10,38 @@ import failureAnalysisRoutes from "./routes/failureAnalysis.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
-import { requireRole } from "./middlewares/rbac.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
 import requestLogger from "./middlewares/requestLogger.js";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import { connectRedis, disconnectRedis } from "./redis/client.js";
+import { connectRedis } from "./redis/client.js";
 import readinessService from "./services/readiness.service.js";
 import actionHistoryService from "./services/actionHistory.service.js";
 import docker from "./docker/client.js";
-import { initializeWebSocketServer, closeWebSocketServer } from "./websocket/ws.js";
-import execSessionRegistry from "./websocket/execSessionRegistry.js";
-import { connectDB, disconnectDB } from "./config/db.js";
+import { initializeWebSocketServer } from "./websocket/ws.js";
+import { connectDB } from "./config/db.js";
 import "./config/passport.js";
 import passport from "passport";
+import { validateEnv } from "./config/envValidator.js";
+import { initDockerEvents } from "./docker/events.js";
+import { gracefulShutdown } from "./shutdownManager.js";
 
+// 1. Validate Environment immediately
+validateEnv();
+
+let server;
+
+// 2. Global Error Guards
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error("❌ Unhandled Rejection at:", { promise, reason });
+  gracefulShutdown("UNHANDLED_REJECTION", server);
+});
+
+process.on("uncaughtException", (error) => {
+  logger.error("❌ Uncaught Exception:", { error: error.message, stack: error.stack });
+  gracefulShutdown("UNCAUGHT_EXCEPTION", server);
+});
 
 const PORT = process.env.PORT || 4000;
 const app = express();
@@ -55,56 +71,46 @@ app.use("/admin", adminRoutes);
 app.use(errorHandler);
 
 async function startServer() {
-  // Connect services
-  await connectDB();
-  logger.info("MongoDB connected");
-
-  const redisConnected = await connectRedis();
-  logger.info(redisConnected ? "Redis connected — caching enabled" : "Redis unavailable — caching disabled");
-
   try {
-    await docker.ping();
-    readinessService.setDockerReady(true);
-  } catch (error) {
-    logger.error("Docker connection failed", { error: error.message });
-    readinessService.setDockerReady(false);
-  }
+    // Connect services
+    await connectDB();
+    logger.info("MongoDB connected");
 
-  await actionHistoryService.syncFromRedis();
-  readinessService.setHistoryReady(true);
+    const redisConnected = await connectRedis();
+    logger.info(redisConnected ? "Redis connected — caching enabled" : "Redis unavailable — caching disabled");
 
-  const server = http.createServer(app);
-  initializeWebSocketServer(server);
-  logger.info("Docker + WebSocket ready");
+    try {
+      await docker.ping();
+      readinessService.setDockerReady(true);
 
-  server.listen(PORT, () => {
-    logger.info(`DevOpsEase server running on http://localhost:${PORT}`);
-  });
+      // Initialize Docker Events Listener (Resilient)
+      initDockerEvents();
 
-  const shutdown = async (signal) => {
-    logger.info(`${signal} received, shutting down gracefully`);
+    } catch (error) {
+      logger.error("Docker connection failed at startup", { error: error.message });
+      // We don't exit here, we run in degraded mode
+      readinessService.setDockerReady(false);
+    }
 
-    await execSessionRegistry.terminateAllSessions(signal.toLowerCase());
-    await closeWebSocketServer();
+    await actionHistoryService.syncFromRedis();
+    readinessService.setHistoryReady(true);
 
-    server.close(async () => {
-      await disconnectDB();
-      await disconnectRedis();
-      logger.info("Server shut down complete");
-      process.exit(0);
+    server = http.createServer(app);
+    initializeWebSocketServer(server);
+    logger.info("Docker + WebSocket ready");
+
+    server.listen(PORT, () => {
+      logger.info(`DevOpsEase server running on http://localhost:${PORT}`);
     });
 
-    setTimeout(() => {
-      logger.error("Forced shutdown after timeout");
-      process.exit(1);
-    }, 10000);
-  };
-
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
-  process.on("SIGINT", () => shutdown("SIGINT"));
+  } catch (err) {
+    logger.error("Failed to start server", { error: err.message });
+    process.exit(1);
+  }
 }
 
-startServer().catch((err) => {
-  logger.error("Failed to start server", { error: err.message });
-  process.exit(1);
-});
+// Signal Handlers
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM", server));
+process.on("SIGINT", () => gracefulShutdown("SIGINT", server));
+
+startServer();

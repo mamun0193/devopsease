@@ -3,6 +3,7 @@ import logger from "../utils/logger.js";
 import actionHistoryService from "../services/actionHistory.service.js";
 import containerCacheService from "../services/containerCache.service.js";
 import execSessionRegistry from "../websocket/execSessionRegistry.js";
+import { safeDockerCall } from "./safeCall.js";
 
 /**
  * Get container current state
@@ -437,6 +438,7 @@ async function removeContainer(containerId, force = false) {
   // Perform remove action
   try {
     const container = docker.getContainer(containerId);
+
     await container.remove({ force });
 
     logger.info("Container removed successfully", { containerId, force });
@@ -526,6 +528,7 @@ async function pauseContainer(containerId) {
 
   try {
     const container = docker.getContainer(containerId);
+
     await container.pause();
 
     logger.info("Container pause command completed", { containerId });
@@ -620,6 +623,7 @@ async function unpauseContainer(containerId) {
 
   try {
     const container = docker.getContainer(containerId);
+
     await container.unpause();
 
     logger.info("Container unpause command completed", { containerId });

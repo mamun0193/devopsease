@@ -8,6 +8,7 @@ import { enforceRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { canPerform, ACTIONS, ROLES } from "../config/permissions.js";
 import ownershipService from "../services/ownership.service.js";
 import metricsRegistry from "../observability/metricsRegistry.js";
+import lifecycle from "../system/lifecycle.js";
 
 let wss = null;
 
@@ -15,6 +16,13 @@ export function initializeWebSocketServer(server) {
     wss = new WebSocketServer({ noServer: true });
 
     server.on("upgrade", async (request, socket, head) => {
+        if (lifecycle.isShuttingDown) {
+            logger.warn("WebSocket connection rejected: Server shutting down");
+            socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n');
+            socket.destroy();
+            return;
+        }
+
         const { pathname } = parse(request.url);
 
         if (pathname.startsWith("/ws/exec/")) {
@@ -95,6 +103,10 @@ export function initializeWebSocketServer(server) {
 
             // 3. Upgrade Connection
             wss.handleUpgrade(request, socket, head, (ws) => {
+                if (lifecycle.isShuttingDown) {
+                    ws.close(1001, "Server shutting down");
+                    return;
+                }
                 wss.emit("connection", ws, request);
             });
         } else {
@@ -136,11 +148,15 @@ export function initializeWebSocketServer(server) {
 
 export async function closeWebSocketServer() {
     if (wss) {
+        logger.info("Closing WebSocket server...");
+
+        // 1. Terminate all sessions managed by registry (graceful with notification)
         await execSessionRegistry.terminateAllSessions("server_shutdown");
 
+        // 2. Force close any remaining raw connections
         wss.clients.forEach((client) => {
             if (client.readyState === client.OPEN) {
-                client.close();
+                client.terminate(); // terminate() is more immediate than close() for draining
             }
         });
 
