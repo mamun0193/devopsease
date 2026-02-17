@@ -23,6 +23,8 @@ import ownershipService from "../services/ownership.service.js";
 import { ownershipGuard } from "../middlewares/ownershipGuard.js";
 import logger from "../utils/logger.js";
 import activityMonitor from "../security/activityMonitor.js";
+import resourceService from "../resources/resource.service.js";
+import { RESOURCE_TYPES } from "../resources/resourceTypes.js";
 
 import { PLANS } from "../config/plans.js";
 
@@ -32,12 +34,10 @@ const router = express.Router();
 router.use(validateDatabase);
 router.use(authMiddleware);
 
-// GET /containers
 // List owned containers with sanitized details
 router.get("/", requirePermission(ACTIONS.READ), async (req, res, next) => {
   try {
     // 1. Get list of IDs owned by this user
-    // This avoids global Docker queries
     const ownedContainerIds = await ownershipService.listOwnedContainers(req.user._id);
 
     // 2. Get lightweight summary for each owned container (single inspect call, cached)
@@ -63,6 +63,11 @@ router.get("/", requirePermission(ACTIONS.READ), async (req, res, next) => {
       ports: c.ports,
       created: c.created
     }));
+
+    // Lazy Registration: Ensure these containers exist in Resource collection
+    resourceService.syncResources(req.user._id, sanitizedContainers, RESOURCE_TYPES.CONTAINER).catch(err => {
+      logger.error("Failed to sync resources", { error: err.message });
+    });
 
     // Calculate Permissions for UI (Soft Enforcement)
     // Non-admins see only owned resources. Admins see all but have universal access.
@@ -107,6 +112,7 @@ router.delete("/all", requirePermission(ACTIONS.DESTRUCTIVE), async (req, res, n
         const result = await removeContainer(id, true);
         if (result.success) {
           await ownershipService.releaseOwnership(req.user._id, id);
+          await resourceService.updateResourceStatus(id, RESOURCE_TYPES.CONTAINER, 'deleted');
           removed++;
         } else {
           errors.push({ id, error: result.message });
@@ -130,8 +136,6 @@ router.delete("/all", requirePermission(ACTIONS.DESTRUCTIVE), async (req, res, n
 
 // POST /containers
 // Create a new container from an image
-// Kept ROLES.OPERATOR check as per existing logic, assuming only operators create?
-// If users can create, this should be adjusted.
 router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
   let createdContainerId = null;
   try {
@@ -169,6 +173,20 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
 
     // Track Activity
     activityMonitor.recordContainerCreate(req.user._id);
+
+    // Register Resource (Persistent Model)
+    await resourceService.registerResource({
+      resourceId: createdContainerId,
+      type: RESOURCE_TYPES.CONTAINER,
+      ownerId: req.user._id,
+      metadata: {
+        image,
+        name,
+        createdVia: 'api',
+        // Copy relevant fields
+        created: new Date()
+      }
+    });
 
     res.status(result.statusCode).json({
       success: result.success,
@@ -237,11 +255,6 @@ router.get("/:id/inspect", ownershipGuard("inspect"), requirePermission(ACTIONS.
     next(err);
   }
 });
-
-// ... existing code ...
-// ... imports ...
-
-// ... existing code ...
 
 // POST /containers/:id/start
 router.post("/:id/start", ownershipGuard("start"), requirePermission(ACTIONS.OPERATE), async (req, res, next) => {
@@ -349,6 +362,7 @@ router.delete("/:id", ownershipGuard("remove"), requirePermission(ACTIONS.DESTRU
 
     // Release ownership after successful removal
     await ownershipService.releaseOwnership(req.user._id, req.params.id);
+    await resourceService.updateResourceStatus(req.params.id, RESOURCE_TYPES.CONTAINER, 'deleted');
 
     res.status(result.statusCode).json({
       success: result.success,

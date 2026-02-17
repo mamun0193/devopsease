@@ -1,0 +1,8 @@
+export const RESOURCE_TYPES = Object.freeze({
+    CONTAINER: "CONTAINER",
+    IMAGE: "IMAGE",
+    BUILD: "BUILD",
+    NETWORK: "NETWORK",
+    VOLUME: "VOLUME",
+    PROJECT: "PROJECT"
+});
