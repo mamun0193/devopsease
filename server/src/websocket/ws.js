@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import logger from "../utils/logger.js";
 import { handleExecSession } from "./execHandler.js";
 import execSessionRegistry from "./execSessionRegistry.js";
+import { subscribeToBuild } from "./build.socket.js";
 import { enforceRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { canPerform, ACTIONS, ROLES } from "../config/permissions.js";
 import ownershipService from "../services/ownership.service.js";
@@ -109,6 +110,35 @@ export function initializeWebSocketServer(server) {
                 }
                 wss.emit("connection", ws, request);
             });
+        } else if (pathname.startsWith("/ws/build/")) {
+            const cookieHeader = request.headers.cookie;
+            const token = cookieHeader && cookieHeader.split(';').find(c => c.trim().startsWith('access_token='))?.split('=')[1];
+
+            if (!token) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            let user;
+            try {
+                user = jwt.verify(token, process.env.JWT_SECRET);
+            } catch (err) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            request._user = user;
+            request._buildPath = true;
+
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                if (lifecycle.isShuttingDown) {
+                    ws.close(1001, "Server shutting down");
+                    return;
+                }
+                wss.emit("connection", ws, request);
+            });
         } else {
             socket.destroy();
         }
@@ -126,6 +156,18 @@ export function initializeWebSocketServer(server) {
         });
 
         const { pathname } = parse(request.url);
+
+        // Handle build log subscriptions
+        const buildMatch = pathname.match(/^\/ws\/build\/(.+)$/);
+        if (buildMatch && request._buildPath) {
+            const buildId = buildMatch[1];
+            const userId = request._user?._id || request._user?.userId || "unknown";
+            logger.info("WebSocket build log subscription", { buildId, userId });
+            subscribeToBuild(buildId, ws);
+            return;
+        }
+
+        // Handle exec sessions
         const match = pathname.match(/^\/ws\/exec\/(.+)$/);
 
         if (!match) {

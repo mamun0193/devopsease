@@ -49,82 +49,84 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all' })
           </div>
         </div>
 
-        {/* Stats - Clickable for filtering */}
-        <div className="hidden md:flex items-center gap-2">
-          <motion.button
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'all'
-              ? 'bg-slate-700 border-slate-600'
-              : 'bg-slate-800/50 border-slate-700 hover:bg-slate-700/50'
-              }`}
-            onClick={() => handleFilterClick('all')}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Server size={16} className="text-slate-400" />
-            <div className="flex flex-col items-start">
-              <span className="font-semibold text-slate-100 text-sm">{stats.total}</span>
-            </div>
-          </motion.button>
-
-          <motion.button
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'running'
-              ? 'bg-emerald-500/20 border-emerald-500/50'
-              : 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20'
-              }`}
-            onClick={() => handleFilterClick('running')}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <div className="flex flex-col items-start">
-              <span className="font-semibold text-emerald-400 text-sm">{stats.running}</span>
-            </div>
-          </motion.button>
-
-          <motion.button
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'stopped'
-              ? 'bg-red-500/20 border-red-500/50'
-              : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20'
-              }`}
-            onClick={() => handleFilterClick('stopped')}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <AlertTriangle size={16} className="text-red-400" />
-            <div className="flex flex-col items-start">
-              <span className="font-semibold text-red-400 text-sm">{stats.stopped}</span>
-            </div>
-          </motion.button>
-
-          {stats.paused > 0 && (
+        {/* Stats - Only visible on containers page */}
+        {onFilterChange && (
+          <div className="hidden md:flex items-center gap-2">
             <motion.button
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'paused'
-                ? 'bg-yellow-500/20 border-yellow-500/50'
-                : 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20'
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'all'
+                ? 'bg-slate-700 border-slate-600'
+                : 'bg-slate-800/50 border-slate-700 hover:bg-slate-700/50'
                 }`}
-              onClick={() => handleFilterClick('paused')}
+              onClick={() => handleFilterClick('all')}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              transition={{ delay: 0.1 }}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Pause size={16} className="text-yellow-400" />
+              <Server size={16} className="text-slate-400" />
               <div className="flex flex-col items-start">
-                <span className="font-semibold text-yellow-400 text-sm">{stats.paused}</span>
+                <span className="font-semibold text-slate-100 text-sm">{stats.total}</span>
               </div>
             </motion.button>
-          )}
-        </div>
+
+            <motion.button
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'running'
+                ? 'bg-emerald-500/20 border-emerald-500/50'
+                : 'bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20'
+                }`}
+              onClick={() => handleFilterClick('running')}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <div className="flex flex-col items-start">
+                <span className="font-semibold text-emerald-400 text-sm">{stats.running}</span>
+              </div>
+            </motion.button>
+
+            <motion.button
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'stopped'
+                ? 'bg-red-500/20 border-red-500/50'
+                : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20'
+                }`}
+              onClick={() => handleFilterClick('stopped')}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <AlertTriangle size={16} className="text-red-400" />
+              <div className="flex flex-col items-start">
+                <span className="font-semibold text-red-400 text-sm">{stats.stopped}</span>
+              </div>
+            </motion.button>
+
+            {stats.paused > 0 && (
+              <motion.button
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'paused'
+                  ? 'bg-yellow-500/20 border-yellow-500/50'
+                  : 'bg-yellow-500/10 border-yellow-500/30 hover:bg-yellow-500/20'
+                  }`}
+                onClick={() => handleFilterClick('paused')}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Pause size={16} className="text-yellow-400" />
+                <div className="flex flex-col items-start">
+                  <span className="font-semibold text-yellow-400 text-sm">{stats.paused}</span>
+                </div>
+              </motion.button>
+            )}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-3">

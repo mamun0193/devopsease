@@ -9,6 +9,7 @@ import actionsRoutes from "./routes/actions.routes.js";
 import failureAnalysisRoutes from "./routes/failureAnalysis.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import buildRoutes from "./routes/build.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
@@ -26,6 +27,7 @@ import passport from "passport";
 import { validateEnv } from "./config/envValidator.js";
 import { initDockerEvents } from "./docker/events.js";
 import { gracefulShutdown } from "./shutdownManager.js";
+import buildService from "./services/build.service.js";
 
 // 1. Validate Environment immediately
 validateEnv();
@@ -67,6 +69,7 @@ app.use("/containers", containersRoutes);
 app.use("/containers", failureAnalysisRoutes);
 app.use("/actions", actionsRoutes);
 app.use("/admin", adminRoutes);
+app.use("/builds", buildRoutes);
 
 app.use(errorHandler);
 
@@ -94,6 +97,11 @@ async function startServer() {
 
     await actionHistoryService.syncFromRedis();
     readinessService.setHistoryReady(true);
+
+    // Recover stale builds from previous server run
+    await buildService.recoverStaleBuilds().catch((err) => {
+      logger.warn("Stale build recovery failed", { error: err.message });
+    });
 
     server = http.createServer(app);
     initializeWebSocketServer(server);

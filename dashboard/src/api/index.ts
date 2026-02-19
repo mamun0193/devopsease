@@ -381,4 +381,47 @@ export const actionsApi = {
   },
 };
 
+// Build API
+export interface Build {
+  _id: string;
+  userId: string;
+  tag: string;
+  status: 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'TIMEOUT';
+  dockerfileContent?: string;
+  logSummary?: string;
+  dockerImageId?: string;
+  imageSizeBytes?: number;
+  layerCount?: number;
+  error?: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TriggerBuildResponse {
+  message: string;
+  buildId: string;
+  tag: string;
+  status: string;
+  wsUrl: string;
+}
+
+export const buildApi = {
+  triggerBuild: async (tag: string, dockerfile: string): Promise<TriggerBuildResponse> => {
+    const response = await api.post<TriggerBuildResponse>('/builds', { tag, dockerfile });
+    return response.data;
+  },
+
+  listBuilds: async (): Promise<Build[]> => {
+    const response = await api.get<{ builds: Build[] }>('/builds');
+    return response.data.builds;
+  },
+
+  getBuild: async (buildId: string): Promise<Build> => {
+    const response = await api.get<{ build: Build }>(`/builds/${buildId}`);
+    return response.data.build;
+  },
+};
+
 export default api;

@@ -1,4 +1,4 @@
-import Resource from '../models/resource.js';
+import Resource from '../models/resource.model.js';
 import logger from '../utils/logger.js';
 import { RESOURCE_TYPES } from './resourceTypes.js';
 
@@ -39,7 +39,7 @@ class ResourceService {
         }
     }
     // update resource status
-    
+
     async updateResourceStatus(resourceId, type, status) {
         try {
             const result = await Resource.findOneAndUpdate(

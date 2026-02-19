@@ -48,6 +48,11 @@ const userSchema = new mongoose.Schema(
       default: "active",
     },
 
+    storageUsedMB: {
+      type: Number,
+      default: 0,
+    },
+
     createdAt: {
       type: Date,
       default: Date.now,

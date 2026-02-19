@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Provider } from 'react-redux';
 import { store } from './store';
 import HomePage from './pages/HomePage';
+import ContainersPage from './pages/ContainersPage';
 import ContainerDetailsPage from './components/ContainerDetailsPage';
 import ActionFeedback from './components/ActionFeedback';
 import { RoleProvider } from './context/RoleContext';
@@ -26,6 +27,8 @@ import { LandingPage } from './pages/LandingPage';
 import { DocsPage } from './pages/DocsPage';
 import Toast from './components/Toast';
 import AdminObservabilityPage from './pages/AdminObservabilityPage';
+import BuildsPage from './pages/BuildsPage';
+import BuildDetailPage from './pages/BuildDetailPage';
 
 function App() {
   return (
@@ -47,6 +50,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <HomePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/containers"
+                  element={
+                    <ProtectedRoute>
+                      <ContainersPage />
                     </ProtectedRoute>
                   }
                 />
@@ -72,6 +83,22 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ContainerDetailsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/builds"
+                  element={
+                    <ProtectedRoute>
+                      <BuildsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/builds/:buildId"
+                  element={
+                    <ProtectedRoute>
+                      <BuildDetailPage />
                     </ProtectedRoute>
                   }
                 />
