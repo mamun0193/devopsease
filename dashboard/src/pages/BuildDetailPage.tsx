@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useBuild } from '../hooks/useBuilds';
 import { useBuildSocket } from '../hooks/useBuildSocket';
+import BuildFailurePanel from '../components/BuildFailurePanel';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; icon: React.ReactNode; label: string }> = {
     PENDING: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', icon: <Clock size={16} />, label: 'Pending' },
@@ -128,10 +129,10 @@ const BuildDetailPage: React.FC = () => {
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0 }}
                                 className={`rounded-xl border p-4 flex items-center gap-3 ${finalStatus === 'SUCCESS'
-                                        ? 'bg-emerald-500/10 border-emerald-500/30'
-                                        : finalStatus === 'TIMEOUT'
-                                            ? 'bg-orange-500/10 border-orange-500/30'
-                                            : 'bg-red-500/10 border-red-500/30'
+                                    ? 'bg-emerald-500/10 border-emerald-500/30'
+                                    : finalStatus === 'TIMEOUT'
+                                        ? 'bg-orange-500/10 border-orange-500/30'
+                                        : 'bg-red-500/10 border-red-500/30'
                                     }`}
                             >
                                 {finalStatus === 'SUCCESS' ? (
@@ -198,6 +199,11 @@ const BuildDetailPage: React.FC = () => {
                         </div>
                     )}
 
+                    {/* Failure Intelligence */}
+                    {(displayStatus === 'FAILED' || displayStatus === 'TIMEOUT') && build.failureAnalysis && (
+                        <BuildFailurePanel analysis={build.failureAnalysis} />
+                    )}
+
                     {/* Build logs */}
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
                         <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
@@ -246,8 +252,8 @@ const BuildDetailPage: React.FC = () => {
                                         <div
                                             key={i}
                                             className={`flex gap-3 px-4 py-0.5 hover:bg-slate-800/30 ${isError ? 'bg-red-500/5 text-red-300' :
-                                                    isWarning ? 'text-yellow-300/80' :
-                                                        'text-slate-400'
+                                                isWarning ? 'text-yellow-300/80' :
+                                                    'text-slate-400'
                                                 }`}
                                         >
                                             <span className="text-slate-600 select-none w-8 text-right shrink-0">{i + 1}</span>

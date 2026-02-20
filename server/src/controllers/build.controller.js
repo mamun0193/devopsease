@@ -1,4 +1,5 @@
 import buildService from '../services/build.service.js';
+import Image from '../models/image.js';
 import logger from '../utils/logger.js';
 
 export const triggerBuild = async (req, res, next) => {
@@ -56,6 +57,19 @@ export const getBuild = async (req, res, next) => {
         }
 
         res.json({ build });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const listImages = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const images = await Image.find({ userId })
+            .select('tag sizeMB layerCount createdAt')
+            .sort({ createdAt: -1 })
+            .lean();
+        res.json({ images });
     } catch (error) {
         next(error);
     }

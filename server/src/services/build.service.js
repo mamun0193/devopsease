@@ -9,6 +9,7 @@ import logger from '../utils/logger.js';
 import { createTempBuildDir, cleanupTempDir } from '../utils/tempDir.js';
 import { logBuildEvent, BUILD_EVENTS } from './build.audit.js';
 import { broadcastBuildLog, broadcastBuildComplete } from '../websocket/build.socket.js';
+import { analyzeBuildFailure } from './buildIntelligence.service.js';
 import resourceService from '../resources/resource.service.js';
 import { RESOURCE_TYPES } from '../resources/resourceTypes.js';
 
@@ -210,6 +211,11 @@ class BuildService {
             build.status = status;
             build.error = isTimeout ? 'Build exceeded 15 minute timeout' : error.message;
             build.completedAt = new Date();
+
+            const summaryLines = logLines.slice(-MAX_LOG_SUMMARY_LINES);
+            build.logSummary = summaryLines.join('\n');
+            build.failureAnalysis = analyzeBuildFailure(summaryLines, status);
+
             await build.save().catch((saveErr) => {
                 logger.error('Failed to save build failure status', { error: saveErr.message });
             });

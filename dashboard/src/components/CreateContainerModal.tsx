@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Trash2, Loader2 } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, Package, PenLine } from 'lucide-react';
 import { useAppDispatch } from '../store/hooks';
 import { createContainer } from '../store/containersSlice';
 import { useQueryClient } from '@tanstack/react-query';
+import { buildApi } from '../api';
+import type { BuiltImage } from '../api';
 
 interface CreateContainerModalProps {
     isOpen: boolean;
@@ -22,6 +24,8 @@ interface EnvVar {
     value: string;
 }
 
+type ImageSource = 'built' | 'custom';
+
 const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onClose }) => {
     const dispatch = useAppDispatch();
     const queryClient = useQueryClient();
@@ -33,6 +37,23 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
     const [envVars, setEnvVars] = useState<EnvVar[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const [imageSource, setImageSource] = useState<ImageSource>('built');
+    const [builtImages, setBuiltImages] = useState<BuiltImage[]>([]);
+    const [imagesLoading, setImagesLoading] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setImagesLoading(true);
+            buildApi.listImages()
+                .then(images => {
+                    setBuiltImages(images);
+                    if (images.length === 0) setImageSource('custom');
+                })
+                .catch(() => setBuiltImages([]))
+                .finally(() => setImagesLoading(false));
+        }
+    }, [isOpen]);
 
     const handleAddPort = () => {
         setPorts([...ports, { id: crypto.randomUUID(), containerPort: '', hostPort: '' }]);
@@ -101,6 +122,7 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                 setPorts([]);
                 setEnvVars([]);
                 setAutoStart(true);
+                setImageSource('built');
                 onClose();
             } else {
                 setError('Failed to create container');
@@ -119,6 +141,7 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
             setPorts([]);
             setEnvVars([]);
             setAutoStart(true);
+            setImageSource('built');
             setError(null);
             onClose();
         }
@@ -167,19 +190,86 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                         </div>
                                     )}
 
-                                    {/* Image Name */}
+                                    {/* Image Selection */}
                                     <div>
                                         <label className="block text-sm font-medium text-slate-300 mb-2">
-                                            Image Name <span className="text-red-400">*</span>
+                                            Image <span className="text-red-400">*</span>
                                         </label>
-                                        <input
-                                            type="text"
-                                            value={image}
-                                            onChange={(e) => setImage(e.target.value)}
-                                            placeholder="e.g., nginx:latest"
-                                            disabled={isSubmitting}
-                                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                                        />
+
+                                        {/* Source tabs */}
+                                        <div className="flex gap-1 mb-3 bg-slate-800/50 rounded-lg p-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => { setImageSource('built'); setImage(''); }}
+                                                disabled={isSubmitting}
+                                                className={`flex items-center gap-1.5 flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${imageSource === 'built'
+                                                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                                    : 'text-slate-400 hover:text-slate-300'
+                                                    }`}
+                                            >
+                                                <Package size={13} />
+                                                My Images
+                                                {builtImages.length > 0 && (
+                                                    <span className="ml-auto text-[10px] bg-slate-700/60 px-1.5 py-0.5 rounded-full">
+                                                        {builtImages.length}
+                                                    </span>
+                                                )}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setImageSource('custom'); setImage(''); }}
+                                                disabled={isSubmitting}
+                                                className={`flex items-center gap-1.5 flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${imageSource === 'custom'
+                                                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                                    : 'text-slate-400 hover:text-slate-300'
+                                                    }`}
+                                            >
+                                                <PenLine size={13} />
+                                                Custom Image
+                                            </button>
+                                        </div>
+
+                                        {/* Built images dropdown */}
+                                        {imageSource === 'built' && (
+                                            <>
+                                                {imagesLoading ? (
+                                                    <div className="flex items-center gap-2 text-slate-500 text-sm py-2">
+                                                        <Loader2 size={14} className="animate-spin" /> Loading images…
+                                                    </div>
+                                                ) : builtImages.length === 0 ? (
+                                                    <div className="text-sm text-slate-500 bg-slate-800/40 border border-slate-700/50 rounded-lg px-4 py-3">
+                                                        No built images yet. Build an image first or use a custom image name.
+                                                    </div>
+                                                ) : (
+                                                    <select
+                                                        value={image}
+                                                        onChange={(e) => setImage(e.target.value)}
+                                                        disabled={isSubmitting}
+                                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 appearance-none cursor-pointer"
+                                                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+                                                    >
+                                                        <option value="" className="bg-slate-800 text-slate-400">Select a built image…</option>
+                                                        {builtImages.map(img => (
+                                                            <option key={img._id} value={img.tag} className="bg-slate-800 text-white">
+                                                                {img.tag} — {img.sizeMB.toFixed(1)} MB, {img.layerCount} layers
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                )}
+                                            </>
+                                        )}
+
+                                        {/* Custom image input */}
+                                        {imageSource === 'custom' && (
+                                            <input
+                                                type="text"
+                                                value={image}
+                                                onChange={(e) => setImage(e.target.value)}
+                                                placeholder="e.g., nginx:latest"
+                                                disabled={isSubmitting}
+                                                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                            />
+                                        )}
                                     </div>
 
                                     {/* Container Name */}

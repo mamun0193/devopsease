@@ -382,6 +382,14 @@ export const actionsApi = {
 };
 
 // Build API
+export interface BuildFailureAnalysis {
+  type: string;
+  confidence: number;
+  explanation: string;
+  evidence: string[];
+  failingStage: string | null;
+}
+
 export interface Build {
   _id: string;
   userId: string;
@@ -393,6 +401,7 @@ export interface Build {
   imageSizeBytes?: number;
   layerCount?: number;
   error?: string;
+  failureAnalysis?: BuildFailureAnalysis;
   startedAt?: string;
   completedAt?: string;
   createdAt: string;
@@ -405,6 +414,14 @@ export interface TriggerBuildResponse {
   tag: string;
   status: string;
   wsUrl: string;
+}
+
+export interface BuiltImage {
+  _id: string;
+  tag: string;
+  sizeMB: number;
+  layerCount: number;
+  createdAt: string;
 }
 
 export const buildApi = {
@@ -421,6 +438,11 @@ export const buildApi = {
   getBuild: async (buildId: string): Promise<Build> => {
     const response = await api.get<{ build: Build }>(`/builds/${buildId}`);
     return response.data.build;
+  },
+
+  listImages: async (): Promise<BuiltImage[]> => {
+    const response = await api.get<{ images: BuiltImage[] }>('/builds/images');
+    return response.data.images;
   },
 };
 

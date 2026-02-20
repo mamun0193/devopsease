@@ -44,6 +44,13 @@ const buildSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    failureAnalysis: {
+        type: { type: String, default: null },
+        confidence: { type: Number, default: null },
+        explanation: { type: String, default: null },
+        evidence: { type: [String], default: [] },
+        failingStage: { type: String, default: null }
+    },
     startedAt: {
         type: Date,
         default: null
