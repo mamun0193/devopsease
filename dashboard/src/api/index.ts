@@ -446,4 +446,44 @@ export const buildApi = {
   },
 };
 
+// Image Observability API
+export interface ImageRecord {
+  _id: string;
+  tag: string;
+  sizeMB: number;
+  layerCount: number;
+  imageUsageStatus: 'ACTIVE' | 'UNUSED' | 'DANGLING';
+  attachedContainerIds: string[];
+  lastUsedAt: string | null;
+  pullCount: number;
+  pulledFrom: 'DOCKERFILE' | 'REGISTRY';
+  dockerImageId: string;
+  createdAt: string;
+}
+
+export interface ImageUsageSummary {
+  totalImageStorageMB: number;
+  activeImages: number;
+  unusedImages: number;
+  danglingImages: number;
+  buildCacheMB: number;
+}
+
+export const imageApi = {
+  listImages: async (): Promise<ImageRecord[]> => {
+    const response = await api.get<{ images: ImageRecord[] }>('/images');
+    return response.data.images;
+  },
+
+  getUsageSummary: async (): Promise<ImageUsageSummary> => {
+    const response = await api.get<{ summary: ImageUsageSummary }>('/images/usage-summary');
+    return response.data.summary;
+  },
+
+  getImage: async (imageId: string): Promise<ImageRecord> => {
+    const response = await api.get<{ image: ImageRecord }>(`/images/${imageId}`);
+    return response.data.image;
+  },
+};
+
 export default api;

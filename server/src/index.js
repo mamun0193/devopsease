@@ -10,6 +10,7 @@ import failureAnalysisRoutes from "./routes/failureAnalysis.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import buildRoutes from "./routes/build.routes.js";
+import imageRoutes from "./routes/image.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
@@ -28,6 +29,7 @@ import { validateEnv } from "./config/envValidator.js";
 import { initDockerEvents } from "./docker/events.js";
 import { gracefulShutdown } from "./shutdownManager.js";
 import buildService from "./services/build.service.js";
+import imageObservabilityService from "./services/imageObservability.service.js";
 
 // 1. Validate Environment immediately
 validateEnv();
@@ -70,6 +72,7 @@ app.use("/containers", failureAnalysisRoutes);
 app.use("/actions", actionsRoutes);
 app.use("/admin", adminRoutes);
 app.use("/builds", buildRoutes);
+app.use("/images", imageRoutes);
 
 app.use(errorHandler);
 
@@ -88,6 +91,11 @@ async function startServer() {
 
       // Initialize Docker Events Listener (Resilient)
       initDockerEvents();
+
+      // Reconcile image usage on startup
+      imageObservabilityService.reconcileImageUsage().catch((err) => {
+        logger.warn("Image reconciliation failed at startup", { error: err.message });
+      });
 
     } catch (error) {
       logger.error("Docker connection failed at startup", { error: error.message });

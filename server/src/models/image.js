@@ -28,11 +28,35 @@ const imageSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Build',
         required: true
+    },
+    imageUsageStatus: {
+        type: String,
+        enum: ['ACTIVE', 'UNUSED', 'DANGLING'],
+        default: 'UNUSED'
+    },
+    attachedContainerIds: {
+        type: [String],
+        default: []
+    },
+    lastUsedAt: {
+        type: Date,
+        default: null
+    },
+    pullCount: {
+        type: Number,
+        default: 0
+    },
+    pulledFrom: {
+        type: String,
+        enum: ['DOCKERFILE', 'REGISTRY'],
+        default: 'DOCKERFILE'
     }
 }, {
     timestamps: true
 });
 
 imageSchema.index({ userId: 1, tag: 1 }, { unique: true });
+imageSchema.index({ userId: 1, imageUsageStatus: 1 });
+imageSchema.index({ dockerImageId: 1 });
 
 export default mongoose.model('Image', imageSchema);

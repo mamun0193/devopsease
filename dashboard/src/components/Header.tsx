@@ -11,17 +11,50 @@ import { getContainerStats } from '../utils/formatters';
 import RefreshButton from './RefreshButton';
 import UserMenu from './UserMenu';
 
-interface HeaderProps {
-  onFilterChange?: (filter: 'all' | 'running' | 'stopped' | 'paused') => void;
-  activeFilter?: 'all' | 'running' | 'stopped' | 'paused';
+export interface FilterItem {
+  key: string;
+  label: string;
+  count: number;
+  color: string;
+  activeBg: string;
+  activeBorder: string;
+  icon?: React.ReactNode;
+  dot?: string;
 }
 
-const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all' }) => {
+interface HeaderProps {
+  onFilterChange?: (filter: any) => void;
+  activeFilter?: string;
+  filterItems?: FilterItem[];
+}
+
+const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all', filterItems }) => {
   const { data: containers = [], isFetching, refetch } = useContainers();
   const { data: health } = useHealthCheck();
   const stats = getContainerStats(containers);
+  const [headerHidden, setHeaderHidden] = React.useState(false);
+  const lastScrollY = React.useRef(0);
 
-  const handleFilterClick = (filter: 'all' | 'running' | 'stopped' | 'paused') => {
+  React.useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY;
+      if (currentY > 60 && currentY > lastScrollY.current) {
+        setHeaderHidden(true);
+      } else {
+        setHeaderHidden(false);
+      }
+      lastScrollY.current = currentY;
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Expose hidden state via a custom event for ResourceNav
+  React.useEffect(() => {
+    window.dispatchEvent(new CustomEvent('header-visibility', { detail: { hidden: headerHidden } }));
+  }, [headerHidden]);
+
+  const handleFilterClick = (filter: string) => {
     if (onFilterChange) {
       onFilterChange(filter);
     }
@@ -29,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all' })
 
   return (
     <header
-      className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 sticky top-0 z-50 transition-all duration-300 ease-out h-16"
+      className={`bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 sticky top-0 z-50 transition-transform duration-300 ease-out h-16 ${headerHidden ? '-translate-y-full' : 'translate-y-0'}`}
     >
       <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between gap-6">
         {/* Logo & Title */}
@@ -49,8 +82,30 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all' })
           </div>
         </div>
 
-        {/* Stats - Only visible on containers page */}
-        {onFilterChange && (
+        {/* Stats - Visible when page provides filters */}
+        {onFilterChange && filterItems ? (
+          <div className="hidden md:flex items-center gap-2">
+            {filterItems.map((item, i) => (
+              <motion.button
+                key={item.key}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === item.key
+                  ? `${item.activeBg} ${item.activeBorder}`
+                  : 'bg-slate-800/50 border-slate-700 hover:bg-slate-700/50'
+                  }`}
+                onClick={() => handleFilterClick(item.key)}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + i * 0.1 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {item.dot && <div className={`w-2 h-2 rounded-full ${item.dot}`} />}
+                {item.icon}
+                <span className={`font-semibold text-sm ${item.color}`}>{item.count}</span>
+              </motion.button>
+            ))}
+          </div>
+        ) : onFilterChange && (
           <div className="hidden md:flex items-center gap-2">
             <motion.button
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${activeFilter === 'all'

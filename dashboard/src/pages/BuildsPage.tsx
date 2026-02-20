@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -15,6 +15,7 @@ import {
     ArrowLeft,
 } from 'lucide-react';
 import Header from '../components/Header';
+import type { FilterItem } from '../components/Header';
 import ResourceNav from '../components/ResourceNav';
 import { useBuilds, useTriggerBuild } from '../hooks/useBuilds';
 import type { Build } from '../api';
@@ -114,6 +115,21 @@ const BuildsPage: React.FC = () => {
     const [tag, setTag] = useState('');
     const [dockerfile, setDockerfile] = useState('FROM alpine:latest\nRUN echo "Hello from DevOpsEase"');
     const [formError, setFormError] = useState('');
+    const [activeFilter, setActiveFilter] = useState<'all' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'TIMEOUT'>('all');
+
+    const filteredBuilds = useMemo(() => {
+        if (activeFilter === 'all') return builds;
+        if (activeFilter === 'RUNNING') return builds.filter(b => b.status === 'RUNNING' || b.status === 'PENDING');
+        return builds.filter(b => b.status === activeFilter);
+    }, [builds, activeFilter]);
+
+    const filterCounts = useMemo(() => ({
+        all: builds.length,
+        RUNNING: builds.filter(b => b.status === 'RUNNING' || b.status === 'PENDING').length,
+        SUCCESS: builds.filter(b => b.status === 'SUCCESS').length,
+        FAILED: builds.filter(b => b.status === 'FAILED').length,
+        TIMEOUT: builds.filter(b => b.status === 'TIMEOUT').length,
+    }), [builds]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -133,9 +149,17 @@ const BuildsPage: React.FC = () => {
         }
     };
 
+    const buildFilterItems: FilterItem[] = useMemo(() => [
+        { key: 'all', label: 'All', count: filterCounts.all, color: 'text-slate-100', activeBg: 'bg-slate-700', activeBorder: 'border-slate-600', icon: <Hammer size={16} className="text-slate-400" /> },
+        { key: 'RUNNING', label: 'Running', count: filterCounts.RUNNING, color: 'text-blue-400', activeBg: 'bg-blue-500/20', activeBorder: 'border-blue-500/50', dot: 'bg-blue-500 animate-pulse' },
+        { key: 'SUCCESS', label: 'Success', count: filterCounts.SUCCESS, color: 'text-emerald-400', activeBg: 'bg-emerald-500/20', activeBorder: 'border-emerald-500/50', icon: <CheckCircle2 size={16} className="text-emerald-400" /> },
+        { key: 'FAILED', label: 'Failed', count: filterCounts.FAILED, color: 'text-red-400', activeBg: 'bg-red-500/20', activeBorder: 'border-red-500/50', icon: <XCircle size={16} className="text-red-400" /> },
+        { key: 'TIMEOUT', label: 'Timeout', count: filterCounts.TIMEOUT, color: 'text-orange-400', activeBg: 'bg-orange-500/20', activeBorder: 'border-orange-500/50', icon: <Timer size={16} className="text-orange-400" /> },
+    ], [filterCounts]);
+
     return (
         <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header />
+            <Header onFilterChange={setActiveFilter} activeFilter={activeFilter} filterItems={buildFilterItems} />
             <ResourceNav />
             <main className="flex-1 p-6 lg:p-8">
                 <div className="max-w-4xl mx-auto">
@@ -238,13 +262,19 @@ const BuildsPage: React.FC = () => {
                         </div>
                     ) : (
                         <div className="space-y-2">
-                            {builds.map((build) => (
-                                <BuildRow
-                                    key={build._id}
-                                    build={build}
-                                    onClick={() => navigate(`/builds/${build._id}`)}
-                                />
-                            ))}
+                            {filteredBuilds.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <p className="text-slate-500">No {activeFilter.toLowerCase()} builds</p>
+                                </div>
+                            ) : (
+                                filteredBuilds.map((build) => (
+                                    <BuildRow
+                                        key={build._id}
+                                        build={build}
+                                        onClick={() => navigate(`/builds/${build._id}`)}
+                                    />
+                                ))
+                            )}
                         </div>
                     )}
                 </div>

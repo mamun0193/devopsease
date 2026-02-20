@@ -55,7 +55,7 @@ const ContainerDetailsPage: React.FC = () => {
 
   // Handle container removal - navigate back to dashboard
   const handleContainerRemoved = React.useCallback(() => {
-    navigate('/dashboard');
+    navigate('/containers');
   }, [navigate]);
 
   // Timeline correlation handlers
@@ -118,11 +118,11 @@ const ContainerDetailsPage: React.FC = () => {
           <h2 className="text-2xl font-bold text-slate-200 mb-2">Container Not Found</h2>
           <p className="text-slate-400 mb-6">The container you're looking for doesn't exist or has been removed.</p>
           <Link
-            to="/dashboard"
+            to="/containers"
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
           >
             <ArrowLeft size={18} />
-            Back to Dashboard
+            Back to Containers
           </Link>
         </div>
       </div>
@@ -169,9 +169,9 @@ const ContainerDetailsPage: React.FC = () => {
         {/* Breadcrumb */}
         <div className="max-w-7xl mx-auto px-6 pt-4 pb-2">
           <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Link to="/dashboard" className="hover:text-slate-300 transition-colors flex items-center gap-1">
+            <Link to="/containers" className="hover:text-slate-300 transition-colors flex items-center gap-1">
               <ArrowLeft size={14} />
-              Dashboard
+              Containers
             </Link>
             <span>/</span>
             <span className="text-slate-300">{name}</span>

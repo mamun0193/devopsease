@@ -25,6 +25,7 @@ import logger from "../utils/logger.js";
 import activityMonitor from "../security/activityMonitor.js";
 import resourceService from "../resources/resource.service.js";
 import { RESOURCE_TYPES } from "../resources/resourceTypes.js";
+import imageObservabilityService from "../services/imageObservability.service.js";
 
 import { PLANS } from "../config/plans.js";
 
@@ -193,6 +194,9 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
       data: result.data,
       message: result.message,
     });
+
+    // Reconcile image usage after container create
+    imageObservabilityService.reconcileImageUsage().catch(() => { });
   } catch (err) {
     // Compensating Transaction
     if (createdContainerId) {
@@ -369,6 +373,9 @@ router.delete("/:id", ownershipGuard("remove"), requirePermission(ACTIONS.DESTRU
       data: result.data,
       message: result.message,
     });
+
+    // Reconcile image usage after container delete
+    imageObservabilityService.reconcileImageUsage().catch(() => { });
   } catch (err) {
     next(err);
   }

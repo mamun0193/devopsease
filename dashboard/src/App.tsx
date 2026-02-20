@@ -29,6 +29,8 @@ import Toast from './components/Toast';
 import AdminObservabilityPage from './pages/AdminObservabilityPage';
 import BuildsPage from './pages/BuildsPage';
 import BuildDetailPage from './pages/BuildDetailPage';
+import ImagesPage from './pages/ImagesPage';
+import ImageDetailPage from './pages/ImageDetailPage';
 
 function App() {
   return (
@@ -99,6 +101,22 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <BuildDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/images"
+                  element={
+                    <ProtectedRoute>
+                      <ImagesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/images/:imageId"
+                  element={
+                    <ProtectedRoute>
+                      <ImageDetailPage />
                     </ProtectedRoute>
                   }
                 />
