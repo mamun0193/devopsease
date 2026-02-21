@@ -31,7 +31,7 @@ const imageSchema = new mongoose.Schema({
     },
     imageUsageStatus: {
         type: String,
-        enum: ['ACTIVE', 'UNUSED', 'DANGLING'],
+        enum: ['ACTIVE', 'UNUSED', 'DANGLING', 'PENDING_DELETE'],
         default: 'UNUSED'
     },
     attachedContainerIds: {

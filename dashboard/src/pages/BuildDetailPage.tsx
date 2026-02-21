@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -57,6 +58,7 @@ function formatSize(bytes?: number): string {
 const BuildDetailPage: React.FC = () => {
     const { buildId } = useParams<{ buildId: string }>();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const { data: build, isLoading, error } = useBuild(buildId || '');
     const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -66,6 +68,19 @@ const BuildDetailPage: React.FC = () => {
         buildId: buildId || '',
         enabled: isActive,
     });
+
+    // When the WebSocket signals build_complete, refetch the build data
+    // so imageSizeBytes, layerCount, and logSummary are loaded from the DB
+    useEffect(() => {
+        if (finalStatus && buildId) {
+            // Small delay to ensure DB write completes before we refetch
+            const timer = setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ['build', buildId] });
+                queryClient.invalidateQueries({ queryKey: ['builds'] });
+            }, 500);
+            return () => clearTimeout(timer);
+        }
+    }, [finalStatus, buildId, queryClient]);
 
     // Auto-scroll logs
     useEffect(() => {

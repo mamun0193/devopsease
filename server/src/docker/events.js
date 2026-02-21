@@ -31,7 +31,14 @@ export async function initDockerEvents() {
         stream.on("data", (chunk) => {
             try {
                 const event = JSON.parse(chunk.toString());
-                // logger.debug("Docker event", { Type: event.Type, Action: event.Action, id: event.id });
+                // Trigger reconciliation when containers are created or destroyed outside DevOpsEase
+                if (event.Type === 'container' && (event.Action === 'destroy' || event.Action === 'create')) {
+                    import('../services/imageObservability.service.js').then((module) => {
+                        module.default.reconcileImageUsage().catch(err => {
+                            logger.warn('Event-driven image reconciliation failed', { error: err.message });
+                        });
+                    }).catch(err => logger.error('Failed to dynamic import imageObservabilityService', { error: err.message }));
+                }
             } catch (err) {
                 logger.error("Error parsing Docker event chunk", { error: err.message });
             }

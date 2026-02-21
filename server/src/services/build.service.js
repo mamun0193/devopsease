@@ -82,6 +82,7 @@ class BuildService {
         let tempDir = null;
         let timeoutHandle = null;
         let buildStream = null;
+        const logLines = [];
 
         try {
             // Move to RUNNING
@@ -103,9 +104,6 @@ class BuildService {
                 rm: true
             });
 
-            // Collect log lines for summary
-            const logLines = [];
-
             // Set build timeout
             const timeoutPromise = new Promise((_, reject) => {
                 timeoutHandle = setTimeout(() => {
@@ -126,10 +124,22 @@ class BuildService {
                         resolve(output);
                     },
                     (event) => {
-                        const line = event.stream?.trim() || event.status || '';
-                        if (line) {
+                        // Build step output (e.g. "Step 1/3 : FROM postgres:16")
+                        if (event.stream?.trim()) {
+                            const line = event.stream.trim();
                             logLines.push(line);
                             broadcastBuildLog(build._id.toString(), line);
+                        }
+                        // Pull / status events (e.g. "Pulling from library/postgres")
+                        // Include layer ID prefix when available for context
+                        else if (event.status) {
+                            // Suppress noisy per-layer download/extract progress
+                            const noisy = /^(Downloading|Extracting|Waiting|Verifying Checksum|Download complete)$/i.test(event.status);
+                            if (!noisy) {
+                                const line = event.id ? `${event.id}: ${event.status}` : event.status;
+                                logLines.push(line);
+                                broadcastBuildLog(build._id.toString(), line);
+                            }
                         }
                         if (event.error) {
                             logLines.push(`ERROR: ${event.error}`);

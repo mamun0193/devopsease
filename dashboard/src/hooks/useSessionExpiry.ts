@@ -4,59 +4,72 @@ import { setAuthStatus } from '../store/authSlice';
 import { addToast } from '../store/toastSlice';
 import api from '../api';
 
+const ACCESS_TOKEN_LIFETIME = 15 * 60 * 1000; // 15 min — must match server
+const REFRESH_BUFFER = 60_000; // Refresh 60s before expiry
+
 /**
  * Tracks access token expiry and triggers silent refresh.
- * Receives expiresAt (epoch ms) and updates when tokens are refreshed.
+ * After a successful refresh, resets expiresAt so the cycle continues indefinitely.
  */
 export function useSessionExpiry(
     expiresAt: number | null,
     isAuthenticated: boolean,
     onSessionExpired: () => void,
+    onExpiresAtUpdated: (newExpiresAt: number) => void,
 ) {
     const dispatch = useAppDispatch();
-    const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isRefreshingRef = useRef(false);
 
     useEffect(() => {
         if (!isAuthenticated || !expiresAt) {
-            if (timerRef.current) clearInterval(timerRef.current);
+            if (timerRef.current) clearTimeout(timerRef.current);
             return;
         }
 
-        timerRef.current = setInterval(async () => {
+        const scheduleCheck = () => {
+            if (timerRef.current) clearTimeout(timerRef.current);
+
             const remaining = expiresAt - Date.now();
 
             if (remaining <= 0) {
-                // Already expired — attempt refresh
-                dispatch(setAuthStatus('refreshing'));
-                try {
-                    await api.post('/auth/refresh');
-                    dispatch(setAuthStatus('active'));
-                } catch {
-                    dispatch(setAuthStatus('expired'));
-                    dispatch(addToast({
-                        message: 'Session expired. Please log in again.',
-                        type: 'warning',
-                        duration: 6000,
-                    }));
-                    onSessionExpired();
-                }
+                // Already expired — attempt refresh immediately
+                doRefresh();
                 return;
             }
 
-            if (remaining < 60000 && remaining > 55000) {
-                // Within 60s — proactively refresh
-                dispatch(setAuthStatus('refreshing'));
-                try {
-                    await api.post('/auth/refresh');
-                    dispatch(setAuthStatus('active'));
-                } catch {
-                    // Will catch on next interval if truly expired
-                }
+            // Schedule refresh for REFRESH_BUFFER before expiry
+            const refreshIn = Math.max(remaining - REFRESH_BUFFER, 0);
+            timerRef.current = setTimeout(doRefresh, refreshIn);
+        };
+
+        const doRefresh = async () => {
+            if (isRefreshingRef.current) return;
+            isRefreshingRef.current = true;
+
+            dispatch(setAuthStatus('refreshing'));
+            try {
+                const response = await api.post('/auth/refresh');
+                const newExpiresAt = response.data.expiresAt || (Date.now() + ACCESS_TOKEN_LIFETIME);
+                onExpiresAtUpdated(newExpiresAt);
+                dispatch(setAuthStatus('active'));
+            } catch {
+                dispatch(setAuthStatus('expired'));
+                dispatch(addToast({
+                    message: 'Session expired. Please log in again.',
+                    type: 'warning',
+                    duration: 6000,
+                }));
+                onSessionExpired();
+            } finally {
+                isRefreshingRef.current = false;
             }
-        }, 10000); // Check every 10s
+        };
+
+        scheduleCheck();
 
         return () => {
-            if (timerRef.current) clearInterval(timerRef.current);
+            if (timerRef.current) clearTimeout(timerRef.current);
         };
-    }, [expiresAt, isAuthenticated, dispatch, onSessionExpired]);
+    }, [expiresAt, isAuthenticated, dispatch, onSessionExpired, onExpiresAtUpdated]);
 }

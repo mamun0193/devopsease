@@ -20,7 +20,7 @@ export const COOKIE_OPTS = {
 
 export const REFRESH_COOKIE_OPTS = {
     ...COOKIE_OPTS,
-    path: "/auth/refresh",
+    path: "/auth",
 };
 
 function getRefreshDays(rememberMe) {
@@ -218,7 +218,7 @@ export const refresh = async (req, res, next) => {
                 metadata: { reason: doc ? "reuse_detected" : "token_not_found" },
             });
             res.clearCookie("access_token");
-            res.clearCookie("refresh_token", { path: "/auth/refresh" });
+            res.clearCookie("refresh_token", { path: "/auth" });
             return res.status(401).json({ message: "Invalid or reused refresh token", reuse: !!doc });
         }
 
@@ -231,7 +231,7 @@ export const refresh = async (req, res, next) => {
                 metadata: { reason: "expired" },
             });
             res.clearCookie("access_token");
-            res.clearCookie("refresh_token", { path: "/auth/refresh" });
+            res.clearCookie("refresh_token", { path: "/auth" });
             return res.status(401).json({ message: "Session expired" });
         }
 

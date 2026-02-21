@@ -484,6 +484,21 @@ export const imageApi = {
     const response = await api.get<{ image: ImageRecord }>(`/images/${imageId}`);
     return response.data.image;
   },
+
+  prunePreview: async (): Promise<{ candidates: Array<{ id: string; tag: string; sizeMB: number }>; totalReclaimableMB: number }> => {
+    const response = await api.get('/images/prune-preview');
+    return response.data;
+  },
+
+  pruneUnused: async (): Promise<{ reclaimedMB: number; deletedCount: number; errors: Array<{ imageId: string; tag: string; error: string }> }> => {
+    const response = await api.post('/images/prune-unused');
+    return response.data;
+  },
+
+  pruneBuildCache: async (): Promise<{ reclaimedMB: number }> => {
+    const response = await api.post('/images/prune-build-cache');
+    return response.data;
+  },
 };
 
 export default api;

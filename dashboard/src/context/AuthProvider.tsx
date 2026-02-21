@@ -35,8 +35,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         dispatch(setAuthStatus('expired'));
     }, [dispatch]);
 
-    // Session expiry tracking
-    useSessionExpiry(expiresAt, isAuthenticated, handleSessionExpired);
+    const handleExpiresAtUpdated = useCallback((newExpiresAt: number) => {
+        setExpiresAt(newExpiresAt);
+    }, []);
+
+    // Session expiry tracking — passes setExpiresAt so the timer resets after refresh
+    useSessionExpiry(expiresAt, isAuthenticated, handleSessionExpired, handleExpiresAtUpdated);
 
     // Cross-tab sync
     const { broadcast } = useAuthSync(
