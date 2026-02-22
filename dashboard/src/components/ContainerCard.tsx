@@ -24,7 +24,7 @@ interface ContainerCardProps {
 }
 
 const ContainerCard: React.FC<ContainerCardProps> = ({ container }) => {
-  const name = container.name || 'Unknown';
+  const name = formatContainerName(container.name);
   const state = (container.state?.status || 'unknown').toLowerCase();
   const isRunning = state === 'running';
   const hasIssue = ['exited', 'dead'].includes(state);

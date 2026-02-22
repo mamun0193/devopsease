@@ -501,4 +501,56 @@ export const imageApi = {
   },
 };
 
+// Project API
+export interface ProjectService {
+  name: string;
+  containerId: string;
+  image: string;
+}
+
+export interface Project {
+  _id: string;
+  userId: string;
+  name: string;
+  namespace: string;
+  composeYaml?: string;
+  status: 'CREATED' | 'RUNNING' | 'STOPPED' | 'FAILED';
+  services: ProjectService[];
+  networks: string[];
+  volumes: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const projectApi = {
+  create: async (name: string, composeYaml: string): Promise<Project> => {
+    const response = await api.post<{ project: Project }>('/projects', { name, composeYaml });
+    return response.data.project;
+  },
+
+  list: async (): Promise<Project[]> => {
+    const response = await api.get<{ projects: Project[] }>('/projects');
+    return response.data.projects;
+  },
+
+  getById: async (projectId: string): Promise<Project> => {
+    const response = await api.get<{ project: Project }>(`/projects/${projectId}`);
+    return response.data.project;
+  },
+
+  start: async (projectId: string): Promise<Project> => {
+    const response = await api.post<{ project: Project }>(`/projects/${projectId}/start`);
+    return response.data.project;
+  },
+
+  stop: async (projectId: string): Promise<Project> => {
+    const response = await api.post<{ project: Project }>(`/projects/${projectId}/stop`);
+    return response.data.project;
+  },
+
+  delete: async (projectId: string): Promise<void> => {
+    await api.delete(`/projects/${projectId}`);
+  },
+};
+
 export default api;

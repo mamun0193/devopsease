@@ -31,6 +31,8 @@ import BuildsPage from './pages/BuildsPage';
 import BuildDetailPage from './pages/BuildDetailPage';
 import ImagesPage from './pages/ImagesPage';
 import ImageDetailPage from './pages/ImageDetailPage';
+import ProjectsPage from './pages/ProjectsPage';
+import ProjectDetailPage from './pages/ProjectDetailPage';
 
 function App() {
   return (
@@ -117,6 +119,22 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ImageDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/projects"
+                  element={
+                    <ProtectedRoute>
+                      <ProjectsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/projects/:projectId"
+                  element={
+                    <ProtectedRoute>
+                      <ProjectDetailPage />
                     </ProtectedRoute>
                   }
                 />

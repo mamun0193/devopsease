@@ -1,9 +1,19 @@
 import type { Container } from '../api';
 
-// Format container name (remove leading slash)
+// Format container name (remove leading slash, clean compose namespace)
 export function formatContainerName(name: string): string {
   if (!name) return 'Unknown';
-  return name.replace(/^\//, '');
+  const cleaned = name.replace(/^\//, '');
+
+  // Detect compose-style name: project_<userId>_<slug>_<service>
+  const composeMatch = cleaned.match(/^project_[a-f0-9]+_(.+?)_([^_]+)$/);
+  if (composeMatch) {
+    const projectSlug = composeMatch[1].replace(/_/g, '-');
+    const serviceName = composeMatch[2];
+    return `${projectSlug} / ${serviceName}`;
+  }
+
+  return cleaned;
 }
 
 // Format container ID (truncate to 12 chars)

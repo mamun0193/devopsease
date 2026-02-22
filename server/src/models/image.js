@@ -27,7 +27,7 @@ const imageSchema = new mongoose.Schema({
     buildId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Build',
-        required: true
+        default: null
     },
     imageUsageStatus: {
         type: String,
@@ -56,7 +56,7 @@ const imageSchema = new mongoose.Schema({
 });
 
 imageSchema.index({ userId: 1, tag: 1 }, { unique: true });
+imageSchema.index({ userId: 1, dockerImageId: 1 }, { unique: true });
 imageSchema.index({ userId: 1, imageUsageStatus: 1 });
-imageSchema.index({ dockerImageId: 1 });
 
 export default mongoose.model('Image', imageSchema);

@@ -681,7 +681,7 @@ async function unpauseContainer(containerId) {
  * Create a new container from an image
  * Pulls image if missing, validates name uniqueness, creates and optionally starts container
  */
-async function createContainer({ image, name, ports = {}, env = {}, autoStart = true }) {
+async function createContainer({ image, name, ports = {}, env = {}, autoStart = true, networkMode, labels, volumes, command, restartPolicy }) {
   logger.info("Container create requested", { image, name, autoStart });
 
   if (!image) {
@@ -771,6 +771,37 @@ async function createContainer({ image, name, ports = {}, env = {}, autoStart = 
         PortBindings: Object.keys(portBindings).length > 0 ? portBindings : undefined,
       },
     };
+
+    // Compose-specific: network mode
+    if (networkMode) {
+      createOptions.HostConfig.NetworkMode = networkMode;
+    }
+
+    // Compose-specific: labels
+    if (labels && typeof labels === 'object') {
+      createOptions.Labels = labels;
+    }
+
+    // Compose-specific: restart policy
+    if (restartPolicy) {
+      createOptions.HostConfig.RestartPolicy = { Name: restartPolicy };
+    }
+
+    // Compose-specific: volumes
+    if (volumes && Array.isArray(volumes)) {
+      createOptions.HostConfig.Binds = volumes.map(vol =>
+        typeof vol === 'string' ? vol : `${vol.source}:${vol.target}`
+      );
+    }
+
+    // Compose-specific: command
+    if (command) {
+      if (typeof command === 'string') {
+        createOptions.Cmd = command.split(/\s+/);
+      } else if (Array.isArray(command)) {
+        createOptions.Cmd = command;
+      }
+    }
 
     // Create container
     const container = await docker.createContainer(createOptions);

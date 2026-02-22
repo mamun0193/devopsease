@@ -9,7 +9,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import type { Container } from '../api';
-import { truncateId } from '../utils/formatters';
+import { truncateId, formatContainerName } from '../utils/formatters';
 import LogViewer from './LogViewer';
 import FailureAnalysis from './FailureAnalysis';
 import ContainerInfo from './ContainerInfo';
@@ -26,7 +26,7 @@ const ContainerDetails: React.FC<ContainerDetailsProps> = ({ container, onClose 
 
   if (!container) return null;
 
-  const name = container.name || 'Unknown';
+  const name = formatContainerName(container.name);
   const state = (container.state?.status || 'unknown').toLowerCase();
   const isRunning = state === 'running';
   const hasIssue = ['exited', 'dead'].includes(state);
