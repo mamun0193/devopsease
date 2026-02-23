@@ -1,6 +1,6 @@
 import yaml from 'js-yaml';
 
-const FORBIDDEN_KEYS = ['cap_add', 'devices'];
+const FORBIDDEN_KEYS = ['cap_add', 'devices', 'extra_hosts', 'links'];
 
 function isAbsoluteHostPath(volumeStr) {
     const parts = volumeStr.split(':');
@@ -21,8 +21,12 @@ function validateService(serviceName, serviceConfig, errors) {
         errors.push(`Service "${serviceName}": privileged containers are not allowed`);
     }
 
-    if (serviceConfig.network_mode === 'host') {
-        errors.push(`Service "${serviceName}": host networking is not allowed`);
+    if (serviceConfig.network_mode !== undefined && serviceConfig.network_mode !== null) {
+        errors.push(`Service "${serviceName}": network_mode is not allowed — the platform assigns an isolated network`);
+    }
+
+    if (serviceConfig.networks !== undefined && serviceConfig.networks !== null) {
+        errors.push(`Service "${serviceName}": per-service networks configuration is not allowed — the platform manages network attachment`);
     }
 
     if (serviceConfig.pid === 'host') {
@@ -74,6 +78,10 @@ export function validateComposeYaml(rawYaml) {
 
     if (Object.keys(services).length > 10) {
         errors.push('Maximum 10 services per project');
+    }
+
+    if (parsed.networks !== undefined && parsed.networks !== null) {
+        errors.push('Top-level "networks" configuration is not allowed — the platform manages network creation');
     }
 
     for (const [name, config] of Object.entries(services)) {

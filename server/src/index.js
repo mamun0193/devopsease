@@ -12,6 +12,7 @@ import adminRoutes from "./routes/admin.routes.js";
 import buildRoutes from "./routes/build.routes.js";
 import imageRoutes from "./routes/image.routes.js";
 import projectRoutes from "./routes/project.routes.js";
+import networkRoutes from "./routes/network.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
@@ -75,6 +76,7 @@ app.use("/admin", adminRoutes);
 app.use("/builds", buildRoutes);
 app.use("/images", imageRoutes);
 app.use("/projects", projectRoutes);
+app.use("/networks", networkRoutes);
 
 app.use(errorHandler);
 

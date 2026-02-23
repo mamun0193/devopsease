@@ -14,6 +14,7 @@ import {
 import ownershipService from './ownership.service.js';
 import imageObservabilityService from './imageObservability.service.js';
 import imageRegistrationService from './imageRegistration.service.js';
+import networkService from './network.service.js';
 
 const MAX_PROJECTS_PER_USER = 5;
 
@@ -51,10 +52,9 @@ class ProjectService {
 
         const slug = slugify(name);
         const namespace = `project_${userId}_${slug}`;
-        const networkName = `${namespace}_net`;
 
         const createdContainers = [];
-        let networkId = null;
+        let dbNetwork = null;
 
         try {
             // Verify all images before creating anything
@@ -71,16 +71,16 @@ class ProjectService {
                 }
             }
 
-            // Create isolated network
-            const network = await docker.createNetwork({
-                Name: networkName,
-                Driver: 'bridge',
-                Labels: {
-                    'devopsease.project': namespace,
-                    'devopsease.userId': userId.toString()
-                }
+            // Create governed, isolated network via NetworkService.
+            // Returns a DB-persisted Network document; driver is always 'bridge'.
+            dbNetwork = await networkService.createIsolatedNetwork({
+                userId,
+                projectId: null,      // will be linked after project doc created
+                projectName: name
             });
-            networkId = network.id;
+
+            // The Docker network name is stored in dbNetwork.name
+            const dockerNetworkName = dbNetwork.name;
 
             // Create containers for each service via ContainerService
             for (const [svcName, svcConfig] of Object.entries(parsedCompose.services)) {
@@ -122,8 +122,8 @@ class ProjectService {
                     ports,
                     env,
                     autoStart: true,
-                    // Extra fields for compose: network, labels, volumes, command, restart
-                    networkMode: networkName,
+                    // Attach container to the governed network by its Docker-side name
+                    networkMode: dockerNetworkName,
                     labels: {
                         'devopsease.project': namespace,
                         'devopsease.service': svcName,
@@ -170,7 +170,7 @@ class ProjectService {
                 }
             }
 
-            // Save project to DB
+            // Save project to DB — store the Network document's ObjectId, not the raw Docker ID
             const project = await Project.create({
                 userId,
                 name,
@@ -178,8 +178,12 @@ class ProjectService {
                 composeYaml,
                 status: 'RUNNING',
                 services: createdContainers,
-                networks: [networkId]
+                networks: [dbNetwork._id]
             });
+
+            // Link the network back to the project
+            dbNetwork.projectId = project._id;
+            await dbNetwork.save();
 
             // Register project as resource
             await resourceService.registerResource({
@@ -206,10 +210,10 @@ class ProjectService {
                 } catch (_) { }
             }
 
-            // Remove network if created
-            if (networkId) {
+            // Remove governed network if created (cleans both Docker and DB record)
+            if (dbNetwork) {
                 try {
-                    await docker.getNetwork(networkId).remove();
+                    await networkService.deleteNetwork({ networkId: dbNetwork._id, userId });
                 } catch (_) { }
             }
 
@@ -297,12 +301,12 @@ class ProjectService {
             }
         }
 
-        // Remove network
+        // Remove governed networks via NetworkService (cleans Docker + DB, handles not-found)
         for (const netId of project.networks) {
             try {
-                await docker.getNetwork(netId).remove();
+                await networkService.deleteNetwork({ networkId: netId, userId });
             } catch (err) {
-                if (!err.message?.includes('not found')) {
+                if (!err.message?.includes('not found') && !err.statusCode === 404) {
                     logger.warn(`Failed to remove network ${netId}`, { error: err.message });
                 }
             }
