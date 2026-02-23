@@ -1,4 +1,5 @@
 import Image from '../models/image.js';
+import Volume from '../models/volume.model.js';
 import docker from '../docker/client.js';
 import logger from '../utils/logger.js';
 import { logGovernanceEvent, GOVERNANCE_EVENTS } from './imageGovernance.audit.js';
@@ -20,12 +21,27 @@ async function acquireLock(userId) {
 }
 
 async function calculateAccurateUserStorage(userId) {
-    const result = await Image.aggregate([
-        { $match: { userId } },
-        { $group: { _id: null, totalMB: { $sum: '$sizeMB' }, count: { $sum: 1 } } }
+    const [imageResult, volumeResult] = await Promise.all([
+        Image.aggregate([
+            { $match: { userId } },
+            { $group: { _id: null, totalMB: { $sum: '$sizeMB' }, count: { $sum: 1 } } }
+        ]),
+        Volume.aggregate([
+            { $match: { userId } },
+            { $group: { _id: null, totalMB: { $sum: '$sizeMB' }, count: { $sum: 1 } } }
+        ])
     ]);
-    if (result.length === 0) return { totalMB: 0, count: 0 };
-    return { totalMB: Math.round(result[0].totalMB * 100) / 100, count: result[0].count };
+
+    const imageMB = imageResult.length > 0 ? imageResult[0].totalMB : 0;
+    const imageCount = imageResult.length > 0 ? imageResult[0].count : 0;
+    const volumeMB = volumeResult.length > 0 ? volumeResult[0].totalMB : 0;
+    const volumeCount = volumeResult.length > 0 ? volumeResult[0].count : 0;
+
+    return {
+        totalMB: Math.round((imageMB + volumeMB) * 100) / 100,
+        imageCount,
+        volumeCount
+    };
 }
 
 async function getActiveContainerImageIds() {

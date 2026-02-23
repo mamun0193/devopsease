@@ -15,6 +15,7 @@ import ownershipService from './ownership.service.js';
 import imageObservabilityService from './imageObservability.service.js';
 import imageRegistrationService from './imageRegistration.service.js';
 import networkService from './network.service.js';
+import volumeService from './volume.service.js';
 
 const MAX_PROJECTS_PER_USER = 5;
 
@@ -55,6 +56,7 @@ class ProjectService {
 
         const createdContainers = [];
         let dbNetwork = null;
+        const createdVolumes = [];
 
         try {
             // Verify all images before creating anything
@@ -81,6 +83,31 @@ class ProjectService {
 
             // The Docker network name is stored in dbNetwork.name
             const dockerNetworkName = dbNetwork.name;
+
+            // Collect and create governed volumes from all services
+            const volumeNameMap = new Map(); // logicalName → dockerVolumeName
+            for (const [, svcConfig] of Object.entries(parsedCompose.services)) {
+                if (Array.isArray(svcConfig.volumes)) {
+                    for (const vol of svcConfig.volumes) {
+                        const volStr = typeof vol === 'string' ? vol : '';
+                        const parts = volStr.split(':');
+                        if (parts.length >= 2) {
+                            const source = parts[0];
+                            // Only named volumes pass validation; source is always a name
+                            if (source && !volumeNameMap.has(source)) {
+                                const volDoc = await volumeService.ensureVolumeExists({
+                                    userId,
+                                    projectId: null,
+                                    projectName: name,
+                                    volumeName: source
+                                });
+                                volumeNameMap.set(source, volDoc.dockerVolumeName);
+                                createdVolumes.push(volDoc);
+                            }
+                        }
+                    }
+                }
+            }
 
             // Create containers for each service via ContainerService
             for (const [svcName, svcConfig] of Object.entries(parsedCompose.services)) {
@@ -129,7 +156,15 @@ class ProjectService {
                         'devopsease.service': svcName,
                         'devopsease.userId': userId.toString()
                     },
-                    volumes: svcConfig.volumes,
+                    // Rewrite volume mounts to use namespaced Docker volume names
+                    volumes: svcConfig.volumes ? svcConfig.volumes.map(vol => {
+                        const volStr = typeof vol === 'string' ? vol : '';
+                        const parts = volStr.split(':');
+                        if (parts.length >= 2 && volumeNameMap.has(parts[0])) {
+                            return [volumeNameMap.get(parts[0]), ...parts.slice(1)].join(':');
+                        }
+                        return vol;
+                    }) : undefined,
                     command: svcConfig.command,
                     restartPolicy: svcConfig.restart || 'no',
                 });
@@ -178,12 +213,18 @@ class ProjectService {
                 composeYaml,
                 status: 'RUNNING',
                 services: createdContainers,
-                networks: [dbNetwork._id]
+                networks: [dbNetwork._id],
+                volumes: createdVolumes.map(v => v._id)
             });
 
-            // Link the network back to the project
+            // Link network and volumes back to the project
             dbNetwork.projectId = project._id;
             await dbNetwork.save();
+
+            for (const volDoc of createdVolumes) {
+                volDoc.projectId = project._id;
+                await volDoc.save();
+            }
 
             // Register project as resource
             await resourceService.registerResource({
@@ -214,6 +255,13 @@ class ProjectService {
             if (dbNetwork) {
                 try {
                     await networkService.deleteNetwork({ networkId: dbNetwork._id, userId });
+                } catch (_) { }
+            }
+
+            // Remove governed volumes if created
+            for (const volDoc of createdVolumes) {
+                try {
+                    await volumeService.deleteVolume({ volumeId: volDoc._id, userId });
                 } catch (_) { }
             }
 
@@ -311,6 +359,9 @@ class ProjectService {
                 }
             }
         }
+
+        // Mark governed volumes as UNUSED (preserve data for manual prune)
+        await volumeService.markProjectVolumesUnused(project._id, userId);
 
         // Update project resource status
         await resourceService.updateResourceStatus(project._id.toString(), RESOURCE_TYPES.PROJECT, 'deleted');

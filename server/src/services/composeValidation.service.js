@@ -2,13 +2,45 @@ import yaml from 'js-yaml';
 
 const FORBIDDEN_KEYS = ['cap_add', 'devices', 'extra_hosts', 'links'];
 
-function isAbsoluteHostPath(volumeStr) {
-    const parts = volumeStr.split(':');
-    if (parts.length < 2) return false;
-    const hostPath = parts[0];
-    if (hostPath.startsWith('/')) return true;
-    if (/^[a-zA-Z]:[/\\]/.test(hostPath)) return true;
-    return false;
+const DANGEROUS_TARGETS = ['/var/run/docker.sock', '/etc', '/root', '/proc', '/sys'];
+const NAMED_VOLUME_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/;
+
+function validateVolumeMount(volStr) {
+    if (!volStr || typeof volStr !== 'string') return 'invalid volume definition';
+
+    const parts = volStr.split(':');
+
+    // Anonymous volume (single path, no source) — allowed
+    if (parts.length === 1) return null;
+
+    const source = parts[0];
+    const target = parts.length >= 2 ? parts[1] : '';
+
+    // Reject absolute host paths (unix + windows)
+    if (source.startsWith('/')) return `absolute host path not allowed ("${source}")`;
+    if (/^[a-zA-Z]:[/\\]/.test(source)) return `absolute host path not allowed ("${source}")`;
+
+    // Reject relative path mounts
+    if (source.startsWith('./') || source.startsWith('../') || source === '.' || source === '..') {
+        return `relative host path not allowed ("${source}")`;
+    }
+
+    // Reject .. traversal anywhere
+    if (source.includes('..')) return `path traversal not allowed ("${source}")`;
+
+    // Reject dangerous target paths
+    for (const dangerous of DANGEROUS_TARGETS) {
+        if (target === dangerous || target.startsWith(dangerous + '/')) {
+            return `mounting to "${dangerous}" is not allowed`;
+        }
+    }
+
+    // Source must be a valid named volume identifier
+    if (!NAMED_VOLUME_REGEX.test(source)) {
+        return `only named volumes are allowed — "${source}" is not a valid volume name`;
+    }
+
+    return null;
 }
 
 function validateService(serviceName, serviceConfig, errors) {
@@ -46,8 +78,9 @@ function validateService(serviceName, serviceConfig, errors) {
     if (Array.isArray(serviceConfig.volumes)) {
         for (const vol of serviceConfig.volumes) {
             const volStr = typeof vol === 'string' ? vol : vol?.source || '';
-            if (isAbsoluteHostPath(volStr)) {
-                errors.push(`Service "${serviceName}": absolute host volume mounts are not allowed ("${volStr}")`);
+            const volError = validateVolumeMount(volStr);
+            if (volError) {
+                errors.push(`Service "${serviceName}": ${volError}`);
             }
         }
     }
