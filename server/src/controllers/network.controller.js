@@ -5,10 +5,21 @@ import networkService from '../services/network.service.js';
 export const listNetworks = async (req, res, next) => {
     try {
         const userId = req.user._id;
-        const networks = await Network.find({ userId })
+        const rawNetworks = await Network.find({ userId })
             .select('-__v')
+            .populate('projectId', 'name')   // join project name
             .sort({ createdAt: -1 })
             .lean();
+
+        const networks = rawNetworks.map(n => ({
+            id: n._id,
+            name: n.name,
+            projectId: n.projectId?._id ?? n.projectId ?? null,
+            projectName: n.projectId?.name ?? null,   // human-readable project name
+            status: n.usageStatus,   // frontend expects "status", DB stores "usageStatus"
+            createdAt: n.createdAt,
+        }));
+
         res.json({ networks });
     } catch (error) {
         next(error);

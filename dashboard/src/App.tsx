@@ -33,6 +33,8 @@ import ImagesPage from './pages/ImagesPage';
 import ImageDetailPage from './pages/ImageDetailPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
+import NetworksPage from './pages/NetworksPage';
+import VolumesPage from './pages/VolumesPage';
 
 function App() {
   return (
@@ -135,6 +137,22 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ProjectDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/networks"
+                  element={
+                    <ProtectedRoute>
+                      <NetworksPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/volumes"
+                  element={
+                    <ProtectedRoute>
+                      <VolumesPage />
                     </ProtectedRoute>
                   }
                 />

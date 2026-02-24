@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Server, Hammer, Layers, FolderKanban } from 'lucide-react';
+import { LayoutDashboard, Server, Hammer, Layers, FolderKanban, Network, HardDrive } from 'lucide-react';
 
 const TABS = [
     { label: 'Home', path: '/dashboard', icon: LayoutDashboard },
@@ -8,6 +8,8 @@ const TABS = [
     { label: 'Builds', path: '/builds', icon: Hammer },
     { label: 'Images', path: '/images', icon: Layers },
     { label: 'Projects', path: '/projects', icon: FolderKanban },
+    { label: 'Networks', path: '/networks', icon: Network },
+    { label: 'Volumes', path: '/volumes', icon: HardDrive },
 ] as const;
 
 const ResourceNav: React.FC = () => {

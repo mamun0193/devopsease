@@ -1,5 +1,6 @@
 import docker from '../docker/client.js';
 import Project from '../models/project.model.js';
+import Network from '../models/network.model.js';
 import Image from '../models/image.js';
 import logger from '../utils/logger.js';
 import { validateComposeYaml } from './composeValidation.service.js';
@@ -205,6 +206,11 @@ class ProjectService {
                 }
             }
 
+            if (createdContainers.length > 0) {
+                dbNetwork.usageStatus = 'ACTIVE';
+                await dbNetwork.save();
+            }
+
             // Save project to DB — store the Network document's ObjectId, not the raw Docker ID
             const project = await Project.create({
                 userId,
@@ -303,6 +309,12 @@ class ProjectService {
         project.status = 'STOPPED';
         await project.save();
 
+        // Mark project networks as UNUSED — no running containers attached
+        await Network.updateMany(
+            { _id: { $in: project.networks }, userId },
+            { usageStatus: 'UNUSED' }
+        );
+
         logger.info(`Project "${project.name}" stopped`, { userId: userId.toString() });
         return project;
     }
@@ -325,6 +337,12 @@ class ProjectService {
 
         project.status = 'RUNNING';
         await project.save();
+
+        // Mark project networks as ACTIVE — containers are back up and attached
+        await Network.updateMany(
+            { _id: { $in: project.networks }, userId },
+            { usageStatus: 'ACTIVE' }
+        );
 
         logger.info(`Project "${project.name}" started`, { userId: userId.toString() });
         return project;

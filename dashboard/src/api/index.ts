@@ -553,4 +553,75 @@ export const projectApi = {
   },
 };
 
+// Networks API 
+
+export interface Network {
+  id: string;
+  name: string;
+  projectId?: string;
+  projectName?: string | null;
+  status: 'ACTIVE' | 'UNUSED';
+  createdAt: string;
+}
+
+export const networkApi = {
+  list: async (): Promise<Network[]> => {
+    const response = await api.get<{ networks: Network[] }>('/networks');
+    return response.data.networks;
+  },
+
+  remove: async (networkId: string): Promise<void> => {
+    await api.delete(`/networks/${networkId}`);
+  },
+
+  reconcile: async (): Promise<void> => {
+    await api.post('/networks/reconcile');
+  },
+};
+
+// Volumes API 
+
+export interface Volume {
+  id: string;
+  name: string;
+  sizeMB: number;
+  attachedContainerIds: string[];
+  status: 'ACTIVE' | 'UNUSED' | 'PENDING_DELETE';
+  projectId?: string;
+}
+
+export interface VolumePruneCandidate {
+  id: string;
+  name: string;
+  sizeMB: number;
+}
+
+export interface VolumePrunePreview {
+  candidates: VolumePruneCandidate[];
+  totalReclaimableMB: number;
+}
+
+export interface VolumePruneResult {
+  reclaimedMB: number;
+  prunedCount: number;
+  errors: Array<{ volumeId: string; name: string; error: string }>;
+}
+
+export const volumeApi = {
+  list: async (): Promise<Volume[]> => {
+    const response = await api.get<{ volumes: Volume[] }>('/volumes');
+    return response.data.volumes;
+  },
+
+  prunePreview: async (): Promise<VolumePrunePreview> => {
+    const response = await api.get<VolumePrunePreview>('/volumes/prune-preview');
+    return response.data;
+  },
+
+  pruneUnused: async (): Promise<VolumePruneResult> => {
+    const response = await api.post<VolumePruneResult>('/volumes/prune-unused');
+    return response.data;
+  },
+};
+
 export default api;
