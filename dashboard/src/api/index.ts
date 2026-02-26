@@ -52,7 +52,9 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     // Handle 401 Unauthorized (Token Expiry)
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Skip refresh for /dockerhub/ endpoints — those 401s are application-level auth failures, not session expiry
+    const isDockerHubAuth = originalRequest.url?.includes('/dockerhub/');
+    if (error.response?.status === 401 && !originalRequest._retry && !isDockerHubAuth) {
       if (isRefreshing) {
         return new Promise(function (resolve, reject) {
           failedQueue.push({ resolve, reject });
@@ -620,6 +622,87 @@ export const volumeApi = {
 
   pruneUnused: async (): Promise<VolumePruneResult> => {
     const response = await api.post<VolumePruneResult>('/volumes/prune-unused');
+    return response.data;
+  },
+};
+
+// Docker Hub API
+
+export interface DockerHubStatus {
+  connected: boolean;
+  username: string | null;
+}
+
+export interface PullImageRequest {
+  imageName: string;
+}
+
+export interface PullImageResponse {
+  imageId: string;
+  tag: string;
+  sizeMB: number;
+  layerCount: number;
+  dockerImageId: string;
+  pulledFrom: string;
+  pullCount: number;
+}
+
+export interface PushImageRequest {
+  imageId: string;
+  repositoryTag: string;
+}
+
+export interface PushImageResponse {
+  success: boolean;
+  pushedAs: string;
+  imageId: string;
+}
+
+export interface DockerHubSearchResult {
+  name: string;
+  description: string;
+  starCount: number;
+  isOfficial: boolean;
+  pullCount: number;
+}
+
+export interface DockerHubSearchResponse {
+  results: DockerHubSearchResult[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export const dockerHubApi = {
+  connect: async (username: string, password: string): Promise<DockerHubStatus> => {
+    const response = await api.post<DockerHubStatus>('/dockerhub/connect', { username, password });
+    return response.data;
+  },
+
+  disconnect: async (): Promise<{ disconnected: boolean }> => {
+    const response = await api.delete<{ disconnected: boolean }>('/dockerhub/disconnect');
+    return response.data;
+  },
+
+  status: async (): Promise<DockerHubStatus> => {
+    const response = await api.get<DockerHubStatus>('/dockerhub/status');
+    return response.data;
+  },
+
+  pull: async (imageName: string): Promise<PullImageResponse> => {
+    const response = await api.post<PullImageResponse>('/dockerhub/pull', { imageName });
+    return response.data;
+  },
+
+  push: async (imageId: string, repositoryTag: string): Promise<PushImageResponse> => {
+    const response = await api.post<PushImageResponse>('/dockerhub/push', { imageId, repositoryTag });
+    return response.data;
+  },
+
+  search: async (query: string, page = 1, pageSize = 25): Promise<DockerHubSearchResponse> => {
+    const response = await api.get<DockerHubSearchResponse>('/dockerhub/search', {
+      params: { q: query, page, pageSize }
+    });
     return response.data;
   },
 };

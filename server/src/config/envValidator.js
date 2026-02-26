@@ -4,6 +4,7 @@ const REQUIRED_VARS = [
     "PORT",
     "MONGO_URI",
     "JWT_SECRET",
+    "ENCRYPTION_KEY",
     // "GITHUB_CLIENT_ID", // Optional if auth not enabled? But present in .env
     // "GITHUB_CLIENT_SECRET",
     // "GOOGLE_CLIENT_ID",

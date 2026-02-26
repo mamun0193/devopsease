@@ -62,13 +62,13 @@ async function getActiveContainerImageIds() {
 }
 
 async function getPruneCandidates(userId) {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
     const images = await Image.find({
         userId,
         imageUsageStatus: { $in: ['UNUSED', 'DANGLING'] },
         attachedContainerIds: { $size: 0 },
-        createdAt: { $lte: oneHourAgo }
+        lastUsedAt: { $lte: fiveMinutesAgo }
     }).lean();
 
     if (images.length === 0) {

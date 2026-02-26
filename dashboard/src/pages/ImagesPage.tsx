@@ -20,11 +20,15 @@ import {
     X,
     Sparkles,
     ShieldCheck,
+    Upload,
+    Download,
 } from 'lucide-react';
 import Header from '../components/Header';
 import type { FilterItem } from '../components/Header';
 import ResourceNav from '../components/ResourceNav';
+import PushImageModal from '../components/registry/PushImageModal';
 import { imageApi } from '../api';
+import { useDockerHubStatus } from '../hooks/useDockerHub';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; label: string }> = {
     ACTIVE: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', label: 'Active' },
@@ -402,6 +406,9 @@ const ImagesPage: React.FC = () => {
     const [activeFilter, setActiveFilter] = useState<ImageFilter>('all');
     const [showPruneModal, setShowPruneModal] = useState(false);
     const [showBuildCacheModal, setShowBuildCacheModal] = useState(false);
+    const [pushTarget, setPushTarget] = useState<{ imageId: string; imageTag: string } | null>(null);
+    const { data: dockerHubStatus } = useDockerHubStatus();
+    const isHubConnected = dockerHubStatus?.connected === true;
 
     const { data: images = [], isLoading: imagesLoading } = useQuery({
         queryKey: ['images'],
@@ -489,6 +496,23 @@ const ImagesPage: React.FC = () => {
                                 </div>
                             )}
 
+                            {/* Docker Hub Banner */}
+                            <button
+                                onClick={() => navigate('/registry')}
+                                className="w-full flex items-center justify-between px-5 py-3.5 mb-8 rounded-xl bg-gradient-to-r from-cyan-500/10 via-cyan-500/5 to-transparent border border-cyan-500/20 hover:border-cyan-500/40 group transition-all"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center border border-cyan-500/25">
+                                        <Download size={14} className="text-cyan-400" />
+                                    </div>
+                                    <div className="text-left">
+                                        <p className="text-sm font-medium text-slate-200">Pull images from Docker Hub</p>
+                                        <p className="text-xs text-slate-500">Connect your account to pull and push images</p>
+                                    </div>
+                                </div>
+                                <ChevronRight size={16} className="text-slate-600 group-hover:text-cyan-400 transition-colors" />
+                            </button>
+
                             {/* Image Table */}
                             {filteredImages.length === 0 ? (
                                 <div className="text-center py-20">
@@ -507,6 +531,7 @@ const ImagesPage: React.FC = () => {
                                                     <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                                                     <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Attached Containers</th>
                                                     <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Used</th>
+                                                    <th className="text-right px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -553,6 +578,20 @@ const ImagesPage: React.FC = () => {
                                                                 {formatDate(image.lastUsedAt)}
                                                             </span>
                                                         </td>
+                                                        <td className="px-5 py-3.5 text-right">
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setPushTarget({ imageId: image._id, imageTag: image.tag });
+                                                                }}
+                                                                disabled={!isHubConnected}
+                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/25 hover:bg-cyan-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                title={isHubConnected ? 'Push to Docker Hub' : 'Connect Docker Hub first'}
+                                                            >
+                                                                <Upload size={12} />
+                                                                Push
+                                                            </button>
+                                                        </td>
                                                     </motion.tr>
                                                 ))}
                                             </tbody>
@@ -568,6 +607,14 @@ const ImagesPage: React.FC = () => {
             {/* Prune Modals */}
             {showPruneModal && <PruneModal onClose={() => setShowPruneModal(false)} />}
             {showBuildCacheModal && <PruneBuildCacheModal onClose={() => setShowBuildCacheModal(false)} currentCacheSizeMB={summary?.buildCacheMB || 0} />}
+
+            {/* Push Modal */}
+            <PushImageModal
+                isOpen={pushTarget !== null}
+                onClose={() => setPushTarget(null)}
+                imageId={pushTarget?.imageId || ''}
+                imageTag={pushTarget?.imageTag || ''}
+            />
         </div>
     );
 };

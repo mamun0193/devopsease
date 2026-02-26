@@ -276,18 +276,63 @@ class ProjectService {
     }
 
     async getProjects(userId) {
-        return Project.find({ userId })
+        const projects = await Project.find({ userId })
             .select('-composeYaml')
-            .sort({ createdAt: -1 })
-            .lean();
+            .sort({ createdAt: -1 });
+
+        // Reconcile RUNNING projects whose containers are all gone
+        for (const project of projects) {
+            if (project.status === 'RUNNING' && project.services?.length > 0) {
+                let aliveCount = 0;
+                for (const svc of project.services) {
+                    try {
+                        await docker.getContainer(svc.containerId).inspect();
+                        aliveCount++;
+                    } catch {
+                        // container doesn't exist
+                    }
+                }
+                if (aliveCount === 0) {
+                    project.status = 'STOPPED';
+                    await project.save();
+                    logger.info(`Project "${project.name}" auto-reconciled to STOPPED`, {
+                        userId: userId.toString()
+                    });
+                }
+            }
+        }
+
+        return projects.map(p => p.toObject());
     }
 
     async getProjectById(userId, projectId) {
-        const project = await Project.findOne({ _id: projectId, userId }).lean();
+        const project = await Project.findOne({ _id: projectId, userId });
         if (!project) {
             throw Object.assign(new Error('Project not found'), { statusCode: 404 });
         }
-        return project;
+
+        // Reconcile: if DB says RUNNING but all containers are gone, auto-correct
+        if (project.status === 'RUNNING' && project.services?.length > 0) {
+            let aliveCount = 0;
+            for (const svc of project.services) {
+                try {
+                    await docker.getContainer(svc.containerId).inspect();
+                    aliveCount++;
+                } catch {
+                    // container doesn't exist
+                }
+            }
+
+            if (aliveCount === 0) {
+                project.status = 'STOPPED';
+                await project.save();
+                logger.info(`Project "${project.name}" auto-reconciled to STOPPED — no containers found`, {
+                    userId: userId.toString()
+                });
+            }
+        }
+
+        return project.toObject();
     }
 
     async stopProject(userId, projectId) {
@@ -325,24 +370,190 @@ class ProjectService {
             throw Object.assign(new Error('Project not found'), { statusCode: 404 });
         }
 
+        // Check how many service containers still exist
+        let aliveCount = 0;
         for (const svc of project.services) {
             try {
-                await startContainer(svc.containerId);
-            } catch (err) {
-                if (!err.message?.includes('already started')) {
-                    logger.warn(`Failed to start container ${svc.containerId}`, { error: err.message });
+                await docker.getContainer(svc.containerId).inspect();
+                aliveCount++;
+            } catch {
+                // container doesn't exist
+            }
+        }
+
+        // If all containers exist, just start them (normal restart)
+        if (aliveCount === project.services.length) {
+            for (const svc of project.services) {
+                try {
+                    await startContainer(svc.containerId);
+                } catch (err) {
+                    if (!err.message?.includes('already started')) {
+                        logger.warn(`Failed to start container ${svc.containerId}`, { error: err.message });
+                    }
                 }
+            }
+        } else {
+            // Containers are gone — rebuild from stored compose YAML
+            logger.info(`Project "${project.name}" containers missing (${aliveCount}/${project.services.length}), rebuilding`, {
+                userId: userId.toString()
+            });
+
+            const { valid, parsedCompose } = validateComposeYaml(project.composeYaml);
+            if (!valid) {
+                throw Object.assign(new Error('Stored compose YAML is invalid — cannot rebuild'), { statusCode: 500 });
+            }
+
+            const namespace = project.namespace;
+            const newServices = [];
+
+            // Ensure network exists — recreate if missing
+            let networkName = null;
+            if (project.networks?.length > 0) {
+                const netDoc = await Network.findOne({ _id: project.networks[0], userId });
+                if (netDoc) {
+                    // Check if the Docker network still exists
+                    try {
+                        await docker.getNetwork(netDoc.dockerNetworkId).inspect();
+                        networkName = netDoc.name;
+                    } catch {
+                        // Docker network gone — remove stale DB record and recreate
+                        await Network.deleteOne({ _id: netDoc._id });
+                        networkName = null;
+                    }
+                }
+            }
+
+            let dbNetwork = null;
+            if (!networkName) {
+                dbNetwork = await networkService.createIsolatedNetwork({
+                    userId,
+                    projectId: project._id,
+                    projectName: project.name
+                });
+                networkName = dbNetwork.name;
+            }
+
+            // Rebuild volume name map
+            const volumeNameMap = new Map();
+            for (const [, svcConfig] of Object.entries(parsedCompose.services)) {
+                if (Array.isArray(svcConfig.volumes)) {
+                    for (const vol of svcConfig.volumes) {
+                        const volStr = typeof vol === 'string' ? vol : '';
+                        const parts = volStr.split(':');
+                        if (parts.length >= 2) {
+                            const source = parts[0];
+                            if (source && !volumeNameMap.has(source)) {
+                                const volDoc = await volumeService.ensureVolumeExists({
+                                    userId,
+                                    projectId: project._id,
+                                    projectName: project.name,
+                                    volumeName: source
+                                });
+                                volumeNameMap.set(source, volDoc.dockerVolumeName);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Recreate containers
+            for (const [svcName, svcConfig] of Object.entries(parsedCompose.services)) {
+                const containerName = `${namespace}_${svcName}`;
+
+                const ports = {};
+                if (svcConfig.ports) {
+                    for (const portMapping of svcConfig.ports) {
+                        const portStr = String(portMapping);
+                        const parts = portStr.split(':');
+                        if (parts.length === 2) {
+                            ports[parts[1]] = parts[0];
+                        } else {
+                            ports[parts[0]] = '';
+                        }
+                    }
+                }
+
+                const env = {};
+                if (svcConfig.environment) {
+                    if (Array.isArray(svcConfig.environment)) {
+                        for (const entry of svcConfig.environment) {
+                            const eqIdx = String(entry).indexOf('=');
+                            if (eqIdx > 0) {
+                                env[String(entry).substring(0, eqIdx)] = String(entry).substring(eqIdx + 1);
+                            }
+                        }
+                    } else {
+                        Object.assign(env, svcConfig.environment);
+                    }
+                }
+
+                const result = await createContainer({
+                    image: svcConfig.image,
+                    name: containerName,
+                    ports,
+                    env,
+                    autoStart: true,
+                    networkMode: networkName,
+                    labels: {
+                        'devopsease.project': namespace,
+                        'devopsease.service': svcName,
+                        'devopsease.userId': userId.toString()
+                    },
+                    volumes: svcConfig.volumes ? svcConfig.volumes.map(vol => {
+                        const volStr = typeof vol === 'string' ? vol : '';
+                        const parts = volStr.split(':');
+                        if (parts.length >= 2 && volumeNameMap.has(parts[0])) {
+                            return [volumeNameMap.get(parts[0]), ...parts.slice(1)].join(':');
+                        }
+                        return vol;
+                    }) : undefined,
+                    command: svcConfig.command,
+                    restartPolicy: svcConfig.restart || 'no',
+                });
+
+                if (!result.success) {
+                    throw Object.assign(new Error(result.message), { statusCode: result.statusCode || 500 });
+                }
+
+                const containerId = result.data.id;
+                newServices.push({ name: svcName, containerId, image: svcConfig.image });
+
+                await ownershipService.registerContainer(userId, containerId);
+                await resourceService.registerResource({
+                    resourceId: containerId,
+                    type: RESOURCE_TYPES.CONTAINER,
+                    ownerId: userId,
+                    metadata: {
+                        image: svcConfig.image,
+                        name: containerName,
+                        createdVia: 'compose-restart',
+                        projectNamespace: namespace,
+                        serviceName: svcName,
+                        created: new Date()
+                    }
+                });
+            }
+
+            // Update project with new container IDs and network
+            project.services = newServices;
+            if (dbNetwork) {
+                project.networks = [dbNetwork._id];
+                dbNetwork.usageStatus = 'ACTIVE';
+                await dbNetwork.save();
             }
         }
 
         project.status = 'RUNNING';
         await project.save();
 
-        // Mark project networks as ACTIVE — containers are back up and attached
+        // Mark project networks as ACTIVE
         await Network.updateMany(
             { _id: { $in: project.networks }, userId },
             { usageStatus: 'ACTIVE' }
         );
+
+        // Reconcile image usage
+        imageObservabilityService.reconcileImageUsage().catch(() => { });
 
         logger.info(`Project "${project.name}" started`, { userId: userId.toString() });
         return project;

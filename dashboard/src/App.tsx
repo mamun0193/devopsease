@@ -35,6 +35,7 @@ import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import NetworksPage from './pages/NetworksPage';
 import VolumesPage from './pages/VolumesPage';
+import RegistryPage from './pages/RegistryPage';
 
 function App() {
   return (
@@ -113,6 +114,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ImagesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/registry"
+                  element={
+                    <ProtectedRoute>
+                      <RegistryPage />
                     </ProtectedRoute>
                   }
                 />
