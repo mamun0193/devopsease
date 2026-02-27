@@ -45,14 +45,14 @@ Table component displaying volume rows:
 ### `PruneVolumesModal.tsx` *(new)*
 Two-step prune modal for volumes:
 - **Step 1 (Preview)**: Fetches `GET /volumes/prune-preview` on mount. Displays a table of candidate volumes (name, size) and total reclaimable storage. A "Prune" confirm button is enabled only when candidates exist.
-- **Step 2 (Result)**: On successful prune, shows reclaimed MB, deleted count, and any partial errors. Uses `react-hot-toast` for success and failure feedback.
+- **Step 2 (Result)**: On successful prune, shows reclaimed MB, deleted count, and any partial errors. Uses Redux toast feedback for success and failure.
 - Shares the mutex-protection guarantee from the backend — the button is disabled while a prune is in flight.
 
 ### `NetworksPage.tsx` *(new)*
 Full networks management page:
 - Three summary cards: **Total Networks**, **Active**, **Unused** — animated via Framer Motion.
 - Renders `NetworkTable` with delete wiring.
-- On delete request, opens `ConfirmModal` with network name. On confirm, fires `useDeleteNetwork` mutation with `react-hot-toast` feedback.
+- On delete request, opens `ConfirmModal` with network name. On confirm, fires `useDeleteNetwork` mutation with Redux toast feedback.
 - Spinner shown during initial load.
 
 ### `VolumesPage.tsx` *(new)*

@@ -50,12 +50,22 @@ api.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config;
+    const requestUrl = String(originalRequest?.url || '');
+    const isDockerHubAuth = requestUrl.includes('/dockerhub/');
+    const isRefreshRequest = requestUrl.includes('/auth/refresh');
+    const isNonRefreshableAuthRequest =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/register') ||
+      requestUrl.includes('/auth/logout') ||
+      isRefreshRequest;
 
     // Handle 401 Unauthorized (Token Expiry)
     // Skip refresh for /dockerhub/ endpoints — those 401s are application-level auth failures, not session expiry
-    const isDockerHubAuth = originalRequest.url?.includes('/dockerhub/');
-    if (error.response?.status === 401 && !originalRequest._retry && !isDockerHubAuth) {
+    if (error.response?.status === 401 && !originalRequest._retry && !isDockerHubAuth && !isNonRefreshableAuthRequest) {
       if (isRefreshing) {
+        if (isRefreshRequest) {
+          return Promise.reject(error);
+        }
         return new Promise(function (resolve, reject) {
           failedQueue.push({ resolve, reject });
         })
@@ -90,7 +100,7 @@ api.interceptors.response.use(
             processQueue(refreshError, null);
             // Verify if it's a real failure or just handled by another tab? 
             // If refresh fails, we generally redirect to login.
-            if (!originalRequest.url?.endsWith('/auth/me')) {
+            if (!requestUrl.endsWith('/auth/me')) {
               window.location.href = '/login';
             }
             return Promise.reject(refreshError);

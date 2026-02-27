@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
-import toast from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
 import {
     Layers,
     HardDrive,
@@ -29,6 +29,7 @@ import ResourceNav from '../components/ResourceNav';
 import PushImageModal from '../components/registry/PushImageModal';
 import { imageApi } from '../api';
 import { useDockerHubStatus } from '../hooks/useDockerHub';
+import { addToast } from '../store/toastSlice';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; label: string }> = {
     ACTIVE: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', label: 'Active' },
@@ -269,6 +270,7 @@ function PruneModal({ onClose }: { onClose: () => void }) {
 }
 
 function PruneBuildCacheModal({ onClose, currentCacheSizeMB }: { onClose: () => void, currentCacheSizeMB: number }) {
+    const dispatch = useDispatch();
     const queryClient = useQueryClient();
     const [pruning, setPruning] = useState(false);
     const [result, setResult] = useState<{ reclaimedMB: number } | null>(null);
@@ -281,19 +283,18 @@ function PruneBuildCacheModal({ onClose, currentCacheSizeMB }: { onClose: () => 
             const res = await imageApi.pruneBuildCache();
             setResult(res);
             queryClient.invalidateQueries({ queryKey: ['images-usage-summary'] });
-            toast.success(`Build cache cleaned (${formatSize(res.reclaimedMB)} reclaimed)`, {
-                icon: <Database size={16} className="text-emerald-400" />,
-                style: { background: '#020617', color: '#f1f5f9', border: '1px solid #064e3b' }
-            });
+            dispatch(addToast({
+                message: `Build cache cleaned (${formatSize(res.reclaimedMB)} reclaimed)`,
+                type: 'success',
+                duration: 4000,
+            }));
         } catch (err: any) {
             setError(err?.response?.data?.error || err.message || 'Build cache prune failed');
-            toast.error('Build cache prune failed', {
-                style: { background: '#020617', color: '#f1f5f9', border: '1px solid #7f1d1d' }
-            });
+            dispatch(addToast({ message: 'Build cache prune failed', type: 'error', duration: 5000 }));
         } finally {
             setPruning(false);
         }
-    }, [queryClient]);
+    }, [dispatch, queryClient]);
 
     return (
         <AnimatePresence>

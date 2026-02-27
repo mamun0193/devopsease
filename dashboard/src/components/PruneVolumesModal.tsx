@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDispatch } from 'react-redux';
 import {
     HardDrive,
     Loader2,
@@ -10,9 +11,9 @@ import {
     ShieldCheck,
     Sparkles,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
 import { volumeApi } from '../api';
 import type { VolumePruneCandidate, VolumePruneResult } from '../api';
+import { addToast } from '../store/toastSlice';
 
 function formatSize(mb: number): string {
     if (mb >= 1000) return `${(mb / 1024).toFixed(2)} GB`;
@@ -24,6 +25,7 @@ interface PruneVolumesModalProps {
 }
 
 const PruneVolumesModal: React.FC<PruneVolumesModalProps> = ({ onClose }) => {
+    const dispatch = useDispatch();
     const queryClient = useQueryClient();
     const [candidates, setCandidates] = useState<VolumePruneCandidate[]>([]);
     const [totalReclaimableMB, setTotalReclaimableMB] = useState(0);
@@ -59,22 +61,21 @@ const PruneVolumesModal: React.FC<PruneVolumesModalProps> = ({ onClose }) => {
             const res = await volumeApi.pruneUnused();
             setResult(res);
             queryClient.invalidateQueries({ queryKey: ['volumes'] });
-            toast.success(
-                `Storage cleaned — ${formatSize(res.reclaimedMB)} reclaimed from ${res.prunedCount} volume${res.prunedCount !== 1 ? 's' : ''}`,
-                { style: { background: '#020617', color: '#f1f5f9', border: '1px solid #064e3b' } }
-            );
+            dispatch(addToast({
+                message: `Storage cleaned — ${formatSize(res.reclaimedMB)} reclaimed from ${res.prunedCount} volume${res.prunedCount !== 1 ? 's' : ''}`,
+                type: 'success',
+                duration: 4000,
+            }));
         } catch (err: any) {
             const message = err?.response?.data?.message || err?.message || 'Prune failed';
             setError(message);
-            toast.error(message, {
-                style: { background: '#020617', color: '#f1f5f9', border: '1px solid #7f1d1d' },
-            });
+            dispatch(addToast({ message, type: 'error', duration: 5000 }));
             // Refresh volumes list on error
             queryClient.invalidateQueries({ queryKey: ['volumes'] });
         } finally {
             setPruning(false);
         }
-    }, [queryClient]);
+    }, [dispatch, queryClient]);
 
     return (
         <AnimatePresence>

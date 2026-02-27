@@ -2,12 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Network, CheckCircle2, AlertTriangle, Loader2, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { useDispatch } from 'react-redux';
 import Header from '../components/Header';
 import ResourceNav from '../components/ResourceNav';
 import ConfirmModal from '../components/ConfirmModal';
 import NetworkTable from '../components/NetworkTable';
 import { useNetworks, useDeleteNetwork } from '../hooks/useNetworks';
+import { addToast } from '../store/toastSlice';
 
 function SummaryCard({
     icon: Icon,
@@ -40,6 +41,7 @@ function SummaryCard({
 }
 
 const NetworksPage: React.FC = () => {
+    const dispatch = useDispatch();
     const navigate = useNavigate();
     const { data: networks = [], isLoading } = useNetworks();
     const deleteNetwork = useDeleteNetwork();
@@ -65,15 +67,14 @@ const NetworksPage: React.FC = () => {
 
         deleteNetwork.mutate(id, {
             onSuccess: () => {
-                toast.success('Network deleted successfully', {
-                    style: { background: '#020617', color: '#f1f5f9', border: '1px solid #064e3b' },
-                });
+                dispatch(addToast({ message: 'Network deleted successfully', type: 'success', duration: 4000 }));
             },
             onError: (err: any) => {
-                toast.error(
-                    err?.response?.data?.message || err?.message || 'Failed to delete network',
-                    { style: { background: '#020617', color: '#f1f5f9', border: '1px solid #7f1d1d' } }
-                );
+                dispatch(addToast({
+                    message: err?.response?.data?.message || err?.message || 'Failed to delete network',
+                    type: 'error',
+                    duration: 5000,
+                }));
             },
         });
     };

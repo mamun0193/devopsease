@@ -47,7 +47,7 @@ Added `prunePreview()`, `pruneUnused()`, and `pruneBuildCache()` bindings to the
 ### `ImagesPage.tsx` *(modified)*
 - **"Safe Clean Storage" Button & Modal**: Opens a preview modal displaying a table of candidate images (tags and sizes) and the total reclaimable MB. Submitting triggers the prune, invalidates queries, and shows a success toast.
 - **"Clean Cache" Button & Modal**: Displays the current active builder cache size (e.g., 523.8 MB) and requests confirmation to explicitly wide the Docker Engine cache layers.
-- **Notifications**: Integrated `react-hot-toast` for clean, modern success and failure popups during these destructive operations.
+- **Notifications**: Integrated Redux toast notifications for clean success and failure feedback during these destructive operations.
 
 ---
 

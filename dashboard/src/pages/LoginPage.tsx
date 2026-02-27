@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { LayoutDashboard, Github, Lock, User, ArrowRight, Loader2, Mail } from 'lucide-react';
+import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useDispatch } from 'react-redux';
 import { addToast } from '../store/toastSlice';
@@ -11,7 +12,6 @@ const LoginPage: React.FC = () => {
     const [form, setForm] = useState({ email: '', password: '', name: '' });
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { login, register, isAuthenticated } = useAuth();
     const navigate = useNavigate();
@@ -32,35 +32,58 @@ const LoginPage: React.FC = () => {
         window.location.href = `${API_BASE}/auth/${provider}`;
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setIsSubmitting(true);
-
-        try {
-            if (isLogin) {
-                await login(form.email, form.password, rememberMe);
-                // Login success is handled by AuthProvider (sets isAuthenticated → useEffect redirect)
-            } else {
-                const message = await register(form.email, form.password, form.name || undefined);
-                dispatch(addToast({ message: message || 'Account created!', type: 'success', duration: 4000 }));
-                // Switch to login tab so user can sign in
-                setIsLogin(true);
-                setForm(prev => ({ ...prev, password: '' }));
-                setError('');
+    const loginMutation = useMutation({
+        mutationFn: () => login(form.email, form.password, rememberMe),
+        onError: (err: any) => {
+            if (err?.response?.status === 401) {
+                dispatch(addToast({
+                    message: 'Invalid username/password. Please try again.',
+                    type: 'error',
+                    duration: 5000,
+                }));
+                return;
             }
-        } catch (err: any) {
-            const data = err.response?.data;
+
+            dispatch(addToast({
+                message: 'Login failed. Please try again.',
+                type: 'error',
+                duration: 5000,
+            }));
+        },
+    });
+
+    const registerMutation = useMutation({
+        mutationFn: () => register(form.email, form.password, form.name || undefined),
+        onSuccess: (message: string) => {
+            dispatch(addToast({ message: message || 'Account created!', type: 'success', duration: 4000 }));
+            setIsLogin(true);
+            setForm(prev => ({ ...prev, password: '' }));
+            setError('');
+        },
+        onError: (err: any) => {
+            const data = err?.response?.data;
             if (data?.locked) {
                 setError(`Account temporarily locked. Try again in ${Math.ceil(data.retryAfter / 60)} minutes.`);
-            } else if (err.response?.status === 429) {
+            } else if (err?.response?.status === 429) {
                 setError('Too many attempts. Please slow down.');
             } else {
                 setError(data?.message || 'An error occurred');
             }
-        } finally {
-            setIsSubmitting(false);
+        },
+    });
+
+    const isSubmitting = loginMutation.isPending || registerMutation.isPending;
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (isLogin) {
+            loginMutation.mutate();
+            return;
         }
+
+        registerMutation.mutate();
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
