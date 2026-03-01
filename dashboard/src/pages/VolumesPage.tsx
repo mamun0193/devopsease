@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { HardDrive, CheckCircle2, AlertTriangle, Loader2, ArrowLeft, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import type { FilterItem } from '../components/Header';
 import ResourceNav from '../components/ResourceNav';
 import VolumeTable from '../components/VolumeTable';
 import PruneVolumesModal from '../components/PruneVolumesModal';
@@ -47,21 +48,61 @@ const VolumesPage: React.FC = () => {
     const navigate = useNavigate();
     const { data: volumes = [], isLoading } = useVolumes();
     const [showPruneModal, setShowPruneModal] = useState(false);
+    const [activeFilter, setActiveFilter] = useState<string>('all');
 
     const summary = useMemo(() => {
         const totalMB = volumes.reduce((acc, v) => acc + (v.sizeMB || 0), 0);
         return {
             totalMB,
+            total: volumes.length,
             active: volumes.filter(v => v.status === 'ACTIVE').length,
             unused: volumes.filter(v => v.status === 'UNUSED').length,
         };
     }, [volumes]);
 
+    const filteredVolumes = useMemo(() => {
+        switch (activeFilter) {
+            case 'active': return volumes.filter(v => v.status === 'ACTIVE');
+            case 'unused': return volumes.filter(v => v.status === 'UNUSED');
+            default:       return volumes;
+        }
+    }, [volumes, activeFilter]);
+
+    const filterItems: FilterItem[] = useMemo(() => [
+        {
+            key: 'all',
+            label: 'Total',
+            count: summary.total,
+            color: 'text-slate-300',
+            activeBg: 'bg-slate-700',
+            activeBorder: 'border-slate-600',
+            icon: <HardDrive size={14} className="text-slate-400" />,
+        },
+        {
+            key: 'active',
+            label: 'Active',
+            count: summary.active,
+            color: 'text-emerald-400',
+            activeBg: 'bg-emerald-500/20',
+            activeBorder: 'border-emerald-500/50',
+            dot: 'bg-emerald-500',
+        },
+        {
+            key: 'unused',
+            label: 'Unused',
+            count: summary.unused,
+            color: 'text-yellow-400',
+            activeBg: 'bg-yellow-500/20',
+            activeBorder: 'border-yellow-500/50',
+            icon: <AlertTriangle size={14} className="text-yellow-400" />,
+        },
+    ], [summary]);
+
     const hasUnused = summary.unused > 0;
 
     return (
         <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header />
+            <Header onFilterChange={setActiveFilter} activeFilter={activeFilter} filterItems={filterItems} />
             <ResourceNav />
 
             <main className="flex-1 p-6 lg:p-8">
@@ -116,7 +157,7 @@ const VolumesPage: React.FC = () => {
                             </div>
 
                             {/* Table */}
-                            <VolumeTable volumes={volumes} />
+                            <VolumeTable volumes={filteredVolumes} />
                         </>
                     )}
                 </div>

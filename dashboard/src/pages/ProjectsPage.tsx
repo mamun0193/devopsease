@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -14,6 +14,7 @@ import {
     Server,
 } from 'lucide-react';
 import Header from '../components/Header';
+import type { FilterItem } from '../components/Header';
 import ResourceNav from '../components/ResourceNav';
 import { useProjects, useCreateProject } from '../hooks/useProjects';
 import type { Project } from '../api';
@@ -83,7 +84,56 @@ const ProjectsPage: React.FC = () => {
     const { data: projects = [], isLoading } = useProjects();
     const createProject = useCreateProject();
 
+    const [activeFilter, setActiveFilter] = useState<string>('all');
     const [showForm, setShowForm] = useState(false);
+
+    const filteredProjects = useMemo(() => {
+        switch (activeFilter) {
+            case 'running': return projects.filter(p => p.status === 'RUNNING');
+            case 'stopped': return projects.filter(p => p.status === 'STOPPED' || p.status === 'CREATED');
+            case 'failed':  return projects.filter(p => p.status === 'FAILED');
+            default:        return projects;
+        }
+    }, [projects, activeFilter]);
+
+    const filterItems: FilterItem[] = useMemo(() => [
+        {
+            key: 'all',
+            label: 'Total',
+            count: projects.length,
+            color: 'text-slate-300',
+            activeBg: 'bg-slate-700',
+            activeBorder: 'border-slate-600',
+            icon: <FolderKanban size={14} className="text-slate-400" />,
+        },
+        {
+            key: 'running',
+            label: 'Running',
+            count: projects.filter(p => p.status === 'RUNNING').length,
+            color: 'text-emerald-400',
+            activeBg: 'bg-emerald-500/20',
+            activeBorder: 'border-emerald-500/50',
+            dot: 'bg-emerald-500',
+        },
+        {
+            key: 'stopped',
+            label: 'Stopped',
+            count: projects.filter(p => p.status === 'STOPPED' || p.status === 'CREATED').length,
+            color: 'text-yellow-400',
+            activeBg: 'bg-yellow-500/20',
+            activeBorder: 'border-yellow-500/50',
+            icon: <Square size={14} className="text-yellow-400" />,
+        },
+        {
+            key: 'failed',
+            label: 'Failed',
+            count: projects.filter(p => p.status === 'FAILED').length,
+            color: 'text-red-400',
+            activeBg: 'bg-red-500/20',
+            activeBorder: 'border-red-500/50',
+            icon: <AlertTriangle size={14} className="text-red-400" />,
+        },
+    ], [projects]);
     const [name, setName] = useState('');
     const [composeYaml, setComposeYaml] = useState(DEFAULT_COMPOSE);
     const [formError, setFormError] = useState('');
@@ -116,7 +166,7 @@ const ProjectsPage: React.FC = () => {
 
     return (
         <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header />
+            <Header onFilterChange={setActiveFilter} activeFilter={activeFilter} filterItems={filterItems} />
             <ResourceNav />
             <main className="flex-1 p-6 lg:p-8">
                 <div className="max-w-4xl mx-auto">
@@ -228,7 +278,7 @@ const ProjectsPage: React.FC = () => {
                         </div>
                     ) : (
                         <div className="space-y-2">
-                            {projects.map((project) => (
+                            {filteredProjects.map((project) => (
                                 <ProjectRow
                                     key={project._id}
                                     project={project}

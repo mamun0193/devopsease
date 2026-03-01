@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   Server,
   Hammer,
@@ -9,87 +8,204 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
+  Layers,
+  Globe,
+  Network,
+  FolderKanban,
+  XCircle,
+  User,
 } from 'lucide-react';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import ResourceNav from '../components/ResourceNav';
+import OverviewCard from '../components/OverviewCard';
 import { useContainers, useHealthCheck } from '../hooks/useContainers';
 import { useBuilds } from '../hooks/useBuilds';
+import { useImages, useImageUsageSummary } from '../hooks/useImages';
+import { useNetworks } from '../hooks/useNetworks';
+import { useVolumes } from '../hooks/useVolumes';
+import { useProjects } from '../hooks/useProjects';
+import { useDockerHubStatus } from '../hooks/useDockerHub';
+
+function formatMB(mb: number): string {
+  if (!mb || mb === 0) return '0 MB';
+  if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+  return `${mb.toFixed(0)} MB`;
+}
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
+
+  // ── data ─────────────────────────────────────────────────────────────────
   const { data: containers = [] } = useContainers();
   const { data: health } = useHealthCheck();
   const { data: builds = [] } = useBuilds();
+  const { data: images = [] } = useImages();
+  const { data: imageSummary } = useImageUsageSummary();
+  const { data: networks = [] } = useNetworks();
+  const { data: volumes = [] } = useVolumes();
+  const { data: projects = [] } = useProjects();
+  const { data: hubStatus } = useDockerHubStatus();
 
-  const running = containers.filter(c => c.state?.running).length;
-  const stopped = containers.filter(c => ['exited', 'dead'].includes(c.state?.status?.toLowerCase() || '')).length;
-  const activeBuilds = builds.filter(b => b.status === 'PENDING' || b.status === 'RUNNING').length;
+  // ── derived ───────────────────────────────────────────────────────────────
+  const running  = containers.filter(c => c.state?.running).length;
+  const stopped  = containers.filter(c =>
+    ['exited', 'dead'].includes(c.state?.status?.toLowerCase() ?? ''),
+  ).length;
+
+  const activeBuilds  = builds.filter(b => b.status === 'PENDING' || b.status === 'RUNNING').length;
   const successBuilds = builds.filter(b => b.status === 'SUCCESS').length;
-  const failedBuilds = builds.filter(b => b.status === 'FAILED' || b.status === 'TIMEOUT').length;
+  const failedBuilds  = builds.filter(b => b.status === 'FAILED' || b.status === 'TIMEOUT').length;
+
+  const danglingImages = imageSummary?.danglingImages ?? images.filter(i => i.imageUsageStatus === 'DANGLING').length;
+  const totalImageMB   = imageSummary?.totalImageStorageMB ?? images.reduce((s, i) => s + (i.sizeMB ?? 0), 0);
+
+  const activeNetworks = networks.filter(n => n.status === 'ACTIVE').length;
+  const unusedNetworks = networks.filter(n => n.status === 'UNUSED').length;
+
+  const totalVolumeMB = volumes.reduce((s, v) => s + (v.sizeMB ?? 0), 0);
+  const unusedVolumes = volumes.filter(v => v.status === 'UNUSED').length;
+
+  const runningProjects = projects.filter(p => p.status === 'RUNNING').length;
+  const stoppedProjects = projects.filter(p => p.status === 'STOPPED' || p.status === 'CREATED').length;
+
+  const isHubConnected = hubStatus?.connected === true;
+
+  const buildStats = [
+    ...(activeBuilds > 0
+      ? [{ text: `${activeBuilds} active`, colorClass: 'text-blue-400', icon: <Loader2 size={10} className="animate-spin" /> }]
+      : []),
+    { text: `${successBuilds} passed`, colorClass: 'text-emerald-400' },
+    ...(failedBuilds > 0
+      ? [{ text: `${failedBuilds} failed`, colorClass: 'text-red-400' }]
+      : []),
+  ];
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950">
       <Header />
       <ResourceNav />
+
       <main className="flex-1 p-6 lg:p-8">
-        <div className="max-w-5xl mx-auto space-y-6">
-          {/* Status banner */}
+        <div className="max-w-7xl mx-auto space-y-6">
+
+          {/* ── Section title ───────────────────────────────────────────── */}
           <div className="flex items-center gap-3">
             <div className={`w-2.5 h-2.5 rounded-full ${health ? 'bg-emerald-500 animate-pulse' : 'bg-yellow-500'}`} />
             <h1 className="text-2xl font-bold text-slate-100">System Overview</h1>
           </div>
 
-          {/* Quick stats grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <motion.div
-              className="bg-slate-900 border border-slate-800 rounded-xl p-5 cursor-pointer hover:border-slate-700 transition-colors"
+          {/* ── Stats grid ──────────────────────────────────────────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+
+            {/* Containers */}
+            <OverviewCard
+              icon={<Server size={13} />}
+              label="Containers"
               onClick={() => navigate('/containers')}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-            >
-              <div className="flex items-center gap-2 text-slate-500 text-xs mb-2">
-                <Server size={13} /> Containers
-              </div>
-              <p className="text-2xl font-bold text-slate-100">{containers.length}</p>
-              <div className="flex items-center gap-3 mt-2 text-xs">
-                <span className="text-emerald-400">{running} running</span>
-                <span className="text-slate-600">·</span>
-                <span className="text-red-400">{stopped} stopped</span>
-              </div>
-            </motion.div>
+              count={containers.length}
+              stats={[
+                { text: `${running} running`, colorClass: 'text-emerald-400' },
+                { text: `${stopped} stopped`, colorClass: 'text-red-400' },
+              ]}
+            />
 
-            <motion.div
-              className="bg-slate-900 border border-slate-800 rounded-xl p-5 cursor-pointer hover:border-slate-700 transition-colors"
+            {/* Builds */}
+            <OverviewCard
+              icon={<Hammer size={13} />}
+              label="Builds"
               onClick={() => navigate('/builds')}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-            >
-              <div className="flex items-center gap-2 text-slate-500 text-xs mb-2">
-                <Hammer size={13} /> Builds
-              </div>
-              <p className="text-2xl font-bold text-slate-100">{builds.length}</p>
-              <div className="flex items-center gap-3 mt-2 text-xs">
-                {activeBuilds > 0 && (
-                  <span className="flex items-center gap-1 text-blue-400">
-                    <Loader2 size={10} className="animate-spin" /> {activeBuilds} active
-                  </span>
-                )}
-                <span className="text-emerald-400">{successBuilds} passed</span>
-                {failedBuilds > 0 && (
-                  <>
-                    <span className="text-slate-600">·</span>
-                    <span className="text-red-400">{failedBuilds} failed</span>
-                  </>
-                )}
-              </div>
-            </motion.div>
+              count={builds.length}
+              stats={buildStats}
+            />
 
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-              <div className="flex items-center gap-2 text-slate-500 text-xs mb-2">
-                <Activity size={13} /> Server
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                {health ? (
+            {/* Images */}
+            <OverviewCard
+              icon={<Layers size={13} />}
+              label="Images"
+              onClick={() => navigate('/images')}
+              count={images.length}
+              stats={[
+                { text: formatMB(totalImageMB), colorClass: 'text-slate-400' },
+                ...(danglingImages > 0
+                  ? [{ text: `${danglingImages} dangling`, colorClass: 'text-yellow-400' }]
+                  : []),
+              ]}
+            />
+
+            {/* Registry */}
+            <OverviewCard
+              icon={<Globe size={13} />}
+              label="Registry"
+              onClick={() => navigate('/registry')}
+              variant="status"
+              statusNode={
+                isHubConnected ? (
+                  <div className="space-y-1">
+                    <span className="flex items-center gap-1.5 text-emerald-400 text-sm font-medium">
+                      <CheckCircle2 size={14} /> Connected
+                    </span>
+                    {hubStatus?.username && (
+                      <span className="flex items-center gap-1.5 text-slate-400 text-xs">
+                        <User size={11} /> {hubStatus.username}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-red-400 text-sm font-medium">
+                    <XCircle size={14} /> Not connected
+                  </span>
+                )
+              }
+            />
+
+            {/* Projects */}
+            <OverviewCard
+              icon={<FolderKanban size={13} />}
+              label="Projects"
+              onClick={() => navigate('/projects')}
+              count={projects.length}
+              stats={[
+                { text: `${runningProjects} running`, colorClass: 'text-emerald-400' },
+                { text: `${stoppedProjects} stopped`, colorClass: 'text-yellow-400' },
+              ]}
+            />
+
+            {/* Networks */}
+            <OverviewCard
+              icon={<Network size={13} />}
+              label="Networks"
+              onClick={() => navigate('/networks')}
+              count={networks.length}
+              stats={[
+                { text: `${activeNetworks} active`, colorClass: 'text-emerald-400' },
+                ...(unusedNetworks > 0
+                  ? [{ text: `${unusedNetworks} unused`, colorClass: 'text-yellow-400' }]
+                  : []),
+              ]}
+            />
+
+            {/* Volumes */}
+            <OverviewCard
+              icon={<HardDrive size={13} />}
+              label="Volumes"
+              onClick={() => navigate('/volumes')}
+              count={volumes.length}
+              stats={[
+                { text: formatMB(totalVolumeMB), colorClass: 'text-slate-400' },
+                ...(unusedVolumes > 0
+                  ? [{ text: `${unusedVolumes} unused`, colorClass: 'text-yellow-400' }]
+                  : []),
+              ]}
+            />
+
+            {/* Server */}
+            <OverviewCard
+              icon={<Activity size={13} />}
+              label="Server"
+              variant="status"
+              statusNode={
+                health ? (
                   <span className="flex items-center gap-1.5 text-emerald-400 text-sm font-medium">
                     <CheckCircle2 size={14} /> Healthy
                   </span>
@@ -97,16 +213,17 @@ const HomePage: React.FC = () => {
                   <span className="flex items-center gap-1.5 text-yellow-400 text-sm font-medium">
                     <AlertTriangle size={14} /> Connecting…
                   </span>
-                )}
-              </div>
-            </div>
+                )
+              }
+            />
 
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-              <div className="flex items-center gap-2 text-slate-500 text-xs mb-2">
-                <HardDrive size={13} /> Docker
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                {health ? (
+            {/* Docker */}
+            <OverviewCard
+              icon={<HardDrive size={13} />}
+              label="Docker"
+              variant="status"
+              statusNode={
+                health ? (
                   <span className="flex items-center gap-1.5 text-emerald-400 text-sm font-medium">
                     <CheckCircle2 size={14} /> Connected
                   </span>
@@ -114,43 +231,16 @@ const HomePage: React.FC = () => {
                   <span className="flex items-center gap-1.5 text-slate-500 text-sm font-medium">
                     <AlertTriangle size={14} /> Unknown
                   </span>
-                )}
-              </div>
-            </div>
-          </div>
+                )
+              }
+            />
+          </div> 
 
-          {/* Quick actions */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <motion.button
-              onClick={() => navigate('/containers')}
-              className="flex items-center gap-4 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-5 text-left transition-colors group"
-              whileHover={{ scale: 1.005 }}
-            >
-              <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
-                <Server size={18} className="text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-200 group-hover:text-slate-100">Manage Containers</p>
-                <p className="text-xs text-slate-500 mt-0.5">View, start, stop, and inspect running containers</p>
-              </div>
-            </motion.button>
-
-            <motion.button
-              onClick={() => navigate('/builds')}
-              className="flex items-center gap-4 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl p-5 text-left transition-colors group"
-              whileHover={{ scale: 1.005 }}
-            >
-              <div className="w-10 h-10 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0">
-                <Hammer size={18} className="text-purple-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-200 group-hover:text-slate-100">Image Builds</p>
-                <p className="text-xs text-slate-500 mt-0.5">Build images from Dockerfiles with live log streaming</p>
-              </div>
-            </motion.button>
-          </div>
         </div>
       </main>
+
+      {/* ── Footer ─────────────────────────────────────────────────────── */}
+      <Footer isHealthy={!!health} containerCount={containers.length} />
     </div>
   );
 };

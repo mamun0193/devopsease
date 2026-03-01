@@ -4,6 +4,7 @@ import { Network, CheckCircle2, AlertTriangle, Loader2, ArrowLeft } from 'lucide
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import Header from '../components/Header';
+import type { FilterItem } from '../components/Header';
 import ResourceNav from '../components/ResourceNav';
 import ConfirmModal from '../components/ConfirmModal';
 import NetworkTable from '../components/NetworkTable';
@@ -46,6 +47,7 @@ const NetworksPage: React.FC = () => {
     const { data: networks = [], isLoading } = useNetworks();
     const deleteNetwork = useDeleteNetwork();
 
+    const [activeFilter, setActiveFilter] = useState<string>('all');
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
     const summary = useMemo(() => ({
@@ -53,6 +55,44 @@ const NetworksPage: React.FC = () => {
         active: networks.filter(n => n.status === 'ACTIVE').length,
         unused: networks.filter(n => n.status === 'UNUSED').length,
     }), [networks]);
+
+    const filteredNetworks = useMemo(() => {
+        switch (activeFilter) {
+            case 'active': return networks.filter(n => n.status === 'ACTIVE');
+            case 'unused': return networks.filter(n => n.status === 'UNUSED');
+            default:       return networks;
+        }
+    }, [networks, activeFilter]);
+
+    const filterItems: FilterItem[] = useMemo(() => [
+        {
+            key: 'all',
+            label: 'Total',
+            count: summary.total,
+            color: 'text-slate-300',
+            activeBg: 'bg-slate-700',
+            activeBorder: 'border-slate-600',
+            icon: <Network size={14} className="text-slate-400" />,
+        },
+        {
+            key: 'active',
+            label: 'Active',
+            count: summary.active,
+            color: 'text-emerald-400',
+            activeBg: 'bg-emerald-500/20',
+            activeBorder: 'border-emerald-500/50',
+            dot: 'bg-emerald-500',
+        },
+        {
+            key: 'unused',
+            label: 'Unused',
+            count: summary.unused,
+            color: 'text-yellow-400',
+            activeBg: 'bg-yellow-500/20',
+            activeBorder: 'border-yellow-500/50',
+            icon: <AlertTriangle size={14} className="text-yellow-400" />,
+        },
+    ], [summary]);
 
     const pendingDeleteNetwork = networks.find(n => n.id === pendingDeleteId);
 
@@ -81,7 +121,7 @@ const NetworksPage: React.FC = () => {
 
     return (
         <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header />
+            <Header onFilterChange={setActiveFilter} activeFilter={activeFilter} filterItems={filterItems} />
             <ResourceNav />
 
             <main className="flex-1 p-6 lg:p-8">
@@ -112,7 +152,7 @@ const NetworksPage: React.FC = () => {
 
                             {/* Table */}
                             <NetworkTable
-                                networks={networks}
+                                networks={filteredNetworks}
                                 onDelete={handleDeleteRequest}
                                 isDeleting={deleteNetwork.isPending}
                                 deletingId={deleteNetwork.variables as string | null}
