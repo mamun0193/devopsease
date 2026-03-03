@@ -39,6 +39,18 @@ export async function initDockerEvents() {
                         });
                     }).catch(err => logger.error('Failed to dynamic import imageObservabilityService', { error: err.message }));
                 }
+
+                // Auto-revoke tunnels when a container stops or dies (covers external Docker CLI stops)
+                if (event.Type === 'container' && (event.Action === 'stop' || event.Action === 'die')) {
+                    const stoppedContainerId = event.Actor?.ID;
+                    if (stoppedContainerId) {
+                        import('../services/tunnel.service.js').then((module) => {
+                            module.default.revokeByContainer(stoppedContainerId).catch(err => {
+                                logger.warn('Event-driven tunnel revocation failed', { error: err.message });
+                            });
+                        }).catch(err => logger.error('Failed to dynamic import tunnelService', { error: err.message }));
+                    }
+                }
             } catch (err) {
                 logger.error("Error parsing Docker event chunk", { error: err.message });
             }

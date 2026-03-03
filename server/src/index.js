@@ -15,6 +15,7 @@ import projectRoutes from "./routes/project.routes.js";
 import networkRoutes from "./routes/network.routes.js";
 import volumeRoutes from "./routes/volume.routes.js";
 import dockerHubRoutes from "./routes/dockerHub.routes.js";
+import tunnelRoutes from "./routes/tunnel.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
@@ -34,6 +35,7 @@ import { initDockerEvents } from "./docker/events.js";
 import { gracefulShutdown } from "./shutdownManager.js";
 import buildService from "./services/build.service.js";
 import imageObservabilityService from "./services/imageObservability.service.js";
+import tunnelService from "./services/tunnel.service.js";
 
 // 1. Validate Environment immediately
 validateEnv();
@@ -81,6 +83,7 @@ app.use("/projects", projectRoutes);
 app.use("/networks", networkRoutes);
 app.use("/volumes", volumeRoutes);
 app.use("/dockerhub", dockerHubRoutes);
+app.use("/tunnels", tunnelRoutes);
 
 app.use(errorHandler);
 
@@ -105,6 +108,9 @@ async function startServer() {
         logger.warn("Image reconciliation failed at startup", { error: err.message });
       });
 
+      // Initialize tunnel providers
+      await tunnelService.initProviders();
+
     } catch (error) {
       logger.error("Docker connection failed at startup", { error: error.message });
       // We don't exit here, we run in degraded mode
@@ -126,6 +132,13 @@ async function startServer() {
     server.listen(PORT, () => {
       logger.info(`DevOpsEase server running on http://localhost:${PORT}`);
     });
+
+    // Tunnel expiry scheduler — runs every 60 seconds, non-blocking
+    setInterval(() => {
+      tunnelService.expireTunnelsJob().catch((err) => {
+        logger.error("Tunnel expiry scheduler error", { error: err.message });
+      });
+    }, 60_000);
 
   } catch (err) {
     logger.error("Failed to start server", { error: err.message });

@@ -26,6 +26,7 @@ import activityMonitor from "../security/activityMonitor.js";
 import resourceService from "../resources/resource.service.js";
 import { RESOURCE_TYPES } from "../resources/resourceTypes.js";
 import imageObservabilityService from "../services/imageObservability.service.js";
+import tunnelService from "../services/tunnel.service.js";
 
 import { PLANS } from "../config/plans.js";
 
@@ -286,6 +287,10 @@ router.post("/:id/stop", ownershipGuard("stop"), requirePermission(ACTIONS.OPERA
       throw new AppError(result.message, result.statusCode);
     }
     invalidateAnalysisCache(req.params.id); // Invalidate analysis cache
+
+    // Auto-revoke active tunnels for this container (fire-and-forget)
+    tunnelService.revokeByContainer(req.params.id).catch(() => { });
+
     res.status(result.statusCode).json({
       success: result.success,
       data: result.data,
@@ -367,6 +372,9 @@ router.delete("/:id", ownershipGuard("remove"), requirePermission(ACTIONS.DESTRU
     // Release ownership after successful removal
     await ownershipService.releaseOwnership(req.user._id, req.params.id);
     await resourceService.updateResourceStatus(req.params.id, RESOURCE_TYPES.CONTAINER, 'deleted');
+
+    // Auto-revoke active tunnels for removed container (fire-and-forget)
+    tunnelService.revokeByContainer(req.params.id).catch(() => { });
 
     res.status(result.statusCode).json({
       success: result.success,

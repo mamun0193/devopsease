@@ -22,8 +22,15 @@ export function validateEnv() {
         process.exit(1);
     }
 
+    // Soft validation for tunnel provider
+    const tunnelProvider = process.env.TUNNEL_PROVIDER;
+    if (tunnelProvider === 'ngrok' && !process.env.NGROK_AUTH_TOKEN) {
+        logger.warn("NGROK_AUTH_TOKEN is not set — tunnel creation will fail until configured");
+    }
+
     logger.info("Environment validated", {
         nodeEnv: process.env.NODE_ENV,
-        dockerSocket: process.env.DOCKER_SOCKET_PATH
+        dockerSocket: process.env.DOCKER_SOCKET_PATH,
+        tunnelProvider: tunnelProvider || 'none'
     });
 }

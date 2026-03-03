@@ -6,7 +6,8 @@ import {
   FileText,
   Shield,
   Info,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Globe
 } from 'lucide-react';
 import { useContainers, useContainerInspect, useContainerStats, useActions } from '../hooks/useContainers';
 import { useContainerPolling } from '../hooks/useContainerPolling';
@@ -18,8 +19,11 @@ import ContainerHeader from './ContainerHeader';
 import ContainerControls from './ContainerControls';
 import Timeline from './Timeline';
 import ContainerTerminal from './ContainerTerminal';
+import ExposePortModal from './tunnels/ExposePortModal';
+import TunnelTable from './tunnels/TunnelTable';
+import { useUserTunnels } from '../hooks/useTunnels';
 
-type TabType = 'analysis' | 'logs' | 'info' | 'history';
+type TabType = 'analysis' | 'logs' | 'info' | 'history' | 'access';
 
 const ContainerDetailsPage: React.FC = () => {
   const { containerId } = useParams<{ containerId: string }>();
@@ -30,6 +34,7 @@ const ContainerDetailsPage: React.FC = () => {
   const [showStickyControls, setShowStickyControls] = React.useState(false);
   const [logTimeFilter, setLogTimeFilter] = React.useState<{ since?: number; until?: number } | undefined>();
   const [showTerminal, setShowTerminal] = React.useState(false);
+  const [showExposeModal, setShowExposeModal] = React.useState(false);
   const headerRef = React.useRef<HTMLElement>(null);
 
   // Find the container
@@ -52,6 +57,14 @@ const ContainerDetailsPage: React.FC = () => {
     containerIsRunning
   );
   const { data: actionsData } = useActions({ containerId: container?.id, limit: 1 });
+
+  // Tunnel data — scoped to this container
+  const {
+    data: tunnels = [],
+    refetch: refetchTunnels,
+  } = useUserTunnels(container?.id);
+
+  const activeTunnelCount = tunnels.filter((t) => t.status === 'ACTIVE').length;
 
   // Handle container removal - navigate back to dashboard
   const handleContainerRemoved = React.useCallback(() => {
@@ -157,6 +170,12 @@ const ContainerDetailsPage: React.FC = () => {
       icon: <HistoryIcon size={18} />,
       hint: 'Action timeline'
     },
+    {
+      id: 'access',
+      label: 'Public Access',
+      icon: <Globe size={18} />,
+      hint: 'Expose ports temporarily'
+    },
   ];
 
   return (
@@ -260,6 +279,62 @@ const ContainerDetailsPage: React.FC = () => {
               />
             </div>
           )}
+          {activeTab === 'access' && (
+            <div className="px-4 py-6 space-y-5 max-w-4xl mx-auto">
+              {/* Header row */}
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
+                    <Globe size={16} className="text-violet-400" />
+                    Public Access
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Temporary, time-limited HTTPS tunnels for your container ports.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {/* Quota display */}
+                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${activeTunnelCount >= 3
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                    }`}>
+                    {activeTunnelCount} / 3 tunnels active
+                  </span>
+                  <button
+                    onClick={() => setShowExposeModal(true)}
+                    disabled={container.state?.status !== 'running' || activeTunnelCount >= 3}
+                    title={
+                      container.state?.status !== 'running'
+                        ? 'Container must be running to expose a port'
+                        : activeTunnelCount >= 3
+                          ? 'Maximum 3 active tunnels reached'
+                          : 'Expose a container port publicly'
+                    }
+                    className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500
+                               disabled:opacity-40 disabled:cursor-not-allowed
+                               text-white text-sm font-medium rounded-lg transition-colors"
+                  >
+                    <Globe size={14} />
+                    Expose Port
+                  </button>
+                </div>
+              </div>
+
+              {/* Container not running warning */}
+              {container.state?.status !== 'running' && (
+                <div className="flex items-center gap-2 px-4 py-3 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-slate-400">
+                  <Globe size={14} className="text-slate-500 shrink-0" />
+                  <span>Container must be in a <strong className="text-slate-300">running</strong> state to expose ports.</span>
+                </div>
+              )}
+
+              {/* Tunnel table */}
+              <TunnelTable
+                tunnels={tunnels}
+                onRefetch={refetchTunnels}
+              />
+            </div>
+          )}
         </div>
       </main>
 
@@ -271,6 +346,15 @@ const ContainerDetailsPage: React.FC = () => {
           onClose={() => setShowTerminal(false)}
         />
       )}
+
+      {/* Expose Port Modal */}
+      <ExposePortModal
+        isOpen={showExposeModal}
+        onClose={() => setShowExposeModal(false)}
+        containerId={container.id}
+        inspectData={inspectData}
+        activeTunnelCount={activeTunnelCount}
+      />
     </div>
   );
 };
