@@ -1,138 +1,141 @@
-# DevOpsEase - Docker Container Intelligence Platform
+# DevOpsEase — Multi-Tenant Container PaaS Platform
 
-A comprehensive full-stack application for intelligent Docker container monitoring, analysis, and failure diagnostics with **Redis-backed caching** for optimal performance.
+A production-grade, full-stack PaaS built on Docker. Users deploy and manage containers on shared infrastructure — with real authentication, multi-tenant isolation, image governance, network and volume management, project (Compose) support, registry integration, audit logging, and temporary public port exposure.
+
+> **57-day learning build.** Every feature is documented in [`/docs`](./docs/).
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Node.js** (v18+)
-- **npm** or **yarn**
-- **Docker** (for container operations)
-- **Redis** (optional, for caching - see Docker Compose below)
+- **Node.js** v18+
+- **Docker** (running locally)
+- **MongoDB** (Atlas or local)
+- **Redis** (optional — caching degrades gracefully)
 
-### Installation & Setup
-
-#### Option 1: Using Docker Compose (Recommended)
-
-The easiest way to get started with full Redis caching support:
+### Setup
 
 ```bash
 git clone https://github.com/mamun0193/devopsease.git
 cd devopsease
 
-# Start Redis service
+# Start Redis (optional)
 docker compose up redis -d
 
-# Start backend
+# Backend
 cd server
 npm install
+cp .env.example .env   # fill in values
 npm start
 
-# In a new terminal, start frontend
-cd dashboard
+# Frontend (new terminal)
+cd ../dashboard
 npm install
 npm run dev
 ```
 
-#### Option 2: Manual Setup (Without Redis)
+Frontend: `http://localhost:5173` · API: `http://localhost:3497`
 
-The application works without Redis - it will fall back to direct Docker API calls.
+---
 
-```bash
-git clone https://github.com/mamun0193/devopsease.git
-cd devopsease
+## 🏗️ Architecture
+
 ```
-
-**Backend Server:**
-
-```bash
-cd server
-npm install
-npm start
-```
-
-**Frontend Dashboard:**
-
-```bash
-cd dashboard
-npm install
-npm run dev
+┌──────────────────────────────────────────────┐
+│              React Dashboard (Vite)           │
+│  React Query · Redux · Framer Motion · TS    │
+└───────────────────┬──────────────────────────┘
+                    │ REST / WebSocket
+┌───────────────────▼──────────────────────────┐
+│              Express.js API (ESM)             │
+│  JWT Auth · RBAC · Audit · Quota Middleware  │
+├──────────────┬───────────────────────────────┤
+│  MongoDB     │  Redis (cache + action log)   │
+├──────────────┴───────────────────────────────┤
+│              Dockerode (Docker Engine API)    │
+└──────────────────────────────────────────────┘
 ```
 
 ---
 
+## ✨ Feature Matrix
 
-### 🏗️ Architecture & RBAC Flow
+### 🔐 Auth & Identity
+- JWT access tokens + rotating refresh tokens via HttpOnly cookies
+- GitHub OAuth & Google OAuth (Passport.js)
+- Multi-tab token refresh coordination (Web Locks API)
+- Brute-force protection with login attempt tracking
+- Role-Based Access Control — `admin` / `operator` / `viewer`
+- Plan-based quotas (`free`, `pro`)
 
-The system implements a secure, role-based architecture with centralized error handling and defensive state management.
+### 📦 Container Management
+- Create, start, stop, restart, pause, unpause, remove
+- Real-time stats (CPU, memory, network) — 2s polling
+- Live log streaming with parsed log levels and filtering
+- In-browser terminal (WebSocket exec session)
+- Container ownership — strict per-user isolation
+- Action history (Redis-backed timeline)
 
-```mermaid
-graph TD
-    Client[Frontend Client] -->|Request + x-user-role| API[Backend API]
-    
-    subgraph "Backend Core"
-        API --> RBAC{RBAC Middleware}
-        RBAC -- "Viewer (Write Op)" --> 403[403 Forbidden]
-        RBAC -- Allowed --> Controller[Controller Logic]
-        
-        Controller -->|Defensive Check| StateCheck{Valid State?}
-        StateCheck -- No --> AppError[App Error]
-        
-        StateCheck -- Yes --> Docker[Docker API]
-        
-        Docker -->|Success| Response[Success Response]
-        Docker -->|Fail| AppError
-        
-        AppError --> ErrorHandler[Global Error Handler]
-        ErrorHandler -->|Unified JSON| Client
-    end
-    
-    subgraph "Real-time Layer"
-        WS[WS Client] -->|Upgrade + Role| WSHandler
-        WSHandler -- Viewer --> Reject[Block & Close]
-        WSHandler -- Operator --> Shell[Exec Session]
-    end
-```
+### 🧠 Failure Intelligence
+- Automatic failure classification: `RESOURCE`, `NETWORK`, `RUNTIME`, `CONFIG`, `CRASH_LOOP`
+- Instability scoring + MTBF (Mean Time Between Failures) prediction
+- Confidence-scored explanations with suggested fixes
+- Per-container failure history and trend analysis
 
-### Redis-Backed Caching Layer
+### 🖼️ Image Governance
+- Image registration and usage tracking (`ACTIVE` / `UNUSED` / `DANGLING`)
+- Safe prune — only removes images with no attached containers
+- Build cache prune
+- Storage accounting per user
+- Event-driven reconciliation on container create/destroy
 
-The backend uses a tiered caching strategy to minimize Docker API calls while maintaining real-time accuracy:
+### 🏗️ Docker Image Builds
+- Dockerfile-based builds streamed via WebSocket
+- Build status model: `PENDING` → `RUNNING` → `SUCCESS` / `FAILED` / `TIMEOUT`
+- AI-powered build failure analysis
+- Stale build recovery on server restart
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Frontend (React)                          │
-├─────────────────────────────────────────────────────────────────┤
-│  Stats (2s)  │  Container List (15s)  │  Inspect Data (30s)     │
-│  Real-time   │     Cached 15s TTL     │    Cached 45s TTL       │
-└──────┬───────┴──────────┬─────────────┴──────────┬──────────────┘
-       │                  │                        │
-       ▼                  ▼                        ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                     Backend (Express.js)                         │
-├─────────────────────────────────────────────────────────────────┤
-│                      Redis Cache Layer                           │
-│  • Request deduplication                                         │
-│  • Tiered TTLs (state: 15s, config: 45s)                        │
-│  • Automatic cache invalidation on actions                      │
-│  • Graceful fallback when Redis unavailable                     │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │     Docker API       │
-                    └─────────────────────┘
-```
+### 🗂️ Project (Compose) Management
+- Multi-service project deployment from Compose YAML
+- Per-project network and volume provisioning
+- Start / Stop / Delete with rollback safety
+- External delete detection — auto-reconciles status to `STOPPED`
 
-### Data & Caching Strategy
+### 🌐 Network Governance
+- Namespaced bridge networks per user/project
+- Usage tracking (`ACTIVE` / `UNUSED`)
+- Safe delete gated by attachment status
+- Reconciliation against live Docker state
 
-| Data Type                | Backend TTL  | Frontend Interval | Description          |
-| ------------------------ | ------------ | ----------------- | -------------------- |
-| CPU, Memory, Network     | **No cache** | 2s                | Real-time metrics    |
-| Container list           | 15s          | 15s               | All containers       |
-| Status, health, restarts | 15s          | 15s               | Container state      |
-| Image, ports, labels     | 45s          | 30s               | Static configuration |
-| Action history           | Persistent   | 10s               | Redis list storage   |
+### 💾 Volume Governance
+- Named volumes only — host path mounts blocked
+- Per-user volume tracking with storage accounting
+- Safe prune with preview — shows reclaimable MB before confirming
+- Compose integration with rollback-safe creation
+
+### 🐳 Docker Hub Integration
+- Encrypted credential storage (AES-256-GCM)
+- Credentials validated against Docker Hub API before saving
+- Pull and push with rate limiting (10 pulls/hr, 5 pushes/hr)
+- Searchable image catalog with popular image grid
+- Full audit trail for all registry operations
+
+### 🔗 Temporary Port Exposure (Tunnels)
+- Time-limited public HTTPS URLs for container ports
+- Duration options: 15 min / 30 min / 1 hour / 2 hours / 6 hours
+- Max 3 active tunnels per user (hard quota)
+- Auto-expire via 60-second background scheduler
+- Auto-revoke on container stop, delete, or Docker CLI event
+- Provider abstraction (currently ngrok, swappable)
+- Full audit trail: `TUNNEL_CREATED` / `TUNNEL_REVOKED` / `TUNNEL_EXPIRED`
+
+### 📋 Audit & Observability
+- Security event log for all sensitive operations
+- Per-event severity (`INFO` / `WARN` / `HIGH`)
+- Action history timeline per container
+- Admin observability dashboard
 
 ---
 
@@ -140,200 +143,121 @@ The backend uses a tiered caching strategy to minimize Docker API calls while ma
 
 ```
 devopsease/
-├── docker-compose.yml         # Redis + Backend services
-├── dashboard/                 # React + Vite frontend
-│   ├── src/
-│   │   ├── components/        # UI components
-│   │   ├── hooks/             # Custom React hooks
-│   │   │   ├── useContainers.ts       # Data fetching hooks
-│   │   │   └── useContainerPolling.ts # Visibility-aware polling
-│   │   ├── api/               # API integration
-│   │   └── utils/             # Utilities
-│   └── package.json
+├── dashboard/                  # React + Vite + TypeScript
+│   └── src/
+│       ├── api/                # Axios API layer + TypeScript types
+│       ├── components/         # UI components
+│       │   └── tunnels/        # Port exposure UI
+│       ├── hooks/              # React Query hooks per domain
+│       ├── pages/              # Top-level route pages
+│       ├── store/              # Redux (auth, toast slices)
+│       └── utils/
 │
-├── server/                    # Express.js backend
-│   ├── Dockerfile             # Container image
-│   ├── src/
-│   │   ├── docker/            # Docker client & operations
-│   │   ├── redis/             # Redis client & caching
-│   │   │   ├── client.js      # Connection management
-│   │   │   └── cacheService.js # Cache-aside pattern
-│   │   ├── intelligence/      # Failure analysis & classification
-│   │   ├── routes/            # API endpoints
-│   │   └── services/          # Business logic
-│   │       ├── containerCache.service.js  # Tiered caching
-│   │       └── actionHistory.service.js   # Redis-backed history
-│   └── package.json
+├── server/                     # Express.js ESM backend
+│   └── src/
+│       ├── config/             # DB, env validation, plans, RBAC
+│       ├── controllers/        # Request handlers
+│       ├── docker/             # Dockerode client, actions, events
+│       ├── middlewares/        # Auth, RBAC, ownership guard
+│       ├── models/             # Mongoose models
+│       ├── resources/          # Resource registry service
+│       ├── routes/             # Express routers
+│       ├── security/           # Activity monitor, brute force
+│       ├── services/           # Business logic + audit modules
+│       │   └── providers/      # Pluggable tunnel providers
+│       ├── websocket/          # WS server (terminal + builds)
+│       └── utils/
 │
-└── docs/                      # Learning documentation
+└── docs/                       # Per-day build documentation
 ```
 
 ---
 
-## 🔧 Key Features
+## � Environment Variables
 
-### 🔐 Authentication Note (Day 30)
-
-> **Note:** For demonstration purposes, this version uses a **mock authentication system**.
->
-> - **Roles are simulated** via the `x-user-role` header (default: `operator`).
-> - **Viewer Role:** Read-only access to containers and logs. destructive actions are blocked.
-> - **Operator Role:** Full control (start, stop, remove, exec).
->
-> In a production environment, this would be replaced by a real identity provider (e.g., OAuth2, OIDC).
-
-### Backend
-
-- **Redis Caching**: Tiered cache strategy with automatic invalidation
-- **Role-Based Access Control**: Strict `viewer` vs `operator` permission enforcement
-- **Defensive Coding**: Pre-action state validation to prevent invalid Docker operations
-- **Unified Error Handling**: Standardized error responses and user-friendly messages
-- **Request Deduplication**: Prevents duplicate Docker API calls
-- **Real-time Monitoring**: Live container stats (CPU, memory, network)
-- **Intelligent Analysis**: AI-powered failure classification
-- **Container Operations**: Start, stop, restart, remove with action history
-- **Graceful Degradation**: Works without Redis (direct Docker API)
-
-### Frontend
-
-- **Visibility-Aware Polling**: Pauses when tab is hidden
-- **Smart Polling Intervals**: Differentiated by data freshness needs
-- **Automatic Refetch**: Immediate updates after container actions
-- **Real-time Stats**: Live resource usage visualization
-- **Failure Analysis UI**: Interactive diagnostics view
-
----
-
-## 🔐 Environment Variables
-
-### Server
-
-| Variable     | Default       | Description           |
-| ------------ | ------------- | --------------------- |
-| `PORT`       | `4000`        | Server port           |
-| `NODE_ENV`   | `development` | Environment mode      |
-| `REDIS_HOST` | `localhost`   | Redis server hostname |
-| `REDIS_PORT` | `6379`        | Redis server port     |
-
-Create a `.env` file in the `server/` directory:
+Create `server/.env`:
 
 ```env
-PORT=4000
-NODE_ENV=development
-REDIS_HOST=localhost
-REDIS_PORT=6379
+PORT=3497
+MONGO_URI=mongodb+srv://...
+JWT_SECRET=your_secret
+ENCRYPTION_KEY=64_hex_chars          # AES-256-GCM key for credential storage
+NGROK_AUTH_TOKEN=                    # Required for tunnel feature
+TUNNEL_PROVIDER=ngrok
+
+# OAuth (optional)
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Admin seed
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=strong_password
 ```
 
 ---
 
-## � Docker Compose
+## 🛡️ Security Model
 
-Run the full stack with Docker Compose:
-
-```bash
-# Start all services
-docker compose up -d
-
-# Start only Redis (for local development)
-docker compose up redis -d
-
-# View logs
-docker compose logs -f
-
-# Stop all services
-docker compose down
-```
-
-### Services
-
-| Service   | Port | Description                  |
-| --------- | ---- | ---------------------------- |
-| `redis`   | 6379 | Redis cache with persistence |
-| `backend` | 4000 | Express.js API server        |
+| Concern             | Implementation                                              |
+| ------------------- | ----------------------------------------------------------- |
+| Authentication      | JWT + rotating refresh tokens, HttpOnly cookies             |
+| Multi-tenancy       | All DB queries scoped to `userId` — no shared state         |
+| Container isolation | `ContainerOwnership` model, `ownershipGuard` middleware     |
+| Secrets at rest     | AES-256-GCM encryption, `select: false` on sensitive fields |
+| Brute force         | Login attempt tracking with lockout                         |
+| Quota enforcement   | Plan-based limits on containers, tunnels, pulls             |
+| Audit trail         | `SecurityLog` for all sensitive operations                  |
+| Cross-tenant leaks  | Ownership verified before every mutating action             |
 
 ---
 
-## 📊 Monitoring
+## � API Overview
 
-### Redis Cache
-
-```bash
-# Watch Redis operations
-redis-cli MONITOR
-
-# Check cached keys
-redis-cli KEYS "container:*"
-redis-cli KEYS "devopsease:*"
-
-# View action history
-redis-cli LRANGE "devopsease:actions:history" 0 10
-```
-
-### Backend Logs
-
-Key log messages to watch:
-- `Redis connected` - Cache enabled
-- `Cache hit` - Data served from cache
-- `Cache miss` - Data fetched from Docker
-- `Cache invalidated` - Keys cleared after action
+| Prefix        | Description                                        |
+| ------------- | -------------------------------------------------- |
+| `/auth`       | Register, login, logout, refresh, OAuth            |
+| `/containers` | Full container lifecycle + stats + logs + terminal |
+| `/images`     | Image governance, prune, storage                   |
+| `/builds`     | Dockerfile builds, status, failure analysis        |
+| `/projects`   | Compose-based project management                   |
+| `/networks`   | Network governance and reconciliation              |
+| `/volumes`    | Volume governance and safe prune                   |
+| `/dockerhub`  | Registry connect, pull, push, search               |
+| `/tunnels`    | Temporary public port exposure                     |
+| `/health`     | Readiness and system health                        |
+| `/metrics`    | Usage metrics                                      |
+| `/admin`      | Admin-only observability                           |
 
 ---
 
-## 📚 Learning Roadmap
+## 📚 Build Log
 
-### Days 1-2 (Current Repository)
+| Days  | Topic                                                   |
+| ----- | ------------------------------------------------------- |
+| 1–2   | Docker backend fundamentals                             |
+| 16–20 | Failure detection, intelligence, observability          |
+| 21–22 | Log parsing and LogViewer UI                            |
+| 23–26 | Container controls, stats, action timeline              |
+| 27    | Redis caching layer                                     |
+| 28–29 | Container create, pause/unpause, real-time terminal     |
+| 30    | Role-based access control                               |
+| 31–36 | JWT auth, refresh tokens, OAuth, brute force protection |
+| 37–40 | Security audit, admin dashboard, plans & quotas         |
+| 41–44 | Build system (Dockerfile → image via WebSocket)         |
+| 45–46 | Build failure intelligence, build observability         |
+| 47–49 | Image governance, safe prune, storage accounting        |
+| 50–52 | Project (Compose) management, multi-service deploy      |
+| 53–54 | Network governance, volume governance                   |
+| 55    | Networks & Volumes frontend                             |
+| 56    | Docker Hub integration (connect, pull, push, search)    |
+| 57    | Temporary public port exposure (tunnels)                |
 
-- [Day 1: Docker Backend Fundamentals](./docs/DAY_1.md)
-- [Day 2: Professional Backend Architecture](./docs/DAY_2.md)
-
-### Days 3-15 (Related Repositories)
-
-**Docker Fundamentals Series:**
-- Repository: [docker-fundamentals](https://github.com/mamun0193/docker-fundamentals.git)
-
-**AWS Cloud Deployment Series:**
-- Repository: [rexpress-docker-aws](https://github.com/mamun0193/rexpress-docker-aws.git)
-
-### Days 16-25 (Current Repository)
-
-- [Day 16: Failure Taxonomy](./docs/DAY_16.md)
-- [Day 17: Failure Detection & Intelligence](./docs/DAY_17.md)
-- [Day 18: API Integration & Real-Time Failure Analysis](./docs/DAY_18.md)
-- [Day 19: Failure History & Confidence Boosting](./docs/DAY_19.md)
-- [Day 20: Observability & Routing Enhancements](./docs/DAY_20.md)
-- [Day 21: Advanced Log Parsing & Filtering](./docs/DAY_21.md)
-- [Day 22: Frontend LogViewer Component](./docs/DAY_22.md)
-- [Day 23: Container Control Backend APIs](./docs/DAY_23.md)
-- [Day 24: Container Controls UI (React + Redux)](./docs/DAY_24.md)
-- [Day 25: Container Stats & Resource Usage](./docs/DAY_25.md)
-- [Day 26: Operation History & Timeline](./docs/DAY_26.md)
-- [Day 27: Redis-Backed Caching & Performance Optimization](./docs/DAY_27.md)
-- [Day 28: Container Actions & Error Resilience(pause/unpause and create container)](./docs/DAY_28.md)
-- [Day 29: Real-Time Container Terminal)](./docs/DAY_29.md)
-- [Day 30: Role-Based Access Control](./docs/DAY_30.md)
-
----
-
-## 📖 Additional Resources
-
-- [Node.js Documentation](https://nodejs.org/docs/)
-- [Docker Documentation](https://docs.docker.com/)
-- [Redis Documentation](https://redis.io/docs/)
-- [React Documentation](https://react.dev/)
-- [Express.js Guide](https://expressjs.com/)
-
----
-
-## 📝 License
-
-This project is part of a learning series. See individual repositories for license information.
+Full documentation in [`/docs`](./docs/).
 
 ---
 
 ## 👨‍💻 Author
 
-**Mamun** - [GitHub Profile](https://github.com/mamun0193)
-
----
-
-**Happy Learning! 🚀**
+**Mamun** — [github.com/mamun0193](https://github.com/mamun0193)
