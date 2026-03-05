@@ -70,9 +70,10 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
         </span>
       </div>
 
-      <ContainerStatsPanel 
-        containerId={containerId} 
-        containerState={info.state?.status || 'unknown'} 
+      <ContainerStatsPanel
+        containerId={containerId}
+        containerState={info.state?.status || 'unknown'}
+        resourceLimits={info.resourceLimits}
       />
 
       <Section title="Basic Information" icon={<Server size={18} />}>

@@ -6,9 +6,13 @@ import RefreshButton from './RefreshButton';
 interface ContainerStatsProps {
   containerId: string | null;
   containerState: string;
+  resourceLimits?: {
+    memoryMB: number | null;
+    cpuCores: number | null;
+  } | null;
 }
 
-const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, containerState }) => {
+const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, containerState, resourceLimits }) => {
   const isRunning = containerState === 'running';
   const { data: stats, isLoading, error, refetch } = useContainerStats(containerId, isRunning);
 
@@ -86,6 +90,11 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
               <span className="text-3xl font-bold text-slate-100">{stats.cpu.usagePercent}</span>
               <span className="text-lg text-slate-400">%</span>
             </div>
+            {resourceLimits?.cpuCores && (
+              <p className="text-sm text-slate-500">
+                {(stats.cpu.usagePercent * (resourceLimits.cpuCores) / 100).toFixed(2)} / {resourceLimits.cpuCores} cores limit
+              </p>
+            )}
             <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
               <div
                 className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
@@ -106,7 +115,7 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
               <span className="text-lg text-slate-400">%</span>
             </div>
             <p className="text-sm text-slate-500">
-              {stats.memory.usedMB} MB / {stats.memory.limitMB} MB
+              {stats.memory.usedMB} MB / {resourceLimits?.memoryMB || stats.memory.limitMB} MB limit
             </p>
             <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
               <div

@@ -29,6 +29,7 @@ import imageObservabilityService from "../services/imageObservability.service.js
 import tunnelService from "../services/tunnel.service.js";
 
 import { PLANS } from "../config/plans.js";
+import quotaService from "../services/quota.service.js";
 
 const router = express.Router();
 
@@ -114,6 +115,10 @@ router.delete("/all", requirePermission(ACTIONS.DESTRUCTIVE), async (req, res, n
         const result = await removeContainer(id, true);
         if (result.success) {
           await ownershipService.releaseOwnership(req.user._id, id);
+
+          // Decrement container count (CPU/memory tracked by resource monitor)
+          await quotaService.decrementContainerCount(req.user._id);
+
           await resourceService.updateResourceStatus(id, RESOURCE_TYPES.CONTAINER, 'deleted');
           removed++;
         } else {
@@ -144,26 +149,30 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
     if (!req.body) {
       throw new AppError("Request body is missing. Ensure Content-Type is 'application/json'", 400);
     }
-    const { image, name, ports, env, autoStart } = req.body;
+    const { image, name, ports, env, autoStart, cpuLimit: rawCpu, memoryLimit: rawMem } = req.body;
 
     if (!image) {
       throw new AppError("Image name is required", 400);
     }
 
-    // Enforce plan container limit
-    const userPlan = req.user.plan || 'free';
-    const planConfig = PLANS[userPlan] || PLANS.free;
-    const ownedContainerIds = await ownershipService.listOwnedContainers(req.user._id);
+    // Default resource limits per container
+    const cpuLimit = rawCpu ? Number(rawCpu) : 0.5;
+    const memoryLimit = rawMem ? Number(rawMem) : 128;
 
-    if (ownedContainerIds.length >= planConfig.maxContainers) {
-      throw new AppError(
-        `Container limit reached. Your ${userPlan} plan allows ${planConfig.maxContainers} containers. Remove an existing container or upgrade your plan.`,
-        403
-      );
+    // Validate resource limit values
+    if (isNaN(cpuLimit) || cpuLimit <= 0) {
+      throw new AppError("cpuLimit must be a positive number", 400);
+    }
+    if (isNaN(memoryLimit) || memoryLimit < 4) {
+      throw new AppError("memoryLimit must be at least 4 MB", 400);
     }
 
-    // 1. Create in Docker
-    const result = await createContainer({ image, name, ports, env, autoStart });
+    // Ensure quota record exists, then check container count limit
+    await quotaService.getOrCreateQuota(req.user._id, req.user.plan);
+    await quotaService.checkContainerCount(req.user._id);
+
+    // 1. Create in Docker with resource limits
+    const result = await createContainer({ image, name, ports, env, autoStart, cpuLimit, memoryLimit });
     if (!result.success) {
       throw new AppError(result.message, result.statusCode);
     }
@@ -176,7 +185,10 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
     // Track Activity
     activityMonitor.recordContainerCreate(req.user._id);
 
-    // Register Resource (Persistent Model)
+    // 3. Update container count (CPU/memory tracked by resource monitor)
+    await quotaService.incrementContainerCount(req.user._id);
+
+    // Register Resource (Persistent Model) — store limits for quota release on delete
     await resourceService.registerResource({
       resourceId: createdContainerId,
       type: RESOURCE_TYPES.CONTAINER,
@@ -184,8 +196,9 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
       metadata: {
         image,
         name,
+        cpuLimit,
+        memoryLimit,
         createdVia: 'api',
-        // Copy relevant fields
         created: new Date()
       }
     });
@@ -371,6 +384,10 @@ router.delete("/:id", ownershipGuard("remove"), requirePermission(ACTIONS.DESTRU
 
     // Release ownership after successful removal
     await ownershipService.releaseOwnership(req.user._id, req.params.id);
+
+    // Decrement container count (CPU/memory tracked by resource monitor)
+    await quotaService.decrementContainerCount(req.user._id);
+
     await resourceService.updateResourceStatus(req.params.id, RESOURCE_TYPES.CONTAINER, 'deleted');
 
     // Auto-revoke active tunnels for removed container (fire-and-forget)

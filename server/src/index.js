@@ -16,6 +16,7 @@ import networkRoutes from "./routes/network.routes.js";
 import volumeRoutes from "./routes/volume.routes.js";
 import dockerHubRoutes from "./routes/dockerHub.routes.js";
 import tunnelRoutes from "./routes/tunnel.routes.js";
+import quotaRoutes from "./routes/quota.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
@@ -36,6 +37,7 @@ import { gracefulShutdown } from "./shutdownManager.js";
 import buildService from "./services/build.service.js";
 import imageObservabilityService from "./services/imageObservability.service.js";
 import tunnelService from "./services/tunnel.service.js";
+import resourceMonitor from "./services/resourceMonitor.service.js";
 
 // 1. Validate Environment immediately
 validateEnv();
@@ -84,6 +86,7 @@ app.use("/networks", networkRoutes);
 app.use("/volumes", volumeRoutes);
 app.use("/dockerhub", dockerHubRoutes);
 app.use("/tunnels", tunnelRoutes);
+app.use("/quota", quotaRoutes);
 
 app.use(errorHandler);
 
@@ -110,6 +113,9 @@ async function startServer() {
 
       // Initialize tunnel providers
       await tunnelService.initProviders();
+
+      // Start resource monitor (polls Docker stats every 10s)
+      resourceMonitor.start();
 
     } catch (error) {
       logger.error("Docker connection failed at startup", { error: error.message });

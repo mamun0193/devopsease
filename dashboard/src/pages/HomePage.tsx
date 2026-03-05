@@ -19,6 +19,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ResourceNav from '../components/ResourceNav';
 import OverviewCard from '../components/OverviewCard';
+import ResourceUsagePanel from '../components/ResourceUsagePanel';
 import { useContainers, useHealthCheck } from '../hooks/useContainers';
 import { useBuilds } from '../hooks/useBuilds';
 import { useImages, useImageUsageSummary } from '../hooks/useImages';
@@ -235,6 +236,9 @@ const HomePage: React.FC = () => {
               }
             />
           </div> 
+
+          {/* ── Resource Quota Panel ───────────────────────────────────────── */}
+          <ResourceUsagePanel />
 
         </div>
       </main>

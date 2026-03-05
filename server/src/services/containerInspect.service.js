@@ -50,6 +50,10 @@ export async function inspectContainer(containerId) {
       })
     ),
     healthcheck: inspectData.Config?.Healthcheck || null,
-    labels: inspectData.Config?.Labels || {}
+    labels: inspectData.Config?.Labels || {},
+    resourceLimits: {
+      memoryMB: inspectData.HostConfig?.Memory ? Math.round(inspectData.HostConfig.Memory / (1024 * 1024)) : null,
+      cpuCores: inspectData.HostConfig?.NanoCpus ? inspectData.HostConfig.NanoCpus / 1e9 : null,
+    },
   };
 }

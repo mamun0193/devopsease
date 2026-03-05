@@ -183,6 +183,10 @@ export interface ContainerInspect {
     retries: number;
     startPeriod: number;
   } | null;
+  resourceLimits?: {
+    memoryMB: number | null;
+    cpuCores: number | null;
+  };
 }
 
 export interface FailureAnalysis {
@@ -714,6 +718,27 @@ export const dockerHubApi = {
       params: { q: query, page, pageSize }
     });
     return response.data;
+  },
+};
+
+// ── Quota ─────────────────────────────────────────────────────────────────────
+
+export interface QuotaData {
+  maxContainers: number;
+  maxCPU: number;
+  maxMemoryMB: number;
+  usedContainers: number;
+  usedCPU: number;
+  usedMemoryMB: number;
+  remainingContainers: number;
+  remainingCPU: number;
+  remainingMemoryMB: number;
+}
+
+export const quotaApi = {
+  get: async (): Promise<QuotaData> => {
+    const response = await api.get<{ success: boolean; data: QuotaData; message: string }>('/quota');
+    return response.data.data;
   },
 };
 

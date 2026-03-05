@@ -681,7 +681,7 @@ async function unpauseContainer(containerId) {
  * Create a new container from an image
  * Pulls image if missing, validates name uniqueness, creates and optionally starts container
  */
-async function createContainer({ image, name, ports = {}, env = {}, autoStart = true, networkMode, labels, volumes, command, restartPolicy }) {
+async function createContainer({ image, name, ports = {}, env = {}, autoStart = true, networkMode, labels, volumes, command, restartPolicy, cpuLimit, memoryLimit }) {
   logger.info("Container create requested", { image, name, autoStart });
 
   if (!image) {
@@ -771,6 +771,16 @@ async function createContainer({ image, name, ports = {}, env = {}, autoStart = 
         PortBindings: Object.keys(portBindings).length > 0 ? portBindings : undefined,
       },
     };
+
+    // Apply CPU resource limit (Docker expects NanoCpus = cores * 1e9)
+    if (cpuLimit && cpuLimit > 0) {
+      createOptions.HostConfig.NanoCpus = Math.round(cpuLimit * 1e9);
+    }
+
+    // Apply memory resource limit (Docker expects bytes)
+    if (memoryLimit && memoryLimit > 0) {
+      createOptions.HostConfig.Memory = memoryLimit * 1024 * 1024;
+    }
 
     // Compose-specific: network mode
     if (networkMode) {

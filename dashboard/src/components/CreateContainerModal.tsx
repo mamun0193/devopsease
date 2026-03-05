@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Trash2, Loader2, Package, PenLine } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, Package, PenLine, Cpu, HardDrive, AlertTriangle } from 'lucide-react';
 import { useAppDispatch } from '../store/hooks';
 import { createContainer } from '../store/containersSlice';
 import { useQueryClient } from '@tanstack/react-query';
 import { buildApi } from '../api';
 import type { BuiltImage } from '../api';
+import { useQuota } from '../hooks/useQuota';
 
 interface CreateContainerModalProps {
     isOpen: boolean;
@@ -41,6 +42,13 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
     const [imageSource, setImageSource] = useState<ImageSource>('built');
     const [builtImages, setBuiltImages] = useState<BuiltImage[]>([]);
     const [imagesLoading, setImagesLoading] = useState(false);
+    const [cpuLimit, setCpuLimit] = useState<number>(0.5);
+    const [memoryLimit, setMemoryLimit] = useState<number>(256);
+
+    const { data: quota } = useQuota();
+
+    // Only container count matters for creation validation
+    const containerFull = quota ? quota.usedContainers >= quota.maxContainers : false;
 
     useEffect(() => {
         if (isOpen) {
@@ -111,6 +119,8 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                 ports: Object.keys(portsObj).length > 0 ? portsObj : undefined,
                 env: Object.keys(envObj).length > 0 ? envObj : undefined,
                 autoStart,
+                cpuLimit,
+                memoryLimit,
             }));
 
             if (!result.type.endsWith('/rejected')) {
@@ -122,6 +132,8 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                 setPorts([]);
                 setEnvVars([]);
                 setAutoStart(true);
+                setCpuLimit(0.5);
+                setMemoryLimit(256);
                 setImageSource('built');
                 onClose();
             } else {
@@ -141,6 +153,8 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
             setPorts([]);
             setEnvVars([]);
             setAutoStart(true);
+            setCpuLimit(0.5);
+            setMemoryLimit(256);
             setImageSource('built');
             setError(null);
             onClose();
@@ -385,6 +399,71 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                         </div>
                                     </div>
 
+                                    {/* Resource Limits */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-3">
+                                            Resource Limits
+                                        </label>
+
+                                        {/* Container limit reached warning */}
+                                        {containerFull && (
+                                            <div className="mb-3 flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-400 px-3 py-2.5 rounded-lg text-sm">
+                                                <AlertTriangle size={14} className="shrink-0" />
+                                                Container limit reached. Remove an existing container to create a new one.
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {/* CPU Limit */}
+                                            <div>
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                                                        <Cpu size={11} /> CPU Limit
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-500">
+                                                        Optional cap
+                                                    </span>
+                                                </div>
+                                                <select
+                                                    value={cpuLimit}
+                                                    onChange={(e) => setCpuLimit(Number(e.target.value))}
+                                                    disabled={isSubmitting}
+                                                    className={`w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50`}
+                                                >
+                                                    <option value={0.25}>0.25 cores</option>
+                                                    <option value={0.5}>0.5 cores</option>
+                                                    <option value={1}>1 core</option>
+                                                    <option value={2}>2 cores</option>
+                                                </select>
+                                            </div>
+
+                                            {/* Memory Limit */}
+                                            <div>
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                                                        <HardDrive size={11} /> Memory Limit
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-500">
+                                                        Max container memory
+                                                    </span>
+                                                </div>
+                                                <select
+                                                    value={memoryLimit}
+                                                    onChange={(e) => setMemoryLimit(Number(e.target.value))}
+                                                    disabled={isSubmitting}
+                                                    className={`w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50`}
+                                                >
+                                                    <option value={64}>64 MB</option>
+                                                    <option value={128}>128 MB</option>
+                                                    <option value={256}>256 MB</option>
+                                                    <option value={512}>512 MB</option>
+                                                    <option value={1024}>1024 MB</option>
+                                                    <option value={2048}>2048 MB</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     {/* Auto Start */}
                                     <div className="flex items-center gap-3">
                                         <input
@@ -413,7 +492,7 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                     </button>
                                     <button
                                         type="submit"
-                                        disabled={isSubmitting || !image.trim()}
+                                        disabled={isSubmitting || !image.trim() || containerFull}
                                         className="flex items-center gap-2 px-6 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         {isSubmitting ? (

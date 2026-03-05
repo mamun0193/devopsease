@@ -140,7 +140,7 @@ export const unpauseContainer = createAsyncThunk<
 
 export const createContainer = createAsyncThunk<
   { success: boolean; data: { id: string; name: string; status: string } | null; message: string },
-  { image: string; name?: string; ports?: Record<string, number>; env?: Record<string, string>; autoStart?: boolean },
+  { image: string; name?: string; ports?: Record<string, number>; env?: Record<string, string>; autoStart?: boolean; cpuLimit?: number; memoryLimit?: number },
   { rejectValue: string }
 >(
   'containers/create',

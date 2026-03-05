@@ -98,6 +98,8 @@ export const containerActionsApi = {
     ports?: Record<string, number>;
     env?: Record<string, string>;
     autoStart?: boolean;
+    cpuLimit?: number;
+    memoryLimit?: number;
   }): Promise<{
     success: boolean;
     data: { id: string; name: string; status: string } | null;
