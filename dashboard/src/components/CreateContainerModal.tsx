@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Trash2, Loader2, Package, PenLine, Cpu, HardDrive, AlertTriangle } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, Package, PenLine, Cpu, HardDrive, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAppDispatch } from '../store/hooks';
 import { createContainer } from '../store/containersSlice';
 import { useQueryClient } from '@tanstack/react-query';
@@ -44,6 +44,8 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
     const [imagesLoading, setImagesLoading] = useState(false);
     const [cpuLimit, setCpuLimit] = useState<number>(0.5);
     const [memoryLimit, setMemoryLimit] = useState<number>(256);
+    const [restartPolicy, setRestartPolicy] = useState<string>('no');
+    const [maxRetryCount, setMaxRetryCount] = useState<number>(3);
 
     const { data: quota } = useQuota();
 
@@ -121,6 +123,8 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                 autoStart,
                 cpuLimit,
                 memoryLimit,
+                restartPolicy: restartPolicy !== 'no' ? restartPolicy : undefined,
+                maxRetryCount: restartPolicy === 'on-failure' ? maxRetryCount : undefined,
             }));
 
             if (!result.type.endsWith('/rejected')) {
@@ -134,6 +138,8 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                 setAutoStart(true);
                 setCpuLimit(0.5);
                 setMemoryLimit(256);
+                setRestartPolicy('no');
+                setMaxRetryCount(3);
                 setImageSource('built');
                 onClose();
             } else {
@@ -155,6 +161,8 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
             setAutoStart(true);
             setCpuLimit(0.5);
             setMemoryLimit(256);
+            setRestartPolicy('no');
+            setMaxRetryCount(3);
             setImageSource('built');
             setError(null);
             onClose();
@@ -461,6 +469,50 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                                     <option value={2048}>2048 MB</option>
                                                 </select>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Restart Policy */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-1.5">
+                                            <RefreshCw size={13} />
+                                            Restart Policy
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <select
+                                                    value={restartPolicy}
+                                                    onChange={(e) => setRestartPolicy(e.target.value)}
+                                                    disabled={isSubmitting}
+                                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                >
+                                                    <option value="no">None (default)</option>
+                                                    <option value="always">Always</option>
+                                                    <option value="unless-stopped">Unless Stopped</option>
+                                                    <option value="on-failure">On Failure</option>
+                                                </select>
+                                                <p className="text-xs text-slate-600 mt-1">
+                                                    {restartPolicy === 'always' && 'Restarts on any exit, including manual stops.'}
+                                                    {restartPolicy === 'unless-stopped' && 'Restarts unless explicitly stopped by the user.'}
+                                                    {restartPolicy === 'on-failure' && 'Restarts only on non-zero exit codes.'}
+                                                    {restartPolicy === 'no' && 'Container will not be restarted automatically.'}
+                                                </p>
+                                            </div>
+                                            {restartPolicy === 'on-failure' && (
+                                                <div>
+                                                    <label className="block text-xs text-slate-400 mb-1.5">Max Retries</label>
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        max={20}
+                                                        value={maxRetryCount}
+                                                        onChange={(e) => setMaxRetryCount(Number(e.target.value))}
+                                                        disabled={isSubmitting}
+                                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                    />
+                                                    <p className="text-xs text-slate-600 mt-1">Attempts before giving up</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
 

@@ -100,6 +100,8 @@ export const containerActionsApi = {
     autoStart?: boolean;
     cpuLimit?: number;
     memoryLimit?: number;
+    restartPolicy?: string;
+    maxRetryCount?: number;
   }): Promise<{
     success: boolean;
     data: { id: string; name: string; status: string } | null;

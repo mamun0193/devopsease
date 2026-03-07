@@ -11,6 +11,7 @@ import {
   Activity
 } from 'lucide-react';
 import type { Container } from '../api';
+import HealthBadge from './ui/HealthBadge';
 import {
   formatContainerName,
   truncateId,
@@ -21,9 +22,10 @@ import {
 
 interface ContainerCardProps {
   container: Container;
+  healthStatus?: 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' | null;
 }
 
-const ContainerCard: React.FC<ContainerCardProps> = ({ container }) => {
+const ContainerCard: React.FC<ContainerCardProps> = ({ container, healthStatus }) => {
   const name = formatContainerName(container.name);
   const state = (container.state?.status || 'unknown').toLowerCase();
   const isRunning = state === 'running';
@@ -67,10 +69,16 @@ const ContainerCard: React.FC<ContainerCardProps> = ({ container }) => {
               <Box size={18} className="text-slate-400 shrink-0" />
               <h3 className="font-semibold text-slate-100 truncate">{name}</h3>
             </div>
-            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide border ${getStatusClasses()}`}>
-              {isRunning && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
-              {hasIssue && <AlertCircle size={12} />}
-              <span>{container.state?.status || 'Unknown'}</span>
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              {/* Platform health badge (from persisted state) */}
+              {healthStatus && healthStatus !== 'HEALTHY' && (
+                <HealthBadge status={healthStatus} size="sm" />
+              )}
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide border ${getStatusClasses()}`}>
+                {isRunning && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+                {hasIssue && <AlertCircle size={12} />}
+                <span>{container.state?.status || 'Unknown'}</span>
+              </div>
             </div>
           </div>
 

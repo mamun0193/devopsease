@@ -14,11 +14,7 @@ import { queryMetricsByRange as _queryMetricsByRange } from "../helpers/metrics.
 // Active streams: containerId → { subscribers, interval, buffer, pollCount }
 const streams = new Map();
 
-<<<<<<< HEAD
-=======
-// ─── Public API ────────────────────────────────────────────────────────────────
 
->>>>>>> 4d39b8a2173a946bd701e0d0532c4502567544e3
 export function subscribeToMetrics(containerId, ws) {
     if (!streams.has(containerId)) {
         streams.set(containerId, {
@@ -63,7 +59,7 @@ export function getTopContainers() {
     return computeTopContainers(streams);
 }
 
-<<<<<<< HEAD
+
 // Remove stream and stop polling when container is removed or on shutdown
 export function removeStream(containerId) {
     const stream = streams.get(containerId);
@@ -73,8 +69,7 @@ export function removeStream(containerId) {
     }
 }
 
-=======
->>>>>>> 4d39b8a2173a946bd701e0d0532c4502567544e3
+
 export function stopAllStreams() {
     for (const [containerId, stream] of streams.entries()) {
         stopPolling(containerId, stream);
@@ -86,11 +81,6 @@ export async function queryMetricsByRange(containerId, range = "1m") {
     return _queryMetricsByRange(containerId, range, getMetricsHistory(containerId));
 }
 
-<<<<<<< HEAD
-=======
-// ─── Private Polling ───────────────────────────────────────────────────────────
-
->>>>>>> 4d39b8a2173a946bd701e0d0532c4502567544e3
 function startPolling(containerId, stream) {
     logger.debug("Starting metrics polling", { containerId });
 

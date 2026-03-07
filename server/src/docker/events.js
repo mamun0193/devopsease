@@ -1,6 +1,7 @@
 import docker from "./client.js";
 import logger from "../utils/logger.js";
 import lifecycle from "../system/lifecycle.js";
+import { upsertHealthState } from "../services/containerHealth.service.js";
 
 let eventStream = null;
 let reconnectTimeout = null;
@@ -49,6 +50,21 @@ export async function initDockerEvents() {
                                 logger.warn('Event-driven tunnel revocation failed', { error: err.message });
                             });
                         }).catch(err => logger.error('Failed to dynamic import tunnelService', { error: err.message }));
+                    }
+                }
+
+                // Proactive health state update on OOM, healthcheck, and restart events
+                const isHealthEvent = event.Type === 'container' && (
+                    event.Action === 'oom' ||
+                    event.Action === 'health_status' ||
+                    event.Action === 'restart'
+                );
+                if (isHealthEvent) {
+                    const hcContainerId = event.Actor?.ID;
+                    if (hcContainerId) {
+                        upsertHealthState(hcContainerId).catch(err => {
+                            logger.warn('Event-driven health state update failed', { error: err.message, action: event.Action });
+                        });
                     }
                 }
             } catch (err) {

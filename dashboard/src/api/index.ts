@@ -721,7 +721,43 @@ export const dockerHubApi = {
   },
 };
 
+// ── Container Health ──────────────────────────────────────────────────────────
+
+export interface HealthHistoryEntry {
+  healthStatus: 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY';
+  failureType: string | null;
+  instabilityScore: number;
+  changedAt: string;
+}
+
+export interface ContainerHealthState {
+  containerId: string;
+  healthStatus: 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY';
+  lastFailureType: string | null;
+  restartCount: number;
+  lastExitCode: number | null;
+  lastDockerHealthStatus: string | null;
+  instabilityScore: number;
+  history: HealthHistoryEntry[];
+  lastUpdatedAt: string | null;
+}
+
+export const containerHealthApi = {
+  getHealth: async (containerId: string): Promise<ContainerHealthState> => {
+    const response = await api.get<ApiResponse<ContainerHealthState>>(`/containers/${containerId}/health`);
+    return response.data.data;
+  },
+
+  getHealthBatch: async (ids: string[]): Promise<Record<string, Omit<ContainerHealthState, 'history' | 'containerId'>>> => {
+    const params = new URLSearchParams();
+    ids.forEach(id => params.append('ids[]', id));
+    const response = await api.get<ApiResponse<Record<string, Omit<ContainerHealthState, 'history' | 'containerId'>>>>(`/containers/health/batch?${params.toString()}`);
+    return response.data.data;
+  },
+};
+
 // ── Quota ─────────────────────────────────────────────────────────────────────
+
 
 export interface QuotaData {
   maxContainers: number;

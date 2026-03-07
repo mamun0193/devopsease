@@ -13,11 +13,9 @@ import {
   createContainer,
 } from "../docker/containerActions.js";
 import containerStatsService from "../services/containerStats.service.js";
-<<<<<<< HEAD
+
 import { getMetricsHistory, getTopContainers, queryMetricsByRange, removeStream } from "../websocket/metricsStreamer.js";
-=======
-import { getMetricsHistory, getTopContainers, queryMetricsByRange } from "../websocket/metricsStreamer.js";
->>>>>>> 4d39b8a2173a946bd701e0d0532c4502567544e3
+
 import { requireRole, ROLES } from "../middlewares/rbac.js";
 import { requirePermission } from "../middlewares/rbac.middleware.js";
 import { ACTIONS, canPerform } from "../config/permissions.js";
@@ -155,7 +153,7 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
     if (!req.body) {
       throw new AppError("Request body is missing. Ensure Content-Type is 'application/json'", 400);
     }
-    const { image, name, ports, env, autoStart, cpuLimit: rawCpu, memoryLimit: rawMem } = req.body;
+    const { image, name, ports, env, autoStart, cpuLimit: rawCpu, memoryLimit: rawMem, restartPolicy, maxRetryCount } = req.body;
 
     if (!image) {
       throw new AppError("Image name is required", 400);
@@ -178,7 +176,7 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
     await quotaService.checkContainerCount(req.user._id);
 
     // 1. Create in Docker with resource limits
-    const result = await createContainer({ image, name, ports, env, autoStart, cpuLimit, memoryLimit });
+    const result = await createContainer({ image, name, ports, env, autoStart, cpuLimit, memoryLimit, restartPolicy, maxRetryCount });
     if (!result.success) {
       throw new AppError(result.message, result.statusCode);
     }

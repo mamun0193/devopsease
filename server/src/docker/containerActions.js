@@ -681,7 +681,7 @@ async function unpauseContainer(containerId) {
  * Create a new container from an image
  * Pulls image if missing, validates name uniqueness, creates and optionally starts container
  */
-async function createContainer({ image, name, ports = {}, env = {}, autoStart = true, networkMode, labels, volumes, command, restartPolicy, cpuLimit, memoryLimit }) {
+async function createContainer({ image, name, ports = {}, env = {}, autoStart = true, networkMode, labels, volumes, command, restartPolicy, maxRetryCount, cpuLimit, memoryLimit }) {
   logger.info("Container create requested", { image, name, autoStart });
 
   if (!image) {
@@ -794,7 +794,10 @@ async function createContainer({ image, name, ports = {}, env = {}, autoStart = 
 
     // Compose-specific: restart policy
     if (restartPolicy) {
-      createOptions.HostConfig.RestartPolicy = { Name: restartPolicy };
+      createOptions.HostConfig.RestartPolicy = {
+        Name: restartPolicy,
+        MaximumRetryCount: (restartPolicy === 'on-failure' && maxRetryCount > 0) ? Number(maxRetryCount) : 0,
+      };
     }
 
     // Compose-specific: volumes

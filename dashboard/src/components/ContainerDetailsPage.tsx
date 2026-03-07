@@ -7,10 +7,12 @@ import {
   Shield,
   Info,
   History as HistoryIcon,
-  Globe
+  Globe,
+  Heart
 } from 'lucide-react';
 import { useContainers, useContainerInspect, useContainerStats, useActions } from '../hooks/useContainers';
 import { useContainerPolling } from '../hooks/useContainerPolling';
+import { useContainerHealth } from '../hooks/useContainerHealth';
 import { formatContainerName } from '../utils/formatters';
 import LogViewer from './LogViewer';
 import FailureAnalysis from './FailureAnalysis';
@@ -23,6 +25,8 @@ import ExposePortModal from './tunnels/ExposePortModal';
 import TunnelTable from './tunnels/TunnelTable';
 import { useUserTunnels } from '../hooks/useTunnels';
 import ContainerStatsPanel from './ContainerStatsPanel';
+import HealthAlertBanner from './HealthAlertBanner';
+import HealthTimeline from './HealthTimeline';
 
 type TabType = 'analysis' | 'logs' | 'info' | 'history' | 'access';
 
@@ -64,6 +68,10 @@ const ContainerDetailsPage: React.FC = () => {
     data: tunnels = [],
     refetch: refetchTunnels,
   } = useUserTunnels(container?.id);
+
+  // Health data for alert banner and timeline
+  const { data: healthData, isLoading: healthLoading } = useContainerHealth(container?.id || null);
+  const [healthBannerDismissed, setHealthBannerDismissed] = React.useState(false);
 
   const activeTunnelCount = tunnels.filter((t) => t.status === 'ACTIVE').length;
 
@@ -253,6 +261,13 @@ const ContainerDetailsPage: React.FC = () => {
         <div className="transition-opacity duration-150">
           {activeTab === 'analysis' && (
             <div className="space-y-8 p-4">
+              {/* Health alert banner — dismissible per page load */}
+              {healthData && !healthBannerDismissed && (
+                <HealthAlertBanner
+                  health={healthData}
+                  onDismiss={() => setHealthBannerDismissed(true)}
+                />
+              )}
               <ContainerStatsPanel
                 containerId={container.id}
                 containerState={container.state?.status || 'unknown'}
@@ -263,6 +278,17 @@ const ContainerDetailsPage: React.FC = () => {
                 containerName={name}
                 containerState={container.state?.status}
               />
+              {/* Health state timeline */}
+              <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
+                <h3 className="text-sm font-medium text-slate-300 mb-1 flex items-center gap-2">
+                  <Heart size={14} className="text-rose-400" />
+                  Health State History
+                </h3>
+                <p className="text-xs text-slate-500 mb-4">
+                  Event-driven health tracking powered by the failure classifier and instability analyzer.
+                </p>
+                <HealthTimeline health={healthData} isLoading={healthLoading} />
+              </div>
             </div>
           )}
           {activeTab === 'logs' && (

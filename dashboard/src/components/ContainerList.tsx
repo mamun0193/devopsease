@@ -15,6 +15,7 @@ import { containerActionsApi } from '../api/containerActions';
 import { useAppDispatch } from '../store/hooks';
 // fetchContainers removed
 import { addToast } from '../store/toastSlice';
+import { useContainerHealthBatch } from '../hooks/useContainerHealth';
 
 interface ContainerListProps {
   containers: Container[];
@@ -32,6 +33,10 @@ const ContainerList: React.FC<ContainerListProps> = ({
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
   const [isRemoving, setIsRemoving] = React.useState(false);
   const [showConfirm, setShowConfirm] = React.useState(false);
+
+  // Batch health: one request for all containers on this page
+  const containerIds = React.useMemo(() => containers.map(c => c.id), [containers]);
+  const { data: healthMap = {} } = useContainerHealthBatch(containerIds);
 
   const filteredContainers = React.useMemo(() => {
     let result = containers;
@@ -211,7 +216,10 @@ const ContainerList: React.FC<ContainerListProps> = ({
               transition={{ delay: index * 0.05 }}
               className="h-full"
             >
-              <ContainerCard container={container} />
+              <ContainerCard
+                container={container}
+                healthStatus={healthMap[container.id]?.healthStatus ?? null}
+              />
             </motion.div>
           ))}
         </motion.div>
