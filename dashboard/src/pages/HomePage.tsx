@@ -20,6 +20,7 @@ import Footer from '../components/Footer';
 import ResourceNav from '../components/ResourceNav';
 import OverviewCard from '../components/OverviewCard';
 import ResourceUsagePanel from '../components/ResourceUsagePanel';
+import TopContainersPanel from '../components/TopContainersPanel';
 import { useContainers, useHealthCheck } from '../hooks/useContainers';
 import { useBuilds } from '../hooks/useBuilds';
 import { useImages, useImageUsageSummary } from '../hooks/useImages';
@@ -49,17 +50,17 @@ const HomePage: React.FC = () => {
   const { data: hubStatus } = useDockerHubStatus();
 
   // ── derived ───────────────────────────────────────────────────────────────
-  const running  = containers.filter(c => c.state?.running).length;
-  const stopped  = containers.filter(c =>
+  const running = containers.filter(c => c.state?.running).length;
+  const stopped = containers.filter(c =>
     ['exited', 'dead'].includes(c.state?.status?.toLowerCase() ?? ''),
   ).length;
 
-  const activeBuilds  = builds.filter(b => b.status === 'PENDING' || b.status === 'RUNNING').length;
+  const activeBuilds = builds.filter(b => b.status === 'PENDING' || b.status === 'RUNNING').length;
   const successBuilds = builds.filter(b => b.status === 'SUCCESS').length;
-  const failedBuilds  = builds.filter(b => b.status === 'FAILED' || b.status === 'TIMEOUT').length;
+  const failedBuilds = builds.filter(b => b.status === 'FAILED' || b.status === 'TIMEOUT').length;
 
   const danglingImages = imageSummary?.danglingImages ?? images.filter(i => i.imageUsageStatus === 'DANGLING').length;
-  const totalImageMB   = imageSummary?.totalImageStorageMB ?? images.reduce((s, i) => s + (i.sizeMB ?? 0), 0);
+  const totalImageMB = imageSummary?.totalImageStorageMB ?? images.reduce((s, i) => s + (i.sizeMB ?? 0), 0);
 
   const activeNetworks = networks.filter(n => n.status === 'ACTIVE').length;
   const unusedNetworks = networks.filter(n => n.status === 'UNUSED').length;
@@ -235,10 +236,13 @@ const HomePage: React.FC = () => {
                 )
               }
             />
-          </div> 
+          </div>
 
-          {/* ── Resource Quota Panel ───────────────────────────────────────── */}
+          {/* Resource Quota Panel */}
           <ResourceUsagePanel />
+
+          {/* Top Containers */}
+          <TopContainersPanel />
 
         </div>
       </main>

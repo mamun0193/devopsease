@@ -22,6 +22,7 @@ import ContainerTerminal from './ContainerTerminal';
 import ExposePortModal from './tunnels/ExposePortModal';
 import TunnelTable from './tunnels/TunnelTable';
 import { useUserTunnels } from '../hooks/useTunnels';
+import ContainerStatsPanel from './ContainerStatsPanel';
 
 type TabType = 'analysis' | 'logs' | 'info' | 'history' | 'access';
 
@@ -227,7 +228,6 @@ const ContainerDetailsPage: React.FC = () => {
                 >
                   {tab.icon}
                   <span>{tab.label}</span>
-                  <span className="hidden sm:inline text-xs opacity-60">• {tab.hint}</span>
                 </button>
               ))}
             </div>
@@ -252,11 +252,18 @@ const ContainerDetailsPage: React.FC = () => {
       <main className="max-w-7xl mx-auto px-2 py-2">
         <div className="transition-opacity duration-150">
           {activeTab === 'analysis' && (
-            <FailureAnalysis
-              containerId={container.id}
-              containerName={name}
-              containerState={container.state?.status}
-            />
+            <div className="space-y-8 p-4">
+              <ContainerStatsPanel
+                containerId={container.id}
+                containerState={container.state?.status || 'unknown'}
+                resourceLimits={inspectData?.resourceLimits}
+              />
+              <FailureAnalysis
+                containerId={container.id}
+                containerName={name}
+                containerState={container.state?.status}
+              />
+            </div>
           )}
           {activeTab === 'logs' && (
             <div className="sticky top-0 z-40">

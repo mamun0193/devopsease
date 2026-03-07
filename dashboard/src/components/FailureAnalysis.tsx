@@ -196,8 +196,8 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
     }[data.type] || data.summary;
 
     return (
-      <div className="p-6">
-        <div className="flex items-center gap-2 mb-6">
+      <div>
+        <div className="flex items-center gap-2 mb-4">
           <Shield size={20} className={styles.text} />
           <h2 className="text-lg font-semibold text-slate-100">Health Status</h2>
         </div>

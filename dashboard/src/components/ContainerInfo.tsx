@@ -14,7 +14,6 @@ import {
 } from 'lucide-react';
 import { useContainerInspect } from '../hooks/useContainers';
 import { formatTimestamp } from '../utils/formatters';
-import ContainerStatsPanel from './ContainerStatsPanel';
 
 interface ContainerInfoProps {
   containerId: string | null;
@@ -70,11 +69,6 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
         </span>
       </div>
 
-      <ContainerStatsPanel
-        containerId={containerId}
-        containerState={info.state?.status || 'unknown'}
-        resourceLimits={info.resourceLimits}
-      />
 
       <Section title="Basic Information" icon={<Server size={18} />}>
         <InfoRow

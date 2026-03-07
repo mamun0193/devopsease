@@ -5,6 +5,7 @@ import logger from "../utils/logger.js";
 import { handleExecSession } from "./execHandler.js";
 import execSessionRegistry from "./execSessionRegistry.js";
 import { subscribeToBuild } from "./build.socket.js";
+import { subscribeToMetrics, stopAllStreams } from "./metricsStreamer.js";
 import { enforceRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { canPerform, ACTIONS, ROLES } from "../config/permissions.js";
 import ownershipService from "../services/ownership.service.js";
@@ -139,6 +140,65 @@ export function initializeWebSocketServer(server) {
                 }
                 wss.emit("connection", ws, request);
             });
+        } else if (pathname.startsWith("/ws/metrics/")) {
+            // --- Metrics streaming ---
+            const cookieHeader = request.headers.cookie;
+            const token = cookieHeader && cookieHeader.split(';').find(c => c.trim().startsWith('access_token='))?.split('=')[1];
+
+            if (!token) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            let user;
+            try {
+                user = jwt.verify(token, process.env.JWT_SECRET);
+            } catch (err) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            const metricsMatch = pathname.match(/^\/ws\/metrics\/(.+)$/);
+            if (!metricsMatch) {
+                socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+            const containerId = metricsMatch[1];
+
+            // Ownership check (admins bypass)
+            let ownsResource = false;
+            if (user.role === ROLES.ADMIN) {
+                ownsResource = false;
+            } else {
+                ownsResource = await ownershipService.hasOwnership(user._id || user.userId, containerId);
+            }
+
+            const allowed = canPerform({
+                role: user.role,
+                ownsResource,
+                actionType: ACTIONS.READ,
+            });
+
+            if (!allowed) {
+                logger.warn(`WebSocket metrics RBAC denied: Role ${user.role} on ${containerId}`);
+                socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            request._user = user;
+            request._metricsPath = true;
+
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                if (lifecycle.isShuttingDown) {
+                    ws.close(1001, "Server shutting down");
+                    return;
+                }
+                wss.emit("connection", ws, request);
+            });
         } else {
             socket.destroy();
         }
@@ -156,6 +216,16 @@ export function initializeWebSocketServer(server) {
         });
 
         const { pathname } = parse(request.url);
+
+        // Handle metrics subscriptions
+        const metricsMatch = pathname.match(/^\/ws\/metrics\/(.+)$/);
+        if (metricsMatch && request._metricsPath) {
+            const containerId = metricsMatch[1];
+            const userId = request._user?._id || request._user?.userId || "unknown";
+            logger.info("WebSocket metrics subscription", { containerId, userId });
+            subscribeToMetrics(containerId, ws);
+            return;
+        }
 
         // Handle build log subscriptions
         const buildMatch = pathname.match(/^\/ws\/build\/(.+)$/);
@@ -192,7 +262,10 @@ export async function closeWebSocketServer() {
     if (wss) {
         logger.info("Closing WebSocket server...");
 
-        // 1. Terminate all sessions managed by registry (graceful with notification)
+        // 1. Stop all metrics streams
+        stopAllStreams();
+
+        // 2. Terminate all sessions managed by registry (graceful with notification)
         await execSessionRegistry.terminateAllSessions("server_shutdown");
 
         // 2. Force close any remaining raw connections

@@ -13,6 +13,11 @@ import {
   createContainer,
 } from "../docker/containerActions.js";
 import containerStatsService from "../services/containerStats.service.js";
+<<<<<<< HEAD
+import { getMetricsHistory, getTopContainers, queryMetricsByRange, removeStream } from "../websocket/metricsStreamer.js";
+=======
+import { getMetricsHistory, getTopContainers, queryMetricsByRange } from "../websocket/metricsStreamer.js";
+>>>>>>> 4d39b8a2173a946bd701e0d0532c4502567544e3
 import { requireRole, ROLES } from "../middlewares/rbac.js";
 import { requirePermission } from "../middlewares/rbac.middleware.js";
 import { ACTIONS, canPerform } from "../config/permissions.js";
@@ -120,6 +125,7 @@ router.delete("/all", requirePermission(ACTIONS.DESTRUCTIVE), async (req, res, n
           await quotaService.decrementContainerCount(req.user._id);
 
           await resourceService.updateResourceStatus(id, RESOURCE_TYPES.CONTAINER, 'deleted');
+          removeStream(id);
           removed++;
         } else {
           errors.push({ id, error: result.message });
@@ -390,6 +396,8 @@ router.delete("/:id", ownershipGuard("remove"), requirePermission(ACTIONS.DESTRU
 
     await resourceService.updateResourceStatus(req.params.id, RESOURCE_TYPES.CONTAINER, 'deleted');
 
+    removeStream(req.params.id);
+
     // Auto-revoke active tunnels for removed container (fire-and-forget)
     tunnelService.revokeByContainer(req.params.id).catch(() => { });
 
@@ -426,6 +434,27 @@ router.get("/:id/stats", ownershipGuard("stats"), requirePermission(ACTIONS.READ
     });
   } catch (err) {
     next(err);
+  }
+});
+
+// GET /containers/top — top containers by CPU and memory
+router.get("/top", async (req, res) => {
+  try {
+    const data = getTopContainers();
+    return res.status(200).json({ success: true, data });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Failed to get top containers" });
+  }
+});
+
+// GET /containers/:id/metrics-history — time-range metrics (1m, 1h, 1d, 1w)
+router.get("/:id/metrics-history", ownershipGuard("metrics-history"), requirePermission(ACTIONS.READ), async (req, res) => {
+  try {
+    const range = req.query.range || "1m";
+    const dataPoints = await queryMetricsByRange(req.params.id, range);
+    return res.status(200).json({ success: true, data: { dataPoints } });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Failed to get metrics history" });
   }
 });
 
