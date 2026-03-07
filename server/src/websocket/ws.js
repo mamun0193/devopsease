@@ -6,6 +6,7 @@ import { handleExecSession } from "./execHandler.js";
 import execSessionRegistry from "./execSessionRegistry.js";
 import { subscribeToBuild } from "./build.socket.js";
 import { subscribeToMetrics, stopAllStreams } from "./metricsStreamer.js";
+import alertBroadcaster from "./alertBroadcaster.js";
 import { enforceRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { canPerform, ACTIONS, ROLES } from "../config/permissions.js";
 import ownershipService from "../services/ownership.service.js";
@@ -199,6 +200,36 @@ export function initializeWebSocketServer(server) {
                 }
                 wss.emit("connection", ws, request);
             });
+        } else if (pathname === "/ws/alerts") {
+            // --- Alert stream ---
+            const cookieHeader = request.headers.cookie;
+            const token = cookieHeader && cookieHeader.split(';').find(c => c.trim().startsWith('access_token='))?.split('=')[1];
+
+            if (!token) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            let user;
+            try {
+                user = jwt.verify(token, process.env.JWT_SECRET);
+            } catch (err) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            request._user = user;
+            request._alertsPath = true;
+
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                if (lifecycle.isShuttingDown) {
+                    ws.close(1001, "Server shutting down");
+                    return;
+                }
+                wss.emit("connection", ws, request);
+            });
         } else {
             socket.destroy();
         }
@@ -224,6 +255,16 @@ export function initializeWebSocketServer(server) {
             const userId = request._user?._id || request._user?.userId || "unknown";
             logger.info("WebSocket metrics subscription", { containerId, userId });
             subscribeToMetrics(containerId, ws);
+            return;
+        }
+
+        // Handle alert subscriptions
+        if (pathname === "/ws/alerts" && request._alertsPath) {
+            const userId = request._user?._id || request._user?.userId;
+            if (userId) {
+                logger.info("WebSocket alert subscription", { userId });
+                alertBroadcaster.register(userId, ws);
+            }
             return;
         }
 
@@ -265,7 +306,10 @@ export async function closeWebSocketServer() {
         // 1. Stop all metrics streams
         stopAllStreams();
 
-        // 2. Terminate all sessions managed by registry (graceful with notification)
+        // 2. Close all alert broadcaster connections
+        alertBroadcaster.closeAll();
+
+        // 3. Terminate all sessions managed by registry (graceful with notification)
         await execSessionRegistry.terminateAllSessions("server_shutdown");
 
         // 2. Force close any remaining raw connections

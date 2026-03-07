@@ -4,12 +4,15 @@ import {
   Activity,
   Server,
   AlertTriangle,
-  Pause
+  Pause,
+  Bell,
 } from 'lucide-react';
 import { useContainers, useHealthCheck } from '../hooks/useContainers';
 import { getContainerStats } from '../utils/formatters';
 import RefreshButton from './RefreshButton';
 import UserMenu from './UserMenu';
+import AlertsPanel from './AlertsPanel';
+import { useAppSelector } from '../store/hooks';
 
 export interface FilterItem {
   key: string;
@@ -33,6 +36,8 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all', f
   const { data: health } = useHealthCheck();
   const stats = getContainerStats(containers);
   const [headerHidden, setHeaderHidden] = React.useState(false);
+  const [alertsPanelOpen, setAlertsPanelOpen] = React.useState(false);
+  const unresolvedCount = useAppSelector(state => state.alerts.unresolvedCount);
   const lastScrollY = React.useRef(0);
 
   React.useEffect(() => {
@@ -200,11 +205,27 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all', f
             showLabel={false}
           />
 
+          {/* Alert Bell */}
+          <button
+            onClick={() => setAlertsPanelOpen(true)}
+            className="relative p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-colors"
+            title="View alerts"
+          >
+            <Bell size={18} />
+            {unresolvedCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-4.5 h-4.5 flex items-center justify-center text-[10px] font-bold bg-red-500 text-white rounded-full px-1 border-2 border-slate-900">
+                {unresolvedCount > 99 ? '99+' : unresolvedCount}
+              </span>
+            )}
+          </button>
+
           <div className="w-px h-6 bg-slate-800" />
 
           <UserMenu />
         </div>
       </div>
+
+      <AlertsPanel open={alertsPanelOpen} onClose={() => setAlertsPanelOpen(false)} />
     </header>
   );
 };

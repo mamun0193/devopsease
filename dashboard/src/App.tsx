@@ -36,6 +36,16 @@ import ProjectDetailPage from './pages/ProjectDetailPage';
 import NetworksPage from './pages/NetworksPage';
 import VolumesPage from './pages/VolumesPage';
 import RegistryPage from './pages/RegistryPage';
+import AlertsPage from './pages/AlertsPage';
+import { useAlertSocket } from './hooks/useAlertSocket';
+import { useUnresolvedAlertCount } from './hooks/useAlerts';
+import AlertsPanel from './components/AlertsPanel';
+
+function AlertSocketProvider({ children }: { children: React.ReactNode }) {
+  useAlertSocket();
+  useUnresolvedAlertCount();
+  return <>{children}</>;
+}
 
 function App() {
   return (
@@ -44,6 +54,7 @@ function App() {
         <AuthProvider>
           <RoleProvider>
             <BrowserRouter>
+              <AlertSocketProvider>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
 
@@ -165,9 +176,18 @@ function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/alerts"
+                  element={
+                    <ProtectedRoute>
+                      <AlertsPage />
+                    </ProtectedRoute>
+                  }
+                />
               </Routes>
               <ActionFeedback />
               <Toast />
+              </AlertSocketProvider>
             </BrowserRouter>
           </RoleProvider>
         </AuthProvider>

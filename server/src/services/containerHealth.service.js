@@ -5,6 +5,8 @@ import { analyzeInstability } from "../intelligence/instabilityAnalyzer.js";
 import { collectSignals } from "../intelligence/signals/index.js";
 import ContainerHealth from "../models/containerHealth.model.js";
 import ContainerOwnership from "../models/ContainerOwnership.js";
+import alertService from "./alert.service.js";
+import { ALERT_TYPES, ALERT_SEVERITIES } from "../models/alert.model.js";
 
 // ─── Health Status Mapping ────────────────────────────────────────────────────
 
@@ -165,7 +167,41 @@ export async function upsertHealthState(containerId) {
             instabilityScore: instability.instabilityScore,
         });
 
-        // 9. Auto-recovery for crash loops
+        // 9. Generate alerts on health transitions
+        const previousStatus = existing?.healthStatus || "HEALTHY";
+        if (previousStatus !== healthStatus && healthStatus !== "HEALTHY") {
+            const alertType = healthStatus === "UNHEALTHY"
+                ? (classification.type === FAILURE_TYPES.CRASH_LOOP ? ALERT_TYPES.CRASH_LOOP
+                    : classification.type === FAILURE_TYPES.RESOURCE_EXHAUSTION ? ALERT_TYPES.OOM
+                    : ALERT_TYPES.HEALTH_UNHEALTHY)
+                : ALERT_TYPES.HEALTH_DEGRADED;
+
+            const alertSeverity = healthStatus === "UNHEALTHY"
+                ? ALERT_SEVERITIES.CRITICAL
+                : ALERT_SEVERITIES.WARNING;
+
+            const alertMessage = healthStatus === "UNHEALTHY"
+                ? `Container ${containerId} is unhealthy — ${classification.type || "unknown failure"}`
+                : `Container ${containerId} health degraded — instability score ${instability.instabilityScore.toFixed(2)}`;
+
+            alertService.createAlert({
+                userId,
+                containerId,
+                type: alertType,
+                severity: alertSeverity,
+                message: alertMessage,
+                metadata: {
+                    previousStatus,
+                    newStatus: healthStatus,
+                    failureType: classification.type,
+                    instabilityScore: instability.instabilityScore,
+                    restartCount,
+                    exitCode,
+                },
+            }).catch(err => logger.warn("Alert creation failed (health)", { error: err.message }));
+        }
+
+        // 10. Auto-recovery for crash loops
         if (healthStatus === HEALTH_STATUS.UNHEALTHY && classification.type === FAILURE_TYPES.CRASH_LOOP) {
             attemptAutoRecovery(containerId, inspectData).catch((err) => {
                 logger.warn("Auto-recovery error", { containerId, error: err.message });

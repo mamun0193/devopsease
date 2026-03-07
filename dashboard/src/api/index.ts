@@ -779,3 +779,7 @@ export const quotaApi = {
 };
 
 export default api;
+
+// Re-export alerts API
+export { alertsApi } from './alerts';
+export type { Alert, AlertsResponse } from './alerts';

@@ -2,6 +2,9 @@ import docker from "../docker/client.js";
 import logger from "../utils/logger.js";
 import ContainerOwnership from "../models/ContainerOwnership.js";
 import quotaService from "./quota.service.js";
+import alertService from "./alert.service.js";
+import { ALERT_TYPES, ALERT_SEVERITIES } from "../models/alert.model.js";
+import Quota from "../models/quota.model.js";
 
 class ResourceMonitorService {
     constructor() {
@@ -106,6 +109,9 @@ class ResourceMonitorService {
                 try {
                     const count = containerCountPerUser.get(userId) || 0;
                     await quotaService.updateRealUsage(userId, usage.cpu, usage.memoryMB, count);
+
+                    // Check resource thresholds and generate alerts
+                    await this._checkResourceThresholds(userId, usage.cpu, usage.memoryMB, count);
                 } catch (err) {
                     logger.debug("Failed to update real usage for user", {
                         userId,
@@ -200,6 +206,69 @@ class ResourceMonitorService {
             }
         } catch (err) {
             logger.debug("Reset all usage failed", { error: err.message });
+        }
+    }
+
+    // Check resource thresholds against quota limits and generate alerts.
+    async _checkResourceThresholds(userId, cpuCores, memoryMB, containerCount) {
+        try {
+            const quota = await Quota.findOne({ userId }).lean();
+            if (!quota) return;
+
+            const cpuPercent = quota.maxCPU > 0 ? (cpuCores / quota.maxCPU) * 100 : 0;
+            const memoryPercent = quota.maxMemoryMB > 0 ? (memoryMB / quota.maxMemoryMB) * 100 : 0;
+            const containerPercent = quota.maxContainers > 0 ? (containerCount / quota.maxContainers) * 100 : 0;
+
+            // CPU threshold alerts
+            if (cpuPercent >= 95) {
+                await alertService.createAlert({
+                    userId,
+                    type: ALERT_TYPES.HIGH_CPU,
+                    severity: ALERT_SEVERITIES.CRITICAL,
+                    message: `CPU usage at ${cpuPercent.toFixed(1)}% of quota (${cpuCores.toFixed(2)} / ${quota.maxCPU} cores)`,
+                    metadata: { cpuCores, maxCPU: quota.maxCPU, percent: cpuPercent },
+                });
+            } else if (cpuPercent >= 80) {
+                await alertService.createAlert({
+                    userId,
+                    type: ALERT_TYPES.HIGH_CPU,
+                    severity: ALERT_SEVERITIES.WARNING,
+                    message: `CPU usage at ${cpuPercent.toFixed(1)}% of quota (${cpuCores.toFixed(2)} / ${quota.maxCPU} cores)`,
+                    metadata: { cpuCores, maxCPU: quota.maxCPU, percent: cpuPercent },
+                });
+            }
+
+            // Memory threshold alerts
+            if (memoryPercent >= 95) {
+                await alertService.createAlert({
+                    userId,
+                    type: ALERT_TYPES.HIGH_MEMORY,
+                    severity: ALERT_SEVERITIES.CRITICAL,
+                    message: `Memory usage at ${memoryPercent.toFixed(1)}% of quota (${Math.round(memoryMB)} / ${quota.maxMemoryMB} MB)`,
+                    metadata: { memoryMB, maxMemoryMB: quota.maxMemoryMB, percent: memoryPercent },
+                });
+            } else if (memoryPercent >= 80) {
+                await alertService.createAlert({
+                    userId,
+                    type: ALERT_TYPES.HIGH_MEMORY,
+                    severity: ALERT_SEVERITIES.WARNING,
+                    message: `Memory usage at ${memoryPercent.toFixed(1)}% of quota (${Math.round(memoryMB)} / ${quota.maxMemoryMB} MB)`,
+                    metadata: { memoryMB, maxMemoryMB: quota.maxMemoryMB, percent: memoryPercent },
+                });
+            }
+
+            // Quota container count approaching limit
+            if (containerPercent >= 80 && containerCount < quota.maxContainers) {
+                await alertService.createAlert({
+                    userId,
+                    type: ALERT_TYPES.QUOTA_WARNING,
+                    severity: ALERT_SEVERITIES.WARNING,
+                    message: `Container quota at ${containerCount}/${quota.maxContainers} (${containerPercent.toFixed(0)}% used)`,
+                    metadata: { containerCount, maxContainers: quota.maxContainers, percent: containerPercent },
+                });
+            }
+        } catch (err) {
+            logger.debug("Threshold alert check failed", { userId, error: err.message });
         }
     }
 }

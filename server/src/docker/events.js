@@ -2,6 +2,9 @@ import docker from "./client.js";
 import logger from "../utils/logger.js";
 import lifecycle from "../system/lifecycle.js";
 import { upsertHealthState } from "../services/containerHealth.service.js";
+import alertService from "../services/alert.service.js";
+import { ALERT_TYPES, ALERT_SEVERITIES } from "../models/alert.model.js";
+import ContainerOwnership from "../models/ContainerOwnership.js";
 
 let eventStream = null;
 let reconnectTimeout = null;
@@ -65,6 +68,28 @@ export async function initDockerEvents() {
                         upsertHealthState(hcContainerId).catch(err => {
                             logger.warn('Event-driven health state update failed', { error: err.message, action: event.Action });
                         });
+                    }
+                }
+
+                // Immediate OOM alert on Docker oom event
+                if (event.Type === 'container' && event.Action === 'oom') {
+                    const oomContainerId = event.Actor?.ID;
+                    if (oomContainerId) {
+                        const shortId = oomContainerId.substring(0, 12);
+                        ContainerOwnership.findOne({ containerId: shortId, status: 'active' }).lean()
+                            .then(ownership => {
+                                if (ownership) {
+                                    alertService.createAlert({
+                                        userId: ownership.ownerId,
+                                        containerId: shortId,
+                                        type: ALERT_TYPES.OOM,
+                                        severity: ALERT_SEVERITIES.CRITICAL,
+                                        message: `Container ${shortId} received OOM kill — out of memory`,
+                                        metadata: { event: 'oom', dockerContainerId: oomContainerId },
+                                    }).catch(err => logger.warn('OOM alert creation failed', { error: err.message }));
+                                }
+                            })
+                            .catch(err => logger.warn('OOM alert ownership lookup failed', { error: err.message }));
                     }
                 }
             } catch (err) {
