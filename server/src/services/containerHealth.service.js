@@ -38,40 +38,79 @@ function mapToHealthStatus(classification, instability, dockerHealthStatus) {
     return HEALTH_STATUS.HEALTHY;
 }
 
-// ─── Auto-Recovery Guard ───────────────────────────────────────────────────────
-// Prevents infinite restart loops: one auto-recovery attempt per container per 5 minutes
+// ─── Restart Limit Enforcement ────────────────────────────────────────────────
 
-const recoveryAttempts = new Map(); // containerId → timestamp
-const RECOVERY_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
-
-function canAttemptRecovery(containerId) {
-    const last = recoveryAttempts.get(containerId);
-    if (!last) return true;
-    return Date.now() - last > RECOVERY_COOLDOWN_MS;
+/**
+ * Read the effective restart limit from Docker labels or native MaximumRetryCount.
+ * Returns 0 if unlimited / not set.
+ */
+function getRestartLimit(inspectData) {
+    const labelLimit = parseInt(inspectData?.Config?.Labels?.['devopsease.restartLimit'], 10);
+    const nativeLimit = inspectData?.HostConfig?.RestartPolicy?.MaximumRetryCount || 0;
+    if (labelLimit > 0) return labelLimit;
+    if (nativeLimit > 0) return nativeLimit;
+    return 0;
 }
 
-function recordRecoveryAttempt(containerId) {
-    recoveryAttempts.set(containerId, Date.now());
-}
-
-async function attemptAutoRecovery(containerId, inspectData) {
+/**
+ * Enforce the restart limit for ALL restart policies.
+ * When the restart count reaches the configured limit:
+ *   1. Update the restart policy to 'no' so Docker stops auto-restarting
+ *   2. Stop the container as a guarantee (prevents one more crash cycle)
+ */
+async function enforceRestartLimit(containerId, inspectData) {
     const restartPolicy = inspectData?.HostConfig?.RestartPolicy?.Name;
-    if (!restartPolicy || restartPolicy === "no" || restartPolicy === "") return;
+    if (!restartPolicy || restartPolicy === 'no' || restartPolicy === '') return false;
 
-    if (!canAttemptRecovery(containerId)) {
-        logger.info("Auto-recovery skipped: cooldown active", { containerId });
-        return;
-    }
+    const limit = getRestartLimit(inspectData);
+    if (limit <= 0) return false; // no limit configured
 
+    const restartCount = inspectData.RestartCount || 0;
+    if (restartCount < limit) return false;
+
+    // Limit exceeded — change policy to 'no' AND stop the container
     try {
-        recordRecoveryAttempt(containerId);
         const container = docker.getContainer(containerId);
-        await container.restart({ t: 5 });
-        logger.info("Auto-recovery: container restarted", { containerId, restartPolicy });
+
+        // 1. Change restart policy to 'no' so Docker stops auto-restarting
+        await container.update({ RestartPolicy: { Name: 'no', MaximumRetryCount: 0 } });
+
+        // 2. Stop the container to prevent one more crash cycle
+        try {
+            await container.stop({ t: 2 });
+        } catch (stopErr) {
+            // Container may already be stopped — that's fine
+            if (stopErr.statusCode !== 304 && stopErr.statusCode !== 404) {
+                logger.warn("Restart limit enforcement: stop failed (non-critical)", {
+                    containerId, error: stopErr.message,
+                });
+            }
+        }
+
+        logger.warn("Restart limit exceeded — container stopped, policy changed to 'no'", {
+            containerId, restartPolicy, restartCount, limit,
+        });
+        return true; // enforcement was applied
     } catch (err) {
-        logger.warn("Auto-recovery: restart failed", { containerId, error: err.message });
+        // Fallback: if update fails, try to just stop the container
+        logger.error("Failed to update restart policy, attempting stop as fallback", {
+            containerId, error: err.message,
+        });
+        try {
+            const container = docker.getContainer(containerId);
+            await container.stop({ t: 2 });
+        } catch (_) {
+            // best effort
+        }
+        return false;
     }
 }
+
+// NOTE: Auto-recovery is intentionally disabled.
+// Docker's restart policy already handles restarts natively.
+// Our job is ONLY to enforce the restart limit (enforceRestartLimit).
+// Previous auto-recovery via container.restart() was resetting Docker's internal
+// failure counter, causing on-failure MaximumRetryCount to never be reached.
 
 // ─── Core Health State Upsert ─────────────────────────────────────────────────
 
@@ -79,7 +118,7 @@ export async function upsertHealthState(containerId) {
     if (!containerId) return null;
 
     try {
-        // 1. Inspect container
+        // 1. Inspect container (Docker accepts both full and short IDs)
         const container = docker.getContainer(containerId);
         let inspectData;
         try {
@@ -92,12 +131,27 @@ export async function upsertHealthState(containerId) {
             throw err;
         }
 
+        // Normalize to 12-char short ID (ownership DB stores short IDs)
+        const shortId = inspectData.Id.substring(0, 12);
+
+        // 2. Enforce restart limit (stop Docker's own restart if limit exceeded)
+        const wasEnforced = await enforceRestartLimit(shortId, inspectData);
+
+        // If enforcement just stopped the container, re-inspect for accurate state
+        if (wasEnforced) {
+            try {
+                inspectData = await container.inspect();
+            } catch (_) {
+                // Use stale data if re-inspect fails
+            }
+        }
+
         const state = inspectData.State;
         const restartCount = inspectData.RestartCount || 0;
         const exitCode = state?.ExitCode;
         const dockerHealthStatus = state?.Health?.Status || null; // healthy | starting | unhealthy | null
 
-        // 2. Fetch recent logs (best-effort)
+        // 3. Fetch recent logs (best-effort)
         let logs = "";
         try {
             const logBuffer = await container.logs({ stdout: true, stderr: true, tail: 100 });
@@ -106,26 +160,27 @@ export async function upsertHealthState(containerId) {
             // Non-critical — proceed without logs
         }
 
-        // 3. Run classifier (reusing existing logic, no modifications)
+        // 4. Run classifier
         const signals = collectSignals({ state, exitCode, restartCount, logs });
         const classification = classifyFailure(signals, { state, exitCode, restartCount, logs });
 
-        // 4. Run instability analyzer (reusing existing logic, no modifications)
-        const instability = analyzeInstability(state, restartCount, classification);
+        // 5. Run instability analyzer (pass container creation time for accurate MTBF)
+        const stateWithCreated = { ...state, CreatedAt: inspectData.Created };
+        const instability = analyzeInstability(stateWithCreated, restartCount, classification);
 
-        // 5. Map to platform health status
+        // 6. Map to platform health status
         const healthStatus = mapToHealthStatus(classification, instability, dockerHealthStatus);
 
-        // 6. Find user ownership
-        const ownershipDoc = await ContainerOwnership.findOne({ containerId, status: "active" }).lean();
+        // 7. Find user ownership (use short ID to match DB records)
+        const ownershipDoc = await ContainerOwnership.findOne({ containerId: shortId, status: "active" }).lean();
         const userId = ownershipDoc?.ownerId;
         if (!userId) {
-            logger.debug("Health upsert skipped: no owner for container", { containerId });
+            logger.debug("Health upsert skipped: no owner for container", { containerId: shortId });
             return null;
         }
 
-        // 7. Load existing doc to compute history diff
-        const existing = await ContainerHealth.findOne({ containerId, userId });
+        // 8. Load existing doc to compute history diff
+        const existing = await ContainerHealth.findOne({ containerId: shortId, userId });
         const historyEntry = {
             healthStatus,
             failureType: classification.type !== FAILURE_TYPES.HEALTHY ? classification.type : null,
@@ -142,9 +197,13 @@ export async function upsertHealthState(containerId) {
             updatedHistory = [...history, historyEntry].slice(-20); // keep last 20 entries
         }
 
-        // 8. Persist to MongoDB
+        // 9. Check if restart limit was exhausted
+        const restartLimit = getRestartLimit(inspectData);
+        const restartLimitExhausted = restartLimit > 0 && restartCount >= restartLimit;
+
+        // 10. Persist to MongoDB
         const healthDoc = await ContainerHealth.findOneAndUpdate(
-            { containerId, userId },
+            { containerId: shortId, userId },
             {
                 $set: {
                     healthStatus,
@@ -155,38 +214,48 @@ export async function upsertHealthState(containerId) {
                     instabilityScore: instability.instabilityScore,
                     history: updatedHistory,
                     lastUpdatedAt: new Date(),
+                    restartLimitExhausted: restartLimitExhausted || false,
+                    restartLimit: restartLimit || 0,
                 },
             },
             { upsert: true, new: true }
         );
 
         logger.debug("Container health state updated", {
-            containerId,
+            containerId: shortId,
             healthStatus,
             type: classification.type,
             instabilityScore: instability.instabilityScore,
+            restartCount,
+            restartLimit,
         });
 
-        // 9. Generate alerts on health transitions
+        // 11. Generate alerts on health transitions
         const previousStatus = existing?.healthStatus || "HEALTHY";
         if (previousStatus !== healthStatus && healthStatus !== "HEALTHY") {
-            const alertType = healthStatus === "UNHEALTHY"
-                ? (classification.type === FAILURE_TYPES.CRASH_LOOP ? ALERT_TYPES.CRASH_LOOP
+            let alertType;
+            let alertMessage;
+
+            if (restartLimitExhausted) {
+                alertType = ALERT_TYPES.CRASH_LOOP;
+                alertMessage = `Container ${shortId} restart limit exhausted (${restartCount}/${restartLimit}) — container stopped`;
+            } else if (healthStatus === "UNHEALTHY") {
+                alertType = classification.type === FAILURE_TYPES.CRASH_LOOP ? ALERT_TYPES.CRASH_LOOP
                     : classification.type === FAILURE_TYPES.RESOURCE_EXHAUSTION ? ALERT_TYPES.OOM
-                    : ALERT_TYPES.HEALTH_UNHEALTHY)
-                : ALERT_TYPES.HEALTH_DEGRADED;
+                    : ALERT_TYPES.HEALTH_UNHEALTHY;
+                alertMessage = `Container ${shortId} is unhealthy — ${classification.type || "unknown failure"}`;
+            } else {
+                alertType = ALERT_TYPES.HEALTH_DEGRADED;
+                alertMessage = `Container ${shortId} health degraded — instability score ${instability.instabilityScore.toFixed(2)}`;
+            }
 
             const alertSeverity = healthStatus === "UNHEALTHY"
                 ? ALERT_SEVERITIES.CRITICAL
                 : ALERT_SEVERITIES.WARNING;
 
-            const alertMessage = healthStatus === "UNHEALTHY"
-                ? `Container ${containerId} is unhealthy — ${classification.type || "unknown failure"}`
-                : `Container ${containerId} health degraded — instability score ${instability.instabilityScore.toFixed(2)}`;
-
             alertService.createAlert({
                 userId,
-                containerId,
+                containerId: shortId,
                 type: alertType,
                 severity: alertSeverity,
                 message: alertMessage,
@@ -196,17 +265,16 @@ export async function upsertHealthState(containerId) {
                     failureType: classification.type,
                     instabilityScore: instability.instabilityScore,
                     restartCount,
+                    restartLimit,
+                    restartLimitExhausted,
                     exitCode,
                 },
             }).catch(err => logger.warn("Alert creation failed (health)", { error: err.message }));
         }
 
-        // 10. Auto-recovery for crash loops
-        if (healthStatus === HEALTH_STATUS.UNHEALTHY && classification.type === FAILURE_TYPES.CRASH_LOOP) {
-            attemptAutoRecovery(containerId, inspectData).catch((err) => {
-                logger.warn("Auto-recovery error", { containerId, error: err.message });
-            });
-        }
+        // 12. Docker's restart policy handles restarts natively.
+        // Our enforceRestartLimit (step 2) handles stopping when limit is reached.
+        // No manual auto-recovery needed — it was causing Docker's failure counter to reset.
 
         return healthDoc;
     } catch (err) {

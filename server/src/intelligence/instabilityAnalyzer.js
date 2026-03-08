@@ -1,18 +1,22 @@
 // Calculate Mean Time Between Failures (MTBF)
+// Uses container creation time to compute total lifetime, then divides by restart count.
+// MTBF = totalLifetime / restartCount
 
-function calculateMTBF(startedAt, restartCount) {
-  if (!startedAt || restartCount === 0) return null;
+function calculateMTBF(createdAt, startedAt, restartCount) {
+  if (restartCount === 0) return null;
 
-  const startTime = new Date(startedAt).getTime();
+  // Prefer container creation time for total lifetime; fall back to startedAt
+  const referenceTime = createdAt || startedAt;
+  if (!referenceTime) return null;
+
+  const refMs = new Date(referenceTime).getTime();
+  if (isNaN(refMs)) return null;
+
   const now = Date.now();
-  
-  if (isNaN(startTime)) return null;
+  const totalLifetimeSeconds = Math.max(0, (now - refMs) / 1000);
 
-  const uptimeSeconds = Math.max(0, (now - startTime) / 1000);
-
-  // If restarts > 0, MTBF = uptime / restarts
-  // We use max(1, restartCount) to avoid division by zero, though the if-check handles 0.
-  const mtbf = uptimeSeconds / restartCount;
+  // MTBF = total container lifetime / number of restarts
+  const mtbf = totalLifetimeSeconds / restartCount;
 
   return Math.floor(mtbf);
 }
@@ -38,12 +42,13 @@ function calculateRestartDensity(restartCount, uptimeSeconds) {
 
 function calculateInstabilityFactors(containerState, classification) {
   const restartCount = containerState.RestartCount || 0;
-  const startedAt = containerState.StartedAt;
-  const startTime = new Date(startedAt).getTime();
+  const createdAt = containerState.CreatedAt;   // container creation time (passed from health service)
+  const startedAt = containerState.StartedAt;   // last start time (fallback)
+  const startTime = new Date(createdAt || startedAt).getTime();
   const now = Date.now();
   const uptimeSeconds = !isNaN(startTime) ? Math.max(0, (now - startTime) / 1000) : 0;
 
-  const mtbfSeconds = calculateMTBF(startedAt, restartCount);
+  const mtbfSeconds = calculateMTBF(createdAt, startedAt, restartCount);
 
   // 1. Crash Loop Factor
   // Leverages existing classifier or raw heuristics
@@ -100,7 +105,7 @@ function calculateInstabilityScore(factors) {
 
 export function analyzeInstability(containerState, restartCount, classificationResult) {
   // Defensive copy/merge since restartCount might be top-level or in state
-  const state = { ...containerState, RestartCount: restartCount };
+  const state = { ...containerState, RestartCount: restartCount, CreatedAt: containerState.CreatedAt };
   
   const factors = calculateInstabilityFactors(state, classificationResult);
   const instabilityScore = calculateInstabilityScore(factors);

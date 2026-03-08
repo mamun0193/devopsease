@@ -187,6 +187,11 @@ export interface ContainerInspect {
     memoryMB: number | null;
     cpuCores: number | null;
   };
+  restartPolicy?: {
+    name: string;
+    maximumRetryCount: number;
+    restartLimit: number;
+  };
 }
 
 export interface FailureAnalysis {

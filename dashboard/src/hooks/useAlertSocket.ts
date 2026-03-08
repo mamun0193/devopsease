@@ -91,7 +91,10 @@ export function useAlertSocket() {
       active = false;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (ws) {
-        try { ws.close(); } catch { /* ignore */ }
+        // Only close if already open; closing a CONNECTING socket logs a browser warning
+        if (ws.readyState === WebSocket.OPEN) {
+          try { ws.close(); } catch { /* ignore */ }
+        }
         ws = null;
       }
     };

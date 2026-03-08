@@ -792,12 +792,18 @@ async function createContainer({ image, name, ports = {}, env = {}, autoStart = 
       createOptions.Labels = labels;
     }
 
-    // Compose-specific: restart policy
-    if (restartPolicy) {
+    // Restart policy configuration
+    if (restartPolicy && restartPolicy !== 'no') {
       createOptions.HostConfig.RestartPolicy = {
         Name: restartPolicy,
         MaximumRetryCount: (restartPolicy === 'on-failure' && maxRetryCount > 0) ? Number(maxRetryCount) : 0,
       };
+
+      // Store restart limit as Docker label for enforcement by health service
+      const effectiveLimit = Number(maxRetryCount) || 3;
+      if (!createOptions.Labels) createOptions.Labels = {};
+      createOptions.Labels['devopsease.restartPolicy'] = restartPolicy;
+      createOptions.Labels['devopsease.restartLimit'] = String(effectiveLimit);
     }
 
     // Compose-specific: volumes

@@ -94,6 +94,23 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
           value={String(info.restartCount || 0)}
           hint="How many times this container has restarted"
         />
+        {info.restartPolicy && info.restartPolicy.name !== 'no' && (
+          <>
+            <InfoRow
+              label="Restart Policy"
+              value={info.restartPolicy.name}
+              hint="Docker restart policy for this container"
+              badge
+              badgeVariant="info"
+            />
+            <InfoRow
+              label="Restart Limit"
+              value={info.restartPolicy.restartLimit > 0 ? `${info.restartCount || 0} / ${info.restartPolicy.restartLimit}` : 'Unlimited'}
+              hint={info.restartPolicy.restartLimit > 0 ? `Container will stop restarting after ${info.restartPolicy.restartLimit} attempts` : 'No restart limit configured'}
+              highlight={info.restartPolicy.restartLimit > 0 && (info.restartCount || 0) >= info.restartPolicy.restartLimit}
+            />
+          </>
+        )}
       </Section>
 
       {/* State Details */}

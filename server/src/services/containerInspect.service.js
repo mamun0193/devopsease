@@ -55,5 +55,10 @@ export async function inspectContainer(containerId) {
       memoryMB: inspectData.HostConfig?.Memory ? Math.round(inspectData.HostConfig.Memory / (1024 * 1024)) : null,
       cpuCores: inspectData.HostConfig?.NanoCpus ? inspectData.HostConfig.NanoCpus / 1e9 : null,
     },
+    restartPolicy: {
+      name: inspectData.HostConfig?.RestartPolicy?.Name || 'no',
+      maximumRetryCount: inspectData.HostConfig?.RestartPolicy?.MaximumRetryCount || 0,
+      restartLimit: parseInt(inspectData.Config?.Labels?.['devopsease.restartLimit'], 10) || 0,
+    },
   };
 }

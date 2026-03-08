@@ -124,7 +124,7 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                 cpuLimit,
                 memoryLimit,
                 restartPolicy: restartPolicy !== 'no' ? restartPolicy : undefined,
-                maxRetryCount: restartPolicy === 'on-failure' ? maxRetryCount : undefined,
+                maxRetryCount: restartPolicy !== 'no' ? maxRetryCount : undefined,
             }));
 
             if (!result.type.endsWith('/rejected')) {
@@ -498,19 +498,19 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                                     {restartPolicy === 'no' && 'Container will not be restarted automatically.'}
                                                 </p>
                                             </div>
-                                            {restartPolicy === 'on-failure' && (
+                                            {restartPolicy !== 'no' && (
                                                 <div>
                                                     <label className="block text-xs text-slate-400 mb-1.5">Max Retries</label>
                                                     <input
                                                         type="number"
                                                         min={1}
-                                                        max={20}
+                                                        max={100}
                                                         value={maxRetryCount}
                                                         onChange={(e) => setMaxRetryCount(Number(e.target.value))}
                                                         disabled={isSubmitting}
                                                         className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                                                     />
-                                                    <p className="text-xs text-slate-600 mt-1">Attempts before giving up</p>
+                                                    <p className="text-xs text-slate-600 mt-1">Max restart attempts before stopping</p>
                                                 </div>
                                             )}
                                         </div>

@@ -279,15 +279,14 @@ const ContainerDetailsPage: React.FC = () => {
                 containerState={container.state?.status}
               />
               {/* Health state timeline */}
-              <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
-                <h3 className="text-sm font-medium text-slate-300 mb-1 flex items-center gap-2">
-                  <Heart size={14} className="text-rose-400" />
-                  Health State History
-                </h3>
-                <p className="text-xs text-slate-500 mb-4">
-                  Event-driven health tracking powered by the failure classifier and instability analyzer.
-                </p>
-                <HealthTimeline health={healthData} isLoading={healthLoading} />
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Heart size={20} className="text-rose-400" />
+                  <h2 className="text-lg font-semibold text-slate-100">Health State History</h2>
+                </div>
+                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
+                  <HealthTimeline health={healthData} isLoading={healthLoading} />
+                </div>
               </div>
             </div>
           )}

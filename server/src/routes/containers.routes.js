@@ -159,6 +159,15 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
       throw new AppError("Image name is required", 400);
     }
 
+    // Validate restart policy
+    const validPolicies = ['no', 'always', 'unless-stopped', 'on-failure'];
+    if (restartPolicy && !validPolicies.includes(restartPolicy)) {
+      throw new AppError(`Invalid restart policy. Must be one of: ${validPolicies.join(', ')}`, 400);
+    }
+    if (maxRetryCount !== undefined && (isNaN(Number(maxRetryCount)) || Number(maxRetryCount) < 1 || Number(maxRetryCount) > 100)) {
+      throw new AppError('maxRetryCount must be a number between 1 and 100', 400);
+    }
+
     // Default resource limits per container
     const cpuLimit = rawCpu ? Number(rawCpu) : 0.5;
     const memoryLimit = rawMem ? Number(rawMem) : 128;
@@ -202,6 +211,8 @@ router.post("/", requireRole(ROLES.OPERATOR), async (req, res, next) => {
         name,
         cpuLimit,
         memoryLimit,
+        restartPolicy: restartPolicy || 'no',
+        maxRetryCount: (restartPolicy && restartPolicy !== 'no') ? Number(maxRetryCount) || 3 : 0,
         createdVia: 'api',
         created: new Date()
       }

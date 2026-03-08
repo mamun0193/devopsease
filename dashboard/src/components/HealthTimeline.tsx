@@ -68,18 +68,28 @@ const HealthTimeline: React.FC<HealthTimelineProps> = ({ health, isLoading }) =>
 
     const history = health?.history || [];
 
-    if (history.length === 0) {
+    // If no history entries but we have a health state, synthesize the current state as the initial entry
+    const timeline: HealthHistoryEntry[] = history.length === 0 && health
+        ? [{
+            healthStatus: health.healthStatus,
+            failureType: health.lastFailureType,
+            instabilityScore: health.instabilityScore,
+            changedAt: health.lastUpdatedAt || new Date().toISOString(),
+        }]
+        : history;
+
+    if (timeline.length === 0) {
         return (
             <div className="flex flex-col items-center gap-3 py-10 text-center">
                 <Clock size={28} className="text-slate-600" />
-                <p className="text-slate-500 text-sm">No health state changes recorded yet.</p>
-                <p className="text-slate-600 text-xs">Events like OOM kills, crash loops, and healthchecks will appear here.</p>
+                <p className="text-slate-500 text-sm">No health data available yet.</p>
+                <p className="text-slate-600 text-xs">Health data will appear once the container is monitored.</p>
             </div>
         );
     }
 
     // Show most recent first
-    const reversed = [...history].reverse();
+    const reversed = [...timeline].reverse();
 
     return (
         <div className="relative">
@@ -117,6 +127,15 @@ const HealthTimeline: React.FC<HealthTimelineProps> = ({ health, isLoading }) =>
                                                 ({FAILURE_TYPE_LABELS[entry.failureType] ?? entry.failureType})
                                             </span>
                                         )}
+                                    </div>
+                                    {/* Transition description */}
+                                    <div className="mt-0.5 text-xs text-slate-500">
+                                        {prevEntry
+                                            ? `${prevEntry.healthStatus} → ${entry.healthStatus}`
+                                            : entry.healthStatus === 'HEALTHY'
+                                                ? 'Container reported healthy'
+                                                : `Initial state: ${entry.healthStatus.toLowerCase()}`
+                                        }
                                     </div>
                                     {entry.instabilityScore > 0 && (
                                         <div className="mt-0.5 text-xs text-slate-600">

@@ -57,7 +57,7 @@ export function initializeWebSocketServer(server) {
                 socket.destroy();
                 return;
             }
-            const containerId = match[1];
+            const containerId = match[1].substring(0, 12);
 
             let ownsResource = false;
 
@@ -167,7 +167,7 @@ export function initializeWebSocketServer(server) {
                 socket.destroy();
                 return;
             }
-            const containerId = metricsMatch[1];
+            const containerId = metricsMatch[1].substring(0, 12);
 
             // Ownership check (admins bypass)
             let ownsResource = false;

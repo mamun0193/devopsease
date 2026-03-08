@@ -155,6 +155,11 @@ class ContainerCacheService {
             })),
             healthcheck: inspectData.Config?.Healthcheck || null,
             labels: inspectData.Config?.Labels || {},
+            restartPolicy: {
+                name: inspectData.HostConfig?.RestartPolicy?.Name || 'no',
+                maximumRetryCount: inspectData.HostConfig?.RestartPolicy?.MaximumRetryCount || 0,
+                restartLimit: parseInt(inspectData.Config?.Labels?.['devopsease.restartLimit'], 10) || 0,
+            },
         };
     }
 

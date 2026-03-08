@@ -16,7 +16,7 @@ import {
   Gauge,
 } from 'lucide-react';
 import { useAppSelector } from '../store/hooks';
-import { useResolveAlert, useResolveAllAlerts } from '../hooks/useAlerts';
+import { useAlerts, useResolveAlert, useResolveAllAlerts } from '../hooks/useAlerts';
 import type { Alert } from '../api/alerts';
 
 interface AlertsPanelProps {
@@ -101,6 +101,9 @@ const AlertItem: React.FC<{ alert: Alert }> = ({ alert }) => {
 };
 
 const AlertsPanel: React.FC<AlertsPanelProps> = ({ open, onClose }) => {
+  // Fetch alerts when panel is open (syncs to Redux store)
+  useAlerts({ resolved: false });
+
   const alerts = useAppSelector(state => state.alerts.alerts);
   const unresolvedCount = useAppSelector(state => state.alerts.unresolvedCount);
   const resolveAll = useResolveAllAlerts();

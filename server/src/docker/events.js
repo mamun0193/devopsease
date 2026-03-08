@@ -56,11 +56,12 @@ export async function initDockerEvents() {
                     }
                 }
 
-                // Proactive health state update on OOM, healthcheck, and restart events
+                // Proactive health state update on OOM, healthcheck, restart, and die events
                 const isHealthEvent = event.Type === 'container' && (
                     event.Action === 'oom' ||
                     event.Action === 'health_status' ||
-                    event.Action === 'restart'
+                    event.Action === 'restart' ||
+                    event.Action === 'die'
                 );
                 if (isHealthEvent) {
                     const hcContainerId = event.Actor?.ID;

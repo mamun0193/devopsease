@@ -11,6 +11,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { useRole } from '../context/RoleContext';
+import { containerApi } from '../api';
 import {
   startContainer,
   stopContainer,
@@ -115,6 +116,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
         // Force fresh fetch (bypass cache)
         const data = await queryClient.fetchQuery({
           queryKey: ['containerInspect', containerId],
+          queryFn: () => containerApi.inspect(containerId),
           staleTime: 0,
         });
 
@@ -164,6 +166,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
         queryClient.refetchQueries({ queryKey: ['containerAnalysis', containerId] }),
         queryClient.refetchQueries({ queryKey: ['failureAnalysis', containerId] }),
         queryClient.refetchQueries({ queryKey: ['actions'] }),
+        queryClient.refetchQueries({ queryKey: ['quota'] }),
       ]);
 
       // NOW show the toast — after state is confirmed and data is refreshed
