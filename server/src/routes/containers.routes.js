@@ -1,4 +1,5 @@
 import express from "express";
+import docker from "../docker/client.js";
 import { getContainerLogs } from "../docker/containers.js";
 import containerCacheService from "../services/containerCache.service.js";
 import { invalidateAnalysisCache } from "../services/containerAnalysis.service.js";
@@ -447,9 +448,50 @@ router.get("/:id/stats", ownershipGuard("stats"), requirePermission(ACTIONS.READ
 });
 
 // GET /containers/top — top containers by CPU and memory
-router.get("/top", async (req, res) => {
+router.get("/top", requirePermission(ACTIONS.READ), async (req, res) => {
   try {
-    const data = getTopContainers();
+    // 1. Get containers owned by this user
+    const ownedContainerIds = await ownershipService.listOwnedContainers(req.user._id);
+    if (ownedContainerIds.length === 0) {
+      return res.status(200).json({ success: true, data: { topCPU: [], topMemory: [] } });
+    }
+
+    // 2. Get running containers and filter to owned ones
+    const containers = await docker.listContainers({ filters: { status: ["running"] } });
+    const ownedContainers = containers.filter(c => 
+      ownedContainerIds.includes(c.Id.substring(0, 12))
+    );
+    
+    const containerStats = await Promise.allSettled(
+      ownedContainers.map(async (c) => {
+        try {
+          const shortId = c.Id.substring(0, 12);
+          const result = await containerStatsService.getContainerStats(shortId);
+          if (!result.success) return null;
+          
+          const name = (c.Names?.[0] || "").replace(/^\//, "") || shortId;
+          return {
+            containerId: shortId,
+            containerName: name,
+            cpuPercent: result.data.cpu.usagePercent,
+            memoryUsedMB: result.data.memory.usedMB,
+            memoryLimitMB: result.data.memory.limitMB,
+          };
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    const validStats = containerStats
+      .filter(result => result.status === "fulfilled" && result.value)
+      .map(result => result.value);
+
+    const data = {
+      topCPU: [...validStats].sort((a, b) => b.cpuPercent - a.cpuPercent).slice(0, 5),
+      topMemory: [...validStats].sort((a, b) => b.memoryUsedMB - a.memoryUsedMB).slice(0, 5),
+    };
+
     return res.status(200).json({ success: true, data });
   } catch (err) {
     return res.status(500).json({ success: false, message: "Failed to get top containers" });

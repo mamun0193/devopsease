@@ -5,78 +5,71 @@ import api from '../api';
 import { useVisibilityInterval } from './useContainerPolling';
 
 // ============================================================================
-// Container Queries with Optimized Polling
+// Container Queries — Event-Driven Architecture
+//
+// Most queries NO LONGER poll. Instead, the useContainerEvents hook listens
+// on the /ws/events WebSocket and calls queryClient.invalidateQueries()
+// when the backend emits container_update, action_history_updated, etc.
+//
+// Only container stats (real-time CPU/memory) retains 2-second polling.
 // ============================================================================
 
-// Fetch all containers - Poll every 15s (cached 15s TTL), pause when hidden
+// Fetch all containers — event-driven (refreshed via container_update WS event)
 export function useContainers() {
-  const refetchInterval = useVisibilityInterval(15000);
-
   return useQuery<Container[], Error>({
     queryKey: ['containers'],
     queryFn: containerApi.getAll,
-    refetchInterval,
     staleTime: 10000,
     placeholderData: keepPreviousData,
   });
 }
 
-// Fetch container logs - Poll every 5s (live, not cached), pause when hidden
+// Fetch container logs — REST fallback (prefer useLogStream for real-time)
+// Kept for snapshot / time-range queries; no continuous polling.
 export function useContainerLogs(
   containerId: string | null,
   options?: { tail?: number; since?: number; until?: number }
 ) {
-  const refetchInterval = useVisibilityInterval(5000);
-
   return useQuery<ContainerLogs, Error>({
     queryKey: ['containerLogs', containerId, options?.since, options?.until],
     queryFn: () => containerApi.getLogs(containerId!, options),
     enabled: !!containerId,
-    refetchInterval,
-    staleTime: 2000,
+    staleTime: 5000,
   });
 }
 
-// Fetch container inspection data - Poll every 30s (static config cached 45s TTL), pause when hidden
+// Fetch container inspection data — event-driven (refreshed via container_update WS event)
 export function useContainerInspect(containerId: string | null) {
-  const refetchInterval = useVisibilityInterval(30000);
-
   return useQuery<ContainerInspect, Error>({
     queryKey: ['containerInspect', containerId],
     queryFn: () => containerApi.inspect(containerId!),
     enabled: !!containerId,
-    refetchInterval,
     staleTime: 25000,
   });
 }
 
-// Fetch container analysis - Poll every 30s, pause when hidden
+// Fetch container analysis — event-driven (refreshed via failure_analysis_updated WS event)
 export function useContainerAnalysis(containerId: string | null) {
-  const refetchInterval = useVisibilityInterval(30000);
-
   return useQuery<FailureAnalysis, Error>({
     queryKey: ['containerAnalysis', containerId],
     queryFn: () => containerApi.analyze(containerId!),
     enabled: !!containerId,
-    refetchInterval,
     staleTime: 15000,
   });
 }
 
-// Fetch failure intelligence analysis - Poll every 10s, pause when hidden
+// Fetch failure intelligence analysis — event-driven (refreshed via failure_analysis_updated WS event)
 export function useFailureAnalysis(containerId: string | null) {
-  const refetchInterval = useVisibilityInterval(10000);
-
   return useQuery<FailureIntelligence, Error>({
     queryKey: ['failureAnalysis', containerId],
     queryFn: () => containerApi.failureAnalysis(containerId!),
     enabled: !!containerId,
-    refetchInterval,
     staleTime: 0,
   });
 }
 
 // Fetch container stats (CPU, memory, network) - Poll every 2s (real-time, no cache) when running & visible
+// This is the ONLY hook that retains polling — continuous metrics require it.
 export function useContainerStats(
   containerId: string | null,
   isVisible: boolean = true,
@@ -95,7 +88,7 @@ export function useContainerStats(
   });
 }
 
-// Health check - Poll every 30s
+// Health check - Poll every 30s (lightweight endpoint, kept for system status)
 export function useHealthCheck() {
   const refetchInterval = useVisibilityInterval(30000);
 
@@ -107,27 +100,21 @@ export function useHealthCheck() {
   });
 }
 
-// Fetch action history - Poll every 10s (Redis persisted), pause when hidden
+// Fetch action history — event-driven (refreshed via action_history_updated WS event)
 export function useActions(options?: { containerId?: string; limit?: number; cursor?: string }) {
-  const refetchInterval = useVisibilityInterval(10000);
-
   return useQuery<ActionsResponse, Error>({
     queryKey: ['actions', options?.containerId, options?.limit, options?.cursor],
     queryFn: () => actionsApi.getActions(options),
     staleTime: 5000,
-    refetchInterval,
   });
 }
 
-// Fetch action stats - Poll every 30s
+// Fetch action stats — event-driven (refreshed via action_history_updated WS event)
 export function useActionStats() {
-  const refetchInterval = useVisibilityInterval(30000);
-
   return useQuery<ActionStats, Error>({
     queryKey: ['actionStats'],
     queryFn: actionsApi.getStats,
     staleTime: 15000,
-    refetchInterval,
   });
 }
 

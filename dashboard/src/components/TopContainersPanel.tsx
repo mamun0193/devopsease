@@ -18,8 +18,9 @@ interface TopContainersData {
     topMemory: TopContainer[];
 }
 
+// Real-time polling — top container metrics change continuously
 function useTopContainers() {
-    const refetchInterval = useVisibilityInterval(10000);
+    const refetchInterval = useVisibilityInterval(20000);
 
     return useQuery<TopContainersData>({
         queryKey: ['topContainers'],
@@ -28,7 +29,7 @@ function useTopContainers() {
             return response.data.data;
         },
         refetchInterval,
-        staleTime: 8000,
+        staleTime: 15000,
     });
 }
 

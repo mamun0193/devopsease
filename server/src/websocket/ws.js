@@ -7,6 +7,8 @@ import execSessionRegistry from "./execSessionRegistry.js";
 import { subscribeToBuild } from "./build.socket.js";
 import { subscribeToMetrics, stopAllStreams } from "./metricsStreamer.js";
 import alertBroadcaster from "./alertBroadcaster.js";
+import eventBroadcaster from "./eventBroadcaster.js";
+import { streamContainerLogs } from "./logStreamer.js";
 import { enforceRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { canPerform, ACTIONS, ROLES } from "../config/permissions.js";
 import ownershipService from "../services/ownership.service.js";
@@ -62,7 +64,7 @@ export function initializeWebSocketServer(server) {
             let ownsResource = false;
 
             if (user.role === ROLES.ADMIN) {
-                ownsResource = false;
+                ownsResource = true;  // Admins can access all containers
             } else {
                 ownsResource = await ownershipService.hasOwnership(user._id || user.userId, containerId);
             }
@@ -172,7 +174,7 @@ export function initializeWebSocketServer(server) {
             // Ownership check (admins bypass)
             let ownsResource = false;
             if (user.role === ROLES.ADMIN) {
-                ownsResource = false;
+                ownsResource = true;  // Admins can access all containers
             } else {
                 ownsResource = await ownershipService.hasOwnership(user._id || user.userId, containerId);
             }
@@ -230,6 +232,95 @@ export function initializeWebSocketServer(server) {
                 }
                 wss.emit("connection", ws, request);
             });
+        } else if (pathname === "/ws/events") {
+            // --- Container / action event stream (replaces polling) ---
+            const cookieHeader = request.headers.cookie;
+            const token = cookieHeader && cookieHeader.split(';').find(c => c.trim().startsWith('access_token='))?.split('=')[1];
+
+            if (!token) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            let user;
+            try {
+                user = jwt.verify(token, process.env.JWT_SECRET);
+            } catch (err) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            request._user = user;
+            request._eventsPath = true;
+
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                if (lifecycle.isShuttingDown) {
+                    ws.close(1001, "Server shutting down");
+                    return;
+                }
+                wss.emit("connection", ws, request);
+            });
+        } else if (pathname.startsWith("/ws/logs/")) {
+            // --- Log streaming ---
+            const cookieHeader = request.headers.cookie;
+            const token = cookieHeader && cookieHeader.split(';').find(c => c.trim().startsWith('access_token='))?.split('=')[1];
+
+            if (!token) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            let user;
+            try {
+                user = jwt.verify(token, process.env.JWT_SECRET);
+            } catch (err) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            const logsMatch = pathname.match(/^\/ws\/logs\/(.+)$/);
+            if (!logsMatch) {
+                socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+            const containerId = logsMatch[1].substring(0, 12);
+
+            // Ownership check (admins bypass)
+            let ownsResource = false;
+            if (user.role === ROLES.ADMIN) {
+                ownsResource = true;  // Admins can access all containers
+            } else {
+                ownsResource = await ownershipService.hasOwnership(user._id || user.userId, containerId);
+            }
+
+            const allowed = canPerform({
+                role: user.role,
+                ownsResource,
+                actionType: ACTIONS.READ,
+            });
+
+            if (!allowed) {
+                logger.warn(`WebSocket logs RBAC denied: Role ${user.role} on ${containerId}`);
+                socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            request._user = user;
+            request._logsPath = true;
+
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                if (lifecycle.isShuttingDown) {
+                    ws.close(1001, "Server shutting down");
+                    return;
+                }
+                wss.emit("connection", ws, request);
+            });
         } else {
             socket.destroy();
         }
@@ -268,6 +359,34 @@ export function initializeWebSocketServer(server) {
             return;
         }
 
+        // Handle event subscriptions (container_update, action_history_updated, etc.)
+        if (pathname === "/ws/events" && request._eventsPath) {
+            const userId = request._user?._id || request._user?.userId;
+            if (userId) {
+                logger.info("WebSocket event subscription", { userId });
+                eventBroadcaster.register(userId, ws);
+            }
+            return;
+        }
+
+        // Handle log streaming
+        const logsMatch = pathname.match(/^\/ws\/logs\/(.+)$/);
+        if (logsMatch && request._logsPath) {
+            const containerId = logsMatch[1];
+            const userId = request._user?._id || request._user?.userId || "unknown";
+            logger.info("WebSocket log stream subscription", { containerId, userId });
+
+            // Parse optional query params (tail, since)
+            const queryStr = parse(request.url, true).query || {};
+            const logOptions = {
+                tail: queryStr.tail ? parseInt(queryStr.tail, 10) : 200,
+                since: queryStr.since ? parseInt(queryStr.since, 10) : undefined,
+            };
+
+            streamContainerLogs(containerId, ws, logOptions);
+            return;
+        }
+
         // Handle build log subscriptions
         const buildMatch = pathname.match(/^\/ws\/build\/(.+)$/);
         if (buildMatch && request._buildPath) {
@@ -282,7 +401,7 @@ export function initializeWebSocketServer(server) {
         const match = pathname.match(/^\/ws\/exec\/(.+)$/);
 
         if (!match) {
-            logger.warn("Invalid WebSocket path", { pathname });
+            logger.warn("Unhandled WebSocket path", { pathname });
             ws.close();
             return;
         }
@@ -309,7 +428,10 @@ export async function closeWebSocketServer() {
         // 2. Close all alert broadcaster connections
         alertBroadcaster.closeAll();
 
-        // 3. Terminate all sessions managed by registry (graceful with notification)
+        // 3. Close all event broadcaster connections
+        eventBroadcaster.closeAll();
+
+        // 4. Terminate all sessions managed by registry (graceful with notification)
         await execSessionRegistry.terminateAllSessions("server_shutdown");
 
         // 2. Force close any remaining raw connections

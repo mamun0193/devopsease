@@ -14,6 +14,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { useContainerLogs } from '../hooks/useContainers';
+import { useLogStream } from '../hooks/useLogStream';
 import type { ParsedLogLine } from '../api';
 import RefreshButton from './RefreshButton';
 import { DateTimePicker } from './ui/date-time-picker';
@@ -111,6 +112,13 @@ interface LogViewerProps {
 
 const LogViewer: React.FC<LogViewerProps> = ({ containerId, containerName, initialTimeRange }) => {
   const { data: logsData, isLoading, error, refetch } = useContainerLogs(containerId);
+
+  // WebSocket log stream — provides real-time log tailing without polling
+  const { lines: streamLines, isStreaming } = useLogStream(
+    // Only use stream when there's no time-range filter (streaming = live tail)
+    initialTimeRange ? null : containerId,
+    { tail: 200 }
+  );
   
   // State
   const [expandedLine, setExpandedLine] = React.useState<number | null>(null);
@@ -134,7 +142,35 @@ const LogViewer: React.FC<LogViewerProps> = ({ containerId, containerName, initi
   const prevLogCountRef = React.useRef(0);
 
   // Get parsed logs and stats
-  const parsedLogs = React.useMemo(() => logsData?.parsed || [], [logsData?.parsed]);
+  // When streaming, append WebSocket lines as minimal ParsedLogLine entries
+  const parsedLogs = React.useMemo(() => {
+    const restLogs: ParsedLogLine[] = logsData?.parsed || [];
+
+    if (!isStreaming || streamLines.length === 0) return restLogs;
+
+    // Convert raw WebSocket lines to ParsedLogLine format
+    const wsLogs: ParsedLogLine[] = streamLines.map((line, i) => {
+      const level =
+        /error|fatal|panic/i.test(line) ? 'error' :
+        /warn/i.test(line) ? 'warning' :
+        /success|started|ready/i.test(line) ? 'success' :
+        'info';
+
+      return {
+        id: -(i + 1), // negative IDs avoid collision with server-assigned positive IDs
+        rawLine: line,
+        timestamp: null as unknown as string,
+        level,
+        message: line,
+        explanation: undefined as unknown as string,
+        isImportant: level === 'error' || level === 'warning',
+        hasDetails: false,
+        timezone: '',
+      };
+    });
+
+    return wsLogs; // stream replaces REST logs when active
+  }, [logsData?.parsed, streamLines, isStreaming]);
   const stats = logsData?.stats || { total: 0, errors: 0, warnings: 0, info: 0, success: 0 };
 
   // Normalize logs

@@ -55,8 +55,28 @@ export function useMetricsStream(
         }
     }, [restStats, isStreaming, isRunning]);
 
+    // Use a ref to break the circular dependency (connect → onclose → connect)
+    const connectRef = useRef<() => void>(() => {});
+
     const connect = useCallback(() => {
         if (!containerId || !isRunning) return;
+
+        // Clean up any existing connection first
+        if (wsRef.current) {
+            const old = wsRef.current;
+            old.onmessage = null;
+            if (old.readyState === WebSocket.OPEN) {
+                old.onclose = null;
+                old.onerror = null;
+                old.close();
+            } else if (old.readyState === WebSocket.CONNECTING) {
+                // Don't call close() on CONNECTING socket — let it open then close itself
+                old.onclose = null;
+                old.onerror = null;
+                old.onopen = () => { old.close(); };
+            }
+            wsRef.current = null;
+        }
 
         const ws = new WebSocket(`${getWsBaseUrl()}/ws/metrics/${containerId}`);
         wsRef.current = ws;
@@ -70,7 +90,6 @@ export function useMetricsStream(
                 const msg = JSON.parse(event.data);
 
                 if (msg.type === 'metrics_history') {
-                    // Populate graph with existing history
                     setDataPoints(msg.dataPoints || []);
                 } else if (msg.type === 'container_metrics' && msg.status === 'ok') {
                     const point: MetricsDataPoint = {
@@ -100,7 +119,7 @@ export function useMetricsStream(
             // Auto-reconnect after 3 seconds if container is still running
             if (isRunning) {
                 reconnectTimeoutRef.current = setTimeout(() => {
-                    connect();
+                    connectRef.current();
                 }, 3000);
             }
         };
@@ -110,15 +129,30 @@ export function useMetricsStream(
         };
     }, [containerId, isRunning]);
 
+    // Keep ref in sync with latest connect
+    useEffect(() => {
+        connectRef.current = connect;
+    }, [connect]);
+
     useEffect(() => {
         connect();
 
         return () => {
             if (reconnectTimeoutRef.current) {
                 clearTimeout(reconnectTimeoutRef.current);
+                reconnectTimeoutRef.current = null;
             }
             if (wsRef.current) {
-                wsRef.current.close();
+                const ws = wsRef.current;
+                ws.onmessage = null;
+                ws.onclose = null;
+                ws.onerror = null;
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                } else if (ws.readyState === WebSocket.CONNECTING) {
+                    // Let it finish connecting, then close — avoids browser warning
+                    ws.onopen = () => { ws.close(); };
+                }
                 wsRef.current = null;
             }
             setIsStreaming(false);

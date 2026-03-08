@@ -13,6 +13,7 @@ export function useNetworks() {
     return useQuery({
         queryKey: ['networks'],
         queryFn: networkApi.list,
+        staleTime: Infinity,
     });
 }
 

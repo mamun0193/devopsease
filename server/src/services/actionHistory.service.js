@@ -7,6 +7,7 @@ import {
   safeDel,
 } from "../redis/client.js";
 import logger from "../utils/logger.js";
+import eventBroadcaster from "../websocket/eventBroadcaster.js";
 
 const REDIS_KEY = "devopsease:actions:history";
 const MAX_SIZE = 1000;
@@ -66,6 +67,14 @@ class ActionHistoryService {
       action,
       status,
       storage,
+    });
+
+    // Broadcast action_history_updated so frontends refetch instead of polling
+    eventBroadcaster.broadcastToAll('action_history_updated', {
+      actionId: actionRecord.id,
+      containerId,
+      action,
+      timestamp: actionRecord.timestamp,
     });
 
     return actionRecord;

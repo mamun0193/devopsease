@@ -11,11 +11,11 @@ import { useEffect } from 'react';
 export function useAlerts(params?: { resolved?: boolean; page?: number; limit?: number }) {
   const dispatch = useAppDispatch();
 
+  // Event-driven — invalidated by useAlertSocket on incoming WebSocket alerts
+  // and by resolve mutations. No polling needed.
   const query = useQuery({
     queryKey: ['alerts', params],
     queryFn: () => alertsApi.getAlerts(params),
-    refetchInterval: 30000,
-    staleTime: 15000,
   });
 
   // Sync to Redux store
@@ -34,11 +34,11 @@ export function useAlerts(params?: { resolved?: boolean; page?: number; limit?: 
 export function useUnresolvedAlertCount() {
   const dispatch = useAppDispatch();
 
+  // Event-driven — invalidated by useAlertSocket on incoming WebSocket alerts
+  // and by resolve mutations. No polling needed.
   const query = useQuery({
     queryKey: ['alertsUnresolvedCount'],
     queryFn: () => alertsApi.getUnresolvedCount(),
-    refetchInterval: 15000,
-    staleTime: 10000,
   });
 
   useEffect(() => {

@@ -411,16 +411,18 @@ const ImagesPage: React.FC = () => {
     const { data: dockerHubStatus } = useDockerHubStatus();
     const isHubConnected = dockerHubStatus?.connected === true;
 
+    // Uses same query keys as useImages / useImageUsageSummary hooks.
+    // Static — refreshed via mutations (pull/push/build/prune).
     const { data: images = [], isLoading: imagesLoading } = useQuery({
         queryKey: ['images'],
         queryFn: imageApi.listImages,
-        refetchInterval: 30000,
+        staleTime: Infinity,
     });
 
     const { data: summary, isLoading: summaryLoading } = useQuery({
         queryKey: ['images-usage-summary'],
         queryFn: imageApi.getUsageSummary,
-        refetchInterval: 30000,
+        staleTime: Infinity,
     });
 
     const isLoading = imagesLoading || summaryLoading;

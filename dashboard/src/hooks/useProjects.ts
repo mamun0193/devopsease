@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { projectApi } from '../api';
 
+// Static query — refreshed via project mutations (create/start/stop/delete).
 export function useProjects() {
     return useQuery({
         queryKey: ['projects'],
         queryFn: projectApi.list,
+        staleTime: Infinity,
     });
 }
 
@@ -13,6 +15,7 @@ export function useProject(projectId: string) {
         queryKey: ['project', projectId],
         queryFn: () => projectApi.getById(projectId),
         enabled: !!projectId,
+        staleTime: Infinity,
     });
 }
 

@@ -39,7 +39,7 @@ const AdminObservabilityPage: React.FC = () => {
 
     useEffect(() => {
         fetchMetrics();
-        const interval = setInterval(fetchMetrics, 5000);
+        const interval = setInterval(fetchMetrics, 15000);
         return () => clearInterval(interval);
     }, []);
 
@@ -139,7 +139,7 @@ const SuspiciousActivityPanel = () => {
 
     useEffect(() => {
         fetchAnomalyReport();
-        const interval = setInterval(fetchAnomalyReport, 5000);
+        const interval = setInterval(fetchAnomalyReport, 15000);
         return () => clearInterval(interval);
     }, []);
 

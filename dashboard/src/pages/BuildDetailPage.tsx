@@ -77,6 +77,9 @@ const BuildDetailPage: React.FC = () => {
             const timer = setTimeout(() => {
                 queryClient.invalidateQueries({ queryKey: ['build', buildId] });
                 queryClient.invalidateQueries({ queryKey: ['builds'] });
+                // A completed build produces a new image
+                queryClient.invalidateQueries({ queryKey: ['images'] });
+                queryClient.invalidateQueries({ queryKey: ['images-usage-summary'] });
             }, 500);
             return () => clearTimeout(timer);
         }

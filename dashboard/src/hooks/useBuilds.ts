@@ -2,11 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { buildApi } from '../api';
 import type { Build, TriggerBuildResponse } from '../api';
 
+// Static query — refreshed via mutation (useTriggerBuild) or build_complete WebSocket event.
 export function useBuilds() {
     return useQuery<Build[]>({
         queryKey: ['builds'],
         queryFn: buildApi.listBuilds,
-        refetchInterval: 10000,
+        staleTime: Infinity,
     });
 }
 
@@ -29,6 +30,8 @@ export function useTriggerBuild() {
         mutationFn: ({ tag, dockerfile }) => buildApi.triggerBuild(tag, dockerfile),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['builds'] });
+            queryClient.invalidateQueries({ queryKey: ['images'] });
+            queryClient.invalidateQueries({ queryKey: ['images-usage-summary'] });
         },
     });
 }

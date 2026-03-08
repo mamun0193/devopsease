@@ -16,11 +16,12 @@ function getErrorMessage(error: AxiosError<ApiErrorResponse>): string {
     return 'Something went wrong. Please try again.';
 }
 
+// Static query — refreshed only when connect/disconnect mutations succeed.
 export function useDockerHubStatus() {
     return useQuery({
         queryKey: ['dockerhub-status'],
         queryFn: dockerHubApi.status,
-        refetchInterval: 60000,
+        staleTime: Infinity,
         retry: 1,
     });
 }

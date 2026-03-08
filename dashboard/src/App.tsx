@@ -8,12 +8,17 @@ import ContainerDetailsPage from './components/ContainerDetailsPage';
 import ActionFeedback from './components/ActionFeedback';
 import { RoleProvider } from './context/RoleContext';
 
-// Create a client
+// Create a client — conservative defaults to minimize unnecessary API traffic.
+// Real-time queries (stats, quota) override these per-hook.
+// Event-driven queries rely on WebSocket invalidation instead of polling.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
-      refetchOnWindowFocus: true,
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes — data considered fresh unless explicitly invalidated
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchInterval: false,
     },
   },
 });
@@ -38,11 +43,13 @@ import VolumesPage from './pages/VolumesPage';
 import RegistryPage from './pages/RegistryPage';
 import AlertsPage from './pages/AlertsPage';
 import { useAlertSocket } from './hooks/useAlertSocket';
+import { useContainerEvents } from './hooks/useContainerEvents';
 import { useUnresolvedAlertCount } from './hooks/useAlerts';
 import AlertsPanel from './components/AlertsPanel';
 
 function AlertSocketProvider({ children }: { children: React.ReactNode }) {
   useAlertSocket();
+  useContainerEvents();  // Event-driven cache invalidation (replaces polling)
   useUnresolvedAlertCount();
   return <>{children}</>;
 }

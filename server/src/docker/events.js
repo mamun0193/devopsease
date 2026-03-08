@@ -5,6 +5,7 @@ import { upsertHealthState } from "../services/containerHealth.service.js";
 import alertService from "../services/alert.service.js";
 import { ALERT_TYPES, ALERT_SEVERITIES } from "../models/alert.model.js";
 import ContainerOwnership from "../models/ContainerOwnership.js";
+import eventBroadcaster from "../websocket/eventBroadcaster.js";
 
 let eventStream = null;
 let reconnectTimeout = null;
@@ -92,6 +93,54 @@ export async function initDockerEvents() {
                             })
                             .catch(err => logger.warn('OOM alert ownership lookup failed', { error: err.message }));
                     }
+                }
+
+                // ── Real-time event broadcasting to frontend via WebSocket ──
+
+                // Container lifecycle events → container_update
+                // Fires on: create, destroy, start, stop, die, pause, unpause, restart
+                const isLifecycleEvent = event.Type === 'container' && [
+                    'create', 'destroy', 'start', 'stop', 'die', 'pause', 'unpause', 'restart'
+                ].includes(event.Action);
+
+                if (isLifecycleEvent) {
+                    const cid = event.Actor?.ID;
+                    const shortId = cid ? cid.substring(0, 12) : null;
+                    eventBroadcaster.broadcastToAll('container_update', {
+                        containerId: shortId,
+                        action: event.Action,
+                        timestamp: Date.now(),
+                    });
+                    logger.debug('Broadcast container_update', { containerId: shortId, action: event.Action });
+                }
+
+                // Health-related events → container_health_updated
+                if (isHealthEvent) {
+                    const cid = event.Actor?.ID;
+                    const shortId = cid ? cid.substring(0, 12) : null;
+                    eventBroadcaster.broadcastToAll('container_health_updated', {
+                        containerId: shortId,
+                        action: event.Action,
+                        timestamp: Date.now(),
+                    });
+                    logger.debug('Broadcast container_health_updated', { containerId: shortId, action: event.Action });
+                }
+
+                // Failure-triggering events → failure_analysis_updated
+                // Fires on: restart, oom, die, health_status (healthcheck fail)
+                const isFailureEvent = event.Type === 'container' && [
+                    'restart', 'oom', 'die', 'health_status'
+                ].includes(event.Action);
+
+                if (isFailureEvent) {
+                    const cid = event.Actor?.ID;
+                    const shortId = cid ? cid.substring(0, 12) : null;
+                    eventBroadcaster.broadcastToAll('failure_analysis_updated', {
+                        containerId: shortId,
+                        action: event.Action,
+                        timestamp: Date.now(),
+                    });
+                    logger.debug('Broadcast failure_analysis_updated', { containerId: shortId, action: event.Action });
                 }
             } catch (err) {
                 logger.error("Error parsing Docker event chunk", { error: err.message });
