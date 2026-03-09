@@ -1,0 +1,29 @@
+{
+  "name": "devopsease",
+  "version": "1.0.0",
+  "description": "A production-grade, full-stack PaaS built on Docker. Users deploy and manage containers on shared infrastructure — with real authentication, multi-tenant isolation, image governance, network and volume management, project (Compose) support, registry integration, audit logging, and temporary public port exposure.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "server": "npm run dev --prefix server",
+    "dashboard": "npm run dev --prefix dashboard",
+    "dev": "concurrently \"npm run server\" \"npm run dashboard\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mamun0193/devopsease.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mamun0193/devopsease/issues"
+  },
+  "homepage": "https://github.com/mamun0193/devopsease#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
