@@ -1,6 +1,6 @@
 import React from 'react';
 import { Activity, Cpu, HardDrive, Network, Wifi, WifiOff, Clock } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useMetricsStream } from '../hooks/useMetricsStream';
 import type { MetricsDataPoint } from '../hooks/useMetricsStream';
 import api from '../api';
@@ -58,6 +58,9 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
 
   // Use live data for 1m, historical data for other ranges
   const chartData = selectedRange === '1m' ? dataPoints : historicalData;
+
+  // Check if aggregated data has min/max bands
+  const hasMinMax = selectedRange !== '1m' && chartData.length > 0 && chartData[0]?.cpuMin != null;
 
   if (!containerId) {
     return (
@@ -241,6 +244,32 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
                       fill="url(#cpuGradient)"
                       isAnimationActive={false}
                     />
+                    {hasMinMax && (
+                      <Line
+                        type="monotone"
+                        dataKey="cpuMax"
+                        name="Max"
+                        stroke="#a855f7"
+                        strokeWidth={1}
+                        strokeDasharray="3 3"
+                        strokeOpacity={0.4}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                    )}
+                    {hasMinMax && (
+                      <Line
+                        type="monotone"
+                        dataKey="cpuMin"
+                        name="Min"
+                        stroke="#a855f7"
+                        strokeWidth={1}
+                        strokeDasharray="3 3"
+                        strokeOpacity={0.3}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -273,6 +302,32 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
                       fill="url(#memGradient)"
                       isAnimationActive={false}
                     />
+                    {hasMinMax && (
+                      <Line
+                        type="monotone"
+                        dataKey="memoryMax"
+                        name="Max"
+                        stroke="#3b82f6"
+                        strokeWidth={1}
+                        strokeDasharray="3 3"
+                        strokeOpacity={0.4}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                    )}
+                    {hasMinMax && (
+                      <Line
+                        type="monotone"
+                        dataKey="memoryMin"
+                        name="Min"
+                        stroke="#3b82f6"
+                        strokeWidth={1}
+                        strokeDasharray="3 3"
+                        strokeOpacity={0.3}
+                        dot={false}
+                        isAnimationActive={false}
+                      />
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>

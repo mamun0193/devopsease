@@ -16,6 +16,7 @@ import {
 import containerStatsService from "../services/containerStats.service.js";
 
 import { getMetricsHistory, getTopContainers, queryMetricsByRange, removeStream } from "../websocket/metricsStreamer.js";
+import globalMetricsCollector from "../services/globalMetricsCollector.js";
 
 import { requireRole, ROLES } from "../middlewares/rbac.js";
 import { requirePermission } from "../middlewares/rbac.middleware.js";
@@ -456,36 +457,38 @@ router.get("/top", requirePermission(ACTIONS.READ), async (req, res) => {
       return res.status(200).json({ success: true, data: { topCPU: [], topMemory: [] } });
     }
 
-    // 2. Get running containers and filter to owned ones
-    const containers = await docker.listContainers({ filters: { status: ["running"] } });
-    const ownedContainers = containers.filter(c => 
-      ownedContainerIds.includes(c.Id.substring(0, 12))
-    );
-    
-    const containerStats = await Promise.allSettled(
-      ownedContainers.map(async (c) => {
-        try {
-          const shortId = c.Id.substring(0, 12);
-          const result = await containerStatsService.getContainerStats(shortId);
-          if (!result.success) return null;
-          
-          const name = (c.Names?.[0] || "").replace(/^\//, "") || shortId;
-          return {
-            containerId: shortId,
-            containerName: name,
-            cpuPercent: result.data.cpu.usagePercent,
-            memoryUsedMB: result.data.memory.usedMB,
-            memoryLimitMB: result.data.memory.limitMB,
-          };
-        } catch {
-          return null;
-        }
-      })
-    );
+    // 2. Read latest stats from global collector cache (zero Docker calls)
+    const allLatest = globalMetricsCollector.getAllLatest();
+    const validStats = [];
 
-    const validStats = containerStats
-      .filter(result => result.status === "fulfilled" && result.value)
-      .map(result => result.value);
+    for (const id of ownedContainerIds) {
+      const cached = allLatest.get(id);
+      if (cached) {
+        validStats.push({
+          containerId: id,
+          containerName: id,
+          cpuPercent: cached.cpuPercent || 0,
+          memoryUsedMB: cached.memoryUsedMB || 0,
+          memoryLimitMB: cached.memoryLimitMB || 0,
+        });
+      }
+    }
+
+    // 3. Enrich with container names from Docker (single listContainers call, not stats)
+    try {
+      const containers = await docker.listContainers({ filters: { status: ["running"] } });
+      const nameMap = new Map();
+      for (const c of containers) {
+        const shortId = c.Id.substring(0, 12);
+        const name = (c.Names?.[0] || "").replace(/^\//, "") || shortId;
+        nameMap.set(shortId, name);
+      }
+      for (const s of validStats) {
+        s.containerName = nameMap.get(s.containerId) || s.containerId;
+      }
+    } catch (_) {
+      // names are optional, skip on error
+    }
 
     const data = {
       topCPU: [...validStats].sort((a, b) => b.cpuPercent - a.cpuPercent).slice(0, 5),
@@ -506,6 +509,20 @@ router.get("/:id/metrics-history", ownershipGuard("metrics-history"), requirePer
     return res.status(200).json({ success: true, data: { dataPoints } });
   } catch (err) {
     return res.status(500).json({ success: false, message: "Failed to get metrics history" });
+  }
+});
+
+// GET /containers/:id/recent-metrics — 2-minute buffer from collector cache
+// Used by frontend to seed the live chart immediately on page load
+router.get("/:id/recent-metrics", ownershipGuard("recent-metrics"), requirePermission(ACTIONS.READ), async (req, res) => {
+  try {
+    const dataPoints = globalMetricsCollector.getBuffer(req.params.id);
+    return res.status(200).json({
+      success: true,
+      data: { dataPoints },
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Failed to get recent metrics" });
   }
 });
 

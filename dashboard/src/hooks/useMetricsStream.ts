@@ -1,10 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useContainerStats } from './useContainers';
+import api from '../api';
 
 export interface MetricsDataPoint {
     timestamp: number;
     cpuPercent: number;
+    cpuMin?: number;
+    cpuMax?: number;
     memoryUsedMB: number;
+    memoryMin?: number;
+    memoryMax?: number;
     memoryLimitMB: number;
     memoryPercent: number;
     networkRxMB: number;
@@ -32,6 +37,7 @@ export function useMetricsStream(
     const [isStreaming, setIsStreaming] = useState(false);
     const wsRef = useRef<WebSocket | null>(null);
     const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const seededRef = useRef(false);
 
     // REST fallback — only active when WebSocket is NOT streaming
     const { data: restStats } = useContainerStats(containerId, !isStreaming, isRunning);
@@ -55,8 +61,33 @@ export function useMetricsStream(
         }
     }, [restStats, isStreaming, isRunning]);
 
+    // ── Seed chart immediately from REST on page load ──
+    // Fetches the 2-minute buffer from /recent-metrics so the chart
+    // renders instantly, before the WebSocket is even connected.
+    useEffect(() => {
+        if (!containerId || !isRunning) return;
+
+        seededRef.current = false;
+        let cancelled = false;
+
+        api.get(`/containers/${containerId}/recent-metrics`)
+            .then((res: any) => {
+                if (cancelled) return;
+                const points = res.data?.data?.dataPoints;
+                if (points && points.length > 0) {
+                    seededRef.current = true;
+                    setDataPoints(points);
+                }
+            })
+            .catch(() => {
+                // silently fail — WS will seed later
+            });
+
+        return () => { cancelled = true; };
+    }, [containerId, isRunning]);
+
     // Use a ref to break the circular dependency (connect → onclose → connect)
-    const connectRef = useRef<() => void>(() => {});
+    const connectRef = useRef<() => void>(() => { });
 
     const connect = useCallback(() => {
         if (!containerId || !isRunning) return;
@@ -90,7 +121,11 @@ export function useMetricsStream(
                 const msg = JSON.parse(event.data);
 
                 if (msg.type === 'metrics_history') {
-                    setDataPoints(msg.dataPoints || []);
+                    // Only use WS seed if REST seed hasn't already populated the chart
+                    if (!seededRef.current) {
+                        setDataPoints(msg.dataPoints || []);
+                        seededRef.current = true;
+                    }
                 } else if (msg.type === 'container_metrics' && msg.status === 'ok') {
                     const point: MetricsDataPoint = {
                         timestamp: msg.timestamp,
@@ -162,6 +197,7 @@ export function useMetricsStream(
     // Clear data when container changes
     useEffect(() => {
         setDataPoints([]);
+        seededRef.current = false;
     }, [containerId]);
 
     const latestStats = dataPoints.length > 0 ? dataPoints[dataPoints.length - 1] : null;

@@ -4,6 +4,8 @@ import { stopDockerEvents } from "./docker/events.js";
 import { closeWebSocketServer } from "./websocket/ws.js";
 import { disconnectRedis } from "./redis/client.js";
 import { disconnectDB } from "./config/db.js";
+import metricsAggregator from "./services/metricsAggregator.service.js";
+import globalMetricsCollector from "./services/globalMetricsCollector.js";
 
 let shutdownInProgress = false;
 
@@ -26,7 +28,13 @@ export async function gracefulShutdown(signal, server) {
         // 3. Stop Docker Event Listener
         stopDockerEvents();
 
-        // 4. Terminate WebSockets (Drain logic)
+        // 4. Stop metrics aggregation pipeline
+        metricsAggregator.stop();
+
+        // 4b. Stop global metrics collector
+        globalMetricsCollector.stop();
+
+        // 5. Terminate WebSockets (Drain logic)
         await closeWebSocketServer();
 
         // 5. Close HTTP Server

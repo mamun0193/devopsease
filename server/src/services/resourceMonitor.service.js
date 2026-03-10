@@ -5,14 +5,15 @@ import quotaService from "./quota.service.js";
 import alertService from "./alert.service.js";
 import { ALERT_TYPES, ALERT_SEVERITIES } from "../models/alert.model.js";
 import Quota from "../models/quota.model.js";
+import globalMetricsCollector from "./globalMetricsCollector.js";
 
 class ResourceMonitorService {
     constructor() {
         this._interval = null;
         this._running = false;
     }
-// Start the resource monitor scheduler.
-// Polls Docker stats every 10 seconds and updates per-user quota usage.
+    // Start the resource monitor scheduler.
+    // Polls Docker stats every 10 seconds and updates per-user quota usage.
     start() {
         if (this._interval) return;
 
@@ -85,11 +86,22 @@ class ResourceMonitorService {
                     if (!userId) return; // unowned container, skip
 
                     try {
-                        const container = docker.getContainer(c.Id);
-                        const stats = await container.stats({ stream: false });
+                        // Try reading from globalMetricsCollector cache first (zero Docker calls)
+                        const cached = globalMetricsCollector.getLatest(shortId);
+                        let cpuCores, memoryMB;
 
-                        const cpuCores = this._calculateCPUCores(stats);
-                        const memoryMB = this._calculateMemoryMB(stats);
+                        if (cached) {
+                            // Convert CPU% to cores: cpuPercent / 100 * numCPUs
+                            // We approximate with cpuPercent / 100 (normalized across all cores)
+                            cpuCores = (cached.cpuPercent || 0) / 100;
+                            memoryMB = cached.memoryUsedMB || 0;
+                        } else {
+                            // Fallback: direct Docker stats call (cache miss — container just started)
+                            const container = docker.getContainer(c.Id);
+                            const stats = await container.stats({ stream: false });
+                            cpuCores = this._calculateCPUCores(stats);
+                            memoryMB = this._calculateMemoryMB(stats);
+                        }
 
                         const existing = perUser.get(userId) || { cpu: 0, memoryMB: 0 };
                         existing.cpu += cpuCores;
@@ -140,7 +152,7 @@ class ResourceMonitorService {
             this._running = false;
         }
     }
-// Calculate CPU usage in cores from Docker stats.
+    // Calculate CPU usage in cores from Docker stats.
     _calculateCPUCores(stats) {
         try {
             const cpuDelta =
@@ -159,7 +171,7 @@ class ResourceMonitorService {
             return 0;
         }
     }
-// Calculate actual memory usage in MB from Docker stats.
+    // Calculate actual memory usage in MB from Docker stats.
     _calculateMemoryMB(stats) {
         try {
             const usedBytes =
@@ -170,7 +182,7 @@ class ResourceMonitorService {
         }
     }
 
-// Clean up ownership records for containers that no longer exist in Docker.
+    // Clean up ownership records for containers that no longer exist in Docker.
     async _cleanupOrphanedOwnerships() {
         try {
             // List ALL containers (running + stopped)

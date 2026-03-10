@@ -40,6 +40,8 @@ import buildService from "./services/build.service.js";
 import imageObservabilityService from "./services/imageObservability.service.js";
 import tunnelService from "./services/tunnel.service.js";
 import resourceMonitor from "./services/resourceMonitor.service.js";
+import metricsAggregator from "./services/metricsAggregator.service.js";
+import globalMetricsCollector from "./services/globalMetricsCollector.js";
 
 // 1. Validate Environment immediately
 validateEnv();
@@ -120,6 +122,12 @@ async function startServer() {
 
       // Start resource monitor (polls Docker stats every 10s)
       resourceMonitor.start();
+
+      // Start metrics aggregation pipeline (30s→10m→1h + cleanup)
+      metricsAggregator.start();
+
+      // Start global metrics collector (always-on, UI-independent, batched collection)
+      await globalMetricsCollector.start();
 
     } catch (error) {
       logger.error("Docker connection failed at startup", { error: error.message });

@@ -6,6 +6,7 @@ import alertService from "../services/alert.service.js";
 import { ALERT_TYPES, ALERT_SEVERITIES } from "../models/alert.model.js";
 import ContainerOwnership from "../models/ContainerOwnership.js";
 import eventBroadcaster from "../websocket/eventBroadcaster.js";
+import globalMetricsCollector from "../services/globalMetricsCollector.js";
 
 let eventStream = null;
 let reconnectTimeout = null;
@@ -112,6 +113,12 @@ export async function initDockerEvents() {
                         timestamp: Date.now(),
                     });
                     logger.debug('Broadcast container_update', { containerId: shortId, action: event.Action });
+
+                    // Trigger immediate metrics poll on start/restart so charts
+                    // capture the state change instantly instead of waiting 10s
+                    if (cid && ['start', 'restart'].includes(event.Action)) {
+                        globalMetricsCollector.triggerImmediateCollection(cid);
+                    }
                 }
 
                 // Health-related events → container_health_updated
