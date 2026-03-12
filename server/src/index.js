@@ -42,6 +42,8 @@ import tunnelService from "./services/tunnel.service.js";
 import resourceMonitor from "./services/resourceMonitor.service.js";
 import metricsAggregator from "./services/metricsAggregator.service.js";
 import globalMetricsCollector from "./services/globalMetricsCollector.js";
+import collectorWatchdog from "./services/collectorWatchdog.service.js";
+import systemRoutes from "./routes/system.routes.js";
 
 // 1. Validate Environment immediately
 validateEnv();
@@ -93,6 +95,7 @@ app.use("/volumes", volumeRoutes);
 app.use("/dockerhub", dockerHubRoutes);
 app.use("/tunnels", tunnelRoutes);
 app.use("/quota", quotaRoutes);
+app.use("/system", systemRoutes);
 
 app.use(errorHandler);
 
@@ -128,6 +131,9 @@ async function startServer() {
 
       // Start global metrics collector (always-on, UI-independent, batched collection)
       await globalMetricsCollector.start();
+
+      // Start collector watchdog (auto-restarts if stalled)
+      collectorWatchdog.start();
 
     } catch (error) {
       logger.error("Docker connection failed at startup", { error: error.message });

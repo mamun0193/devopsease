@@ -783,6 +783,25 @@ export const quotaApi = {
   },
 };
 
+export interface PipelineMetrics {
+  containersTracked: number;
+  metricsCacheSize: number;
+  collectorCycleMs: number;
+  lastCycleTimestamp: number;
+  isLeader: boolean;
+  wsSubscribers: number;
+  redisConnected: boolean;
+  watchdogRestarts: number;
+  aggregationRunning: boolean;
+}
+
+export const systemApi = {
+  getMetrics: async (): Promise<PipelineMetrics> => {
+    const response = await api.get<ApiResponse<PipelineMetrics>>('/system/metrics');
+    return response.data.data;
+  },
+};
+
 export default api;
 
 // Re-export alerts API

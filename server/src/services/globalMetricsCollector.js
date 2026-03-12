@@ -11,6 +11,8 @@ const BATCH_CONCURRENCY = 50;
 const BUFFER_SIZE = 60;
 const PERSIST_EVERY_N = 15;
 const RECONCILE_INTERVAL_MS = 30_000;
+const MAX_TRACKED_CONTAINERS = 200_000;
+const WS_BACKPRESSURE_BYTES = 1_000_000; // 1MB
 
 // Redis Pub/Sub
 const REDIS_CHANNEL = "devopsease:metrics";
@@ -53,6 +55,10 @@ class GlobalMetricsCollector {
         this._processId = `${process.pid}-${Date.now()}`;
         this._listeners = new Map();
         this._subscriber = null; // dedicated Redis connection for Pub/Sub
+
+        // Cycle performance metrics
+        this._lastCycleMs = 0;
+        this._lastCycleTimestamp = 0;
     }
 
     // Lifecycle
@@ -130,8 +136,17 @@ class GlobalMetricsCollector {
         this._runningIds.clear();
         this._listeners.clear();
         this._isLeader = false;
+        this._lastCycleMs = 0;
+        this._lastCycleTimestamp = 0;
 
         logger.info("GlobalMetricsCollector: stopped");
+    }
+
+    // Restart — used by watchdog when collector stalls
+    async restart() {
+        logger.warn("GlobalMetricsCollector: restarting");
+        this.stop();
+        await this.start();
     }
 
     // Redis Pub/Sub initialization
@@ -312,6 +327,21 @@ class GlobalMetricsCollector {
 
         this._runningIds = currentIds;
 
+        // Memory guard — evict if over limit
+        if (this._cache.size > MAX_TRACKED_CONTAINERS) {
+            logger.warn("GlobalMetricsCollector: cache exceeds limit, evicting stale entries", {
+                cacheSize: this._cache.size,
+                limit: MAX_TRACKED_CONTAINERS,
+            });
+            for (const id of this._cache.keys()) {
+                if (!currentIds.has(id)) {
+                    this._cache.delete(id);
+                    this._listeners.delete(id);
+                }
+                if (this._cache.size <= MAX_TRACKED_CONTAINERS) break;
+            }
+        }
+
         logger.debug("GlobalMetricsCollector: reconciled", {
             running: currentIds.size,
             cached: this._cache.size,
@@ -325,6 +355,7 @@ class GlobalMetricsCollector {
         const ids = [...this._runningIds];
         if (ids.length === 0) return;
 
+        const cycleStart = performance.now();
         const useRedis = isRedisConnected();
 
         for (let i = 0; i < ids.length; i += BATCH_CONCURRENCY) {
@@ -351,6 +382,10 @@ class GlobalMetricsCollector {
         }
 
         this._checkPersistence();
+
+        // Track cycle performance
+        this._lastCycleMs = Math.round(performance.now() - cycleStart);
+        this._lastCycleTimestamp = Date.now();
     }
 
     _publishDataPoint(containerId, dataPoint) {
@@ -479,6 +514,20 @@ class GlobalMetricsCollector {
 
     getTrackedCount() {
         return this._cache.size;
+    }
+
+    getLastCycleTimestamp() {
+        return this._lastCycleTimestamp;
+    }
+
+    getCollectorStats() {
+        return {
+            lastCycleMs: this._lastCycleMs,
+            lastCycleTimestamp: this._lastCycleTimestamp,
+            containersTracked: this._cache.size,
+            isLeader: this._isLeader,
+            pid: process.pid,
+        };
     }
 
     getAllLatest() {

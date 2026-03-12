@@ -2,8 +2,8 @@ import logger from "../utils/logger.js";
 import globalMetricsCollector from "../services/globalMetricsCollector.js";
 import { queryMetricsByRange as _queryMetricsByRange } from "../helpers/metrics.helpers.js";
 
-// Active streams keyed by containerId
 const streams = new Map();
+const WS_BACKPRESSURE_BYTES = 1_000_000; // 1MB
 
 
 export function subscribeToMetrics(containerId, ws) {
@@ -108,6 +108,13 @@ function startListening(containerId, stream) {
         for (const ws of stream.subscribers) {
             try {
                 if (ws.readyState === ws.OPEN) {
+                    // Backpressure: drop connection if outbound buffer exceeds 1MB
+                    if (ws.bufferedAmount > WS_BACKPRESSURE_BYTES) {
+                        logger.warn("Metrics backpressure: closing slow client", { containerId });
+                        ws.close();
+                        stream.subscribers.delete(ws);
+                        continue;
+                    }
                     ws.send(message);
                 }
             } catch (err) {
@@ -129,4 +136,12 @@ function stopListening(containerId, stream) {
         stream.unsubscribe = null;
         logger.debug("Stopped metrics listener", { containerId });
     }
+}
+
+export function getSubscriberCount() {
+    let count = 0;
+    for (const stream of streams.values()) {
+        count += stream.subscribers.size;
+    }
+    return count;
 }

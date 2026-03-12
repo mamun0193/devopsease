@@ -12,6 +12,18 @@ interface SystemMetrics {
     timestamp: string;
 }
 
+interface PipelineMetrics {
+    containersTracked: number;
+    metricsCacheSize: number;
+    collectorCycleMs: number;
+    lastCycleTimestamp: number;
+    isLeader: boolean;
+    wsSubscribers: number;
+    redisConnected: boolean;
+    watchdogRestarts: number;
+    aggregationRunning: boolean;
+}
+
 const AdminObservabilityPage: React.FC = () => {
     const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
     const [loading, setLoading] = useState(true);
@@ -81,6 +93,9 @@ const AdminObservabilityPage: React.FC = () => {
                             <MetricCard title="Token Refreshes" value={metrics.tokenRefreshCount} color="indigo" />
                         </div>
 
+                        {/* Metrics Pipeline Health */}
+                        <MetricsPipelinePanel />
+
                         {/* Suspicious Activity Panel */}
                         <SuspiciousActivityPanel />
 
@@ -109,7 +124,145 @@ const AdminObservabilityPage: React.FC = () => {
     );
 };
 
-// --- Subcomponents ---
+// --- Metrics Pipeline Panel ---
+
+const MetricsPipelinePanel = () => {
+    const [pipeline, setPipeline] = React.useState<PipelineMetrics | null>(null);
+    const [pipelineError, setPipelineError] = React.useState(false);
+
+    const fetchPipeline = async () => {
+        try {
+            const res = await api.get('/system/metrics');
+            setPipeline(res.data.data);
+            setPipelineError(false);
+        } catch {
+            setPipelineError(true);
+        }
+    };
+
+    useEffect(() => {
+        fetchPipeline();
+        const interval = setInterval(fetchPipeline, 5000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const staleSince = pipeline?.lastCycleTimestamp
+        ? Math.round((Date.now() - pipeline.lastCycleTimestamp) / 1000)
+        : null;
+    const isStale = staleSince !== null && staleSince > 10;
+
+    if (pipelineError) return null;
+    if (!pipeline) return null;
+
+    return (
+        <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 shadow-lg mb-8">
+            <div className="flex items-center justify-between mb-5">
+                <h2 className="text-xl font-semibold text-gray-200 flex items-center gap-2">
+                    <span>⚡</span> Metrics Pipeline
+                    {isStale && (
+                        <span className="ml-2 px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs border border-red-500/30 animate-pulse">
+                            STALLED
+                        </span>
+                    )}
+                </h2>
+                <span className="text-xs text-gray-500">
+                    Updates every 5s
+                </span>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+                <PipelineCard
+                    label="Containers Tracked"
+                    value={pipeline.containersTracked.toLocaleString()}
+                    icon="🗃️"
+                    color="blue"
+                />
+                <PipelineCard
+                    label="WS Subscribers"
+                    value={pipeline.wsSubscribers}
+                    icon="🔌"
+                    color="violet"
+                />
+                <PipelineCard
+                    label="Cycle Time"
+                    value={`${pipeline.collectorCycleMs}ms`}
+                    icon="⏱️"
+                    color={pipeline.collectorCycleMs > 1800 ? 'amber' : 'emerald'}
+                />
+                <PipelineCard
+                    label="Watchdog Restarts"
+                    value={pipeline.watchdogRestarts}
+                    icon="🔄"
+                    color={pipeline.watchdogRestarts > 0 ? 'amber' : 'emerald'}
+                />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Redis */}
+                <StatusRow
+                    label="Redis Pub/Sub"
+                    ok={pipeline.redisConnected}
+                    okText="Connected"
+                    failText="Disconnected — single-process mode"
+                />
+                {/* Leader */}
+                <StatusRow
+                    label="Process Role"
+                    ok={true}
+                    okText={pipeline.isLeader ? 'Leader (polling Docker)' : 'Follower (receiving Pub/Sub)'}
+                    failText=""
+                />
+                {/* Aggregation */}
+                <StatusRow
+                    label="Aggregation Pipeline"
+                    ok={pipeline.aggregationRunning}
+                    okText="Running"
+                    failText="Stopped"
+                />
+            </div>
+
+            {staleSince !== null && (
+                <p className="mt-4 text-xs text-gray-500">
+                    Last cycle: {staleSince}s ago
+                    {isStale && <span className="text-red-400 ml-2">— watchdog will attempt restart</span>}
+                </p>
+            )}
+        </div>
+    );
+};
+
+const PipelineCard = ({ label, value, icon, color }: { label: string; value: string | number; icon: string; color: string }) => {
+    const colorMap: Record<string, string> = {
+        blue: 'border-blue-700/50 bg-blue-900/10',
+        violet: 'border-violet-700/50 bg-violet-900/10',
+        emerald: 'border-emerald-700/50 bg-emerald-900/10',
+        amber: 'border-amber-700/50 bg-amber-900/10',
+    };
+    const textMap: Record<string, string> = {
+        blue: 'text-blue-300',
+        violet: 'text-violet-300',
+        emerald: 'text-emerald-300',
+        amber: 'text-amber-300',
+    };
+    return (
+        <div className={`rounded-lg p-4 border ${colorMap[color] || colorMap.blue}`}>
+            <div className="text-xs text-gray-400 mb-1 flex items-center gap-1">{icon} {label}</div>
+            <div className={`text-2xl font-bold ${textMap[color] || textMap.blue}`}>{value}</div>
+        </div>
+    );
+};
+
+const StatusRow = ({ label, ok, okText, failText }: { label: string; ok: boolean; okText: string; failText: string }) => (
+    <div className="flex flex-col gap-1 bg-gray-700/30 rounded-lg p-3 border border-gray-600/40">
+        <span className="text-xs text-gray-400 uppercase tracking-wider">{label}</span>
+        <div className="flex items-center gap-1.5">
+            <div className={`h-2 w-2 rounded-full ${ok ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-red-400'}`} />
+            <span className={`text-sm font-medium ${ok ? 'text-emerald-300' : 'text-red-300'}`}>
+                {ok ? okText : failText}
+            </span>
+        </div>
+    </div>
+);
 
 interface SuspiciousUser {
     userId: string;

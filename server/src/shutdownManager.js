@@ -6,6 +6,7 @@ import { disconnectRedis } from "./redis/client.js";
 import { disconnectDB } from "./config/db.js";
 import metricsAggregator from "./services/metricsAggregator.service.js";
 import globalMetricsCollector from "./services/globalMetricsCollector.js";
+import collectorWatchdog from "./services/collectorWatchdog.service.js";
 
 let shutdownInProgress = false;
 
@@ -31,7 +32,10 @@ export async function gracefulShutdown(signal, server) {
         // 4. Stop metrics aggregation pipeline
         metricsAggregator.stop();
 
-        // 4b. Stop global metrics collector
+        // 4b. Stop collector watchdog
+        collectorWatchdog.stop();
+
+        // 4c. Stop global metrics collector
         globalMetricsCollector.stop();
 
         // 5. Terminate WebSockets (Drain logic)
