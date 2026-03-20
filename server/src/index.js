@@ -20,6 +20,7 @@ import quotaRoutes from "./routes/quota.routes.js";
 import containerHealthRoutes from "./routes/containerHealth.routes.js";
 import alertRoutes from "./routes/alert.routes.js";
 import repositoryRoutes from "./routes/repository.routes.js";
+import gitRoutes from "./routes/git.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
@@ -98,6 +99,7 @@ app.use("/tunnels", tunnelRoutes);
 app.use("/quota", quotaRoutes);
 app.use("/system", systemRoutes);
 app.use("/api/repos", repositoryRoutes);
+app.use("/api/git", gitRoutes);
 
 app.use(errorHandler);
 
