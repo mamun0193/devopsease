@@ -42,6 +42,7 @@ import NetworksPage from './pages/NetworksPage';
 import VolumesPage from './pages/VolumesPage';
 import RegistryPage from './pages/RegistryPage';
 import AlertsPage from './pages/AlertsPage';
+import RepositoriesPage from './pages/RepositoriesPage';
 import { useAlertSocket } from './hooks/useAlertSocket';
 import { useContainerEvents } from './hooks/useContainerEvents';
 import { useUnresolvedAlertCount } from './hooks/useAlerts';
@@ -188,6 +189,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <AlertsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/repositories"
+                  element={
+                    <ProtectedRoute>
+                      <RepositoriesPage />
                     </ProtectedRoute>
                   }
                 />
