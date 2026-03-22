@@ -21,6 +21,7 @@ import containerHealthRoutes from "./routes/containerHealth.routes.js";
 import alertRoutes from "./routes/alert.routes.js";
 import repositoryRoutes from "./routes/repository.routes.js";
 import gitRoutes from "./routes/git.routes.js";
+import webhookRoutes from "./routes/webhook.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
@@ -74,8 +75,9 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json());
 app.use(requestLogger);
+app.use("/api/webhooks", webhookRoutes);
+app.use(express.json());
 app.use(cookieParser());
 app.use(readinessMiddleware);
 

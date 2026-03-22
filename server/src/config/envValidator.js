@@ -28,6 +28,10 @@ export function validateEnv() {
         logger.warn("NGROK_AUTH_TOKEN is not set — tunnel creation will fail until configured");
     }
 
+    if (!process.env.WEBHOOK_SECRET) {
+        logger.warn("WEBHOOK_SECRET is not set — GitHub webhook signature verification will fail");
+    }
+
     logger.info("Environment validated", {
         nodeEnv: process.env.NODE_ENV,
         dockerSocket: process.env.DOCKER_SOCKET_PATH,
