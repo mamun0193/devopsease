@@ -16,12 +16,14 @@ const SEVERITY_TOAST_MAP: Record<string, 'error' | 'warning' | 'info'> = {
 // Custom hook to manage WebSocket connection for real-time alerts.
 // Uses a closure-scoped `active` flag (not a ref) so that each effect
 // invocation has its own flag — critical for React StrictMode compatibility.
-export function useAlertSocket() {
+export function useAlertSocket(isAuthenticated = true) {
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const backoffRef = useRef(1000);
 
   useEffect(() => {
+    if (!isAuthenticated) return; // Don't connect WebSocket when not logged in
+
     // Closure-scoped flag: when this specific effect invocation is cleaned up,
     // `active` becomes false and the first invocation's onclose handler won't
     // interfere with the second invocation's WebSocket in StrictMode.
@@ -98,5 +100,5 @@ export function useAlertSocket() {
         ws = null;
       }
     };
-  }, [dispatch, queryClient]);
+  }, [isAuthenticated, dispatch, queryClient]);
 }

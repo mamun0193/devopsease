@@ -34,7 +34,7 @@ interface ServerEvent {
  *
  * Usage: Call once in a top-level layout component (e.g. App or LandingLayout).
  */
-export function useContainerEvents() {
+export function useContainerEvents(isAuthenticated = true) {
     const queryClient = useQueryClient();
     const backoffRef = useRef(1000);
 
@@ -90,6 +90,8 @@ export function useContainerEvents() {
     );
 
     useEffect(() => {
+        if (!isAuthenticated) return; // Don't connect WebSocket when not logged in
+
         let active = true;
         let ws: WebSocket | null = null;
         let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -157,5 +159,5 @@ export function useContainerEvents() {
                 ws = null;
             }
         };
-    }, [handleEvent]);
+    }, [isAuthenticated, handleEvent]);
 }

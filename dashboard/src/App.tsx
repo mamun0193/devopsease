@@ -47,11 +47,13 @@ import { useAlertSocket } from './hooks/useAlertSocket';
 import { useContainerEvents } from './hooks/useContainerEvents';
 import { useUnresolvedAlertCount } from './hooks/useAlerts';
 import AlertsPanel from './components/AlertsPanel';
+import { useAuth } from './context/AuthContext';
 
 function AlertSocketProvider({ children }: { children: React.ReactNode }) {
-  useAlertSocket();
-  useContainerEvents();  // Event-driven cache invalidation (replaces polling)
-  useUnresolvedAlertCount();
+  const { isAuthenticated } = useAuth();
+  useAlertSocket(isAuthenticated);
+  useContainerEvents(isAuthenticated);
+  useUnresolvedAlertCount(isAuthenticated);
   return <>{children}</>;
 }
 

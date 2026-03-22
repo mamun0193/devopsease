@@ -29,16 +29,15 @@ export function useAlerts(params?: { resolved?: boolean; page?: number; limit?: 
 }
 
 /**
- * Fetch unresolved alert count — polls every 15s.
+ * Fetch unresolved alert count — only when authenticated.
  */
-export function useUnresolvedAlertCount() {
+export function useUnresolvedAlertCount(isAuthenticated = true) {
   const dispatch = useAppDispatch();
 
-  // Event-driven — invalidated by useAlertSocket on incoming WebSocket alerts
-  // and by resolve mutations. No polling needed.
   const query = useQuery({
     queryKey: ['alertsUnresolvedCount'],
     queryFn: () => alertsApi.getUnresolvedCount(),
+    enabled: isAuthenticated,
   });
 
   useEffect(() => {
