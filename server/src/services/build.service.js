@@ -18,6 +18,7 @@ import { pullLatest } from './git.service.js';
 import { detectProjectType, PROJECT_TYPES } from './projectDetector.service.js';
 import { getWorkspacePath, validateSafePath } from '../utils/workspace.js';
 import { runDockerCommand } from '../docker/cliExec.js';
+import { deployFromBuild } from './deployment.service.js';
 
 const MAX_DOCKERFILE_SIZE = 200 * 1024; // 200KB
 const MAX_CONCURRENT_BUILDS = 2;
@@ -157,6 +158,13 @@ export async function runBuildPipeline(repo, payload = {}) {
             buildId: String(build._id),
             imageTag,
             status: build.status,
+        });
+
+        deployFromBuild(build).catch((err) => {
+            logger.error('Auto-deploy after build failed', {
+                buildId: String(build._id),
+                error: err.message,
+            });
         });
 
         return build;

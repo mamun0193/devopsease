@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const DEPLOYMENT_ENVIRONMENTS = ['development', 'staging', 'production'];
-const DEPLOYMENT_STATUSES = ['pending', 'deploying', 'running', 'failed', 'stopped'];
+const DEPLOYMENT_STATUSES = ['pending', 'deploying', 'running', 'failed', 'stopped', 'removed'];
 
 const deploymentSchema = new mongoose.Schema({
     repoId: {
@@ -23,6 +23,15 @@ const deploymentSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    containerName: {
+        type: String,
+        default: null,
+        trim: true
+    },
+    port: {
+        type: Number,
+        default: null
+    },
     environment: {
         type: String,
         enum: DEPLOYMENT_ENVIRONMENTS,
@@ -32,6 +41,10 @@ const deploymentSchema = new mongoose.Schema({
         type: String,
         enum: DEPLOYMENT_STATUSES,
         default: 'pending'
+    },
+    errorLog: {
+        type: String,
+        default: null
     }
 }, {
     timestamps: true
@@ -39,6 +52,8 @@ const deploymentSchema = new mongoose.Schema({
 
 deploymentSchema.index({ repoId: 1, createdAt: -1 });
 deploymentSchema.index({ buildId: 1 });
+deploymentSchema.index({ containerName: 1 }, { unique: true, sparse: true });
+deploymentSchema.index({ port: 1 });
 
 const Deployment = mongoose.model('Deployment', deploymentSchema);
 
