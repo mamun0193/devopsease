@@ -1,8 +1,14 @@
 import mongoose from 'mongoose';
 
-const BUILD_STATUSES = ['PENDING', 'RUNNING', 'SUCCESS', 'FAILED', 'TIMEOUT'];
+const BUILD_STATUSES = ['PENDING', 'RUNNING', 'SUCCESS', 'FAILED', 'TIMEOUT', 'pending', 'running', 'success', 'failed'];
 
 const buildSchema = new mongoose.Schema({
+    repoId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Repository',
+        default: null,
+        index: true
+    },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
@@ -19,6 +25,20 @@ const buildSchema = new mongoose.Schema({
         enum: BUILD_STATUSES,
         default: 'PENDING',
         index: true
+    },
+    logs: {
+        type: [String],
+        default: []
+    },
+    imageTag: {
+        type: String,
+        default: null,
+        trim: true
+    },
+    commitHash: {
+        type: String,
+        default: null,
+        trim: true
     },
     dockerfileContent: {
         type: String,
@@ -55,6 +75,10 @@ const buildSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
+    finishedAt: {
+        type: Date,
+        default: null
+    },
     completedAt: {
         type: Date,
         default: null
@@ -65,6 +89,7 @@ const buildSchema = new mongoose.Schema({
 
 buildSchema.index({ userId: 1, createdAt: -1 });
 buildSchema.index({ userId: 1, status: 1 });
+buildSchema.index({ repoId: 1, createdAt: -1 });
 
 export { BUILD_STATUSES };
 export default mongoose.model('Build', buildSchema);

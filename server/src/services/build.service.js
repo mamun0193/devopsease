@@ -1,8 +1,10 @@
-import { writeFileSync } from 'fs';
+import { writeFileSync, existsSync } from 'fs';
+import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { pack } from 'tar-fs';
 import docker from '../docker/client.js';
 import Build from '../models/build.model.js';
+import Repository from '../models/repository.model.js';
 import Image from '../models/image.js';
 import User from '../models/User.js';
 import logger from '../utils/logger.js';
@@ -12,12 +14,179 @@ import { broadcastBuildLog, broadcastBuildComplete } from '../websocket/build.so
 import { analyzeBuildFailure } from './buildIntelligence.service.js';
 import resourceService from '../resources/resource.service.js';
 import { RESOURCE_TYPES } from '../resources/resourceTypes.js';
+import { pullLatest } from './git.service.js';
+import { detectProjectType, PROJECT_TYPES } from './projectDetector.service.js';
+import { getWorkspacePath, validateSafePath } from '../utils/workspace.js';
+import { runDockerCommand } from '../docker/cliExec.js';
 
 const MAX_DOCKERFILE_SIZE = 200 * 1024; // 200KB
 const MAX_CONCURRENT_BUILDS = 2;
 const BUILD_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const MAX_LOG_SUMMARY_LINES = 200;
 const MAX_STORAGE_MB = 5000; // 5GB per user default
+const MAX_PIPELINE_LOG_LINES = 3000;
+
+function sanitizeRepoName(repoName = 'repo') {
+    return String(repoName)
+        .toLowerCase()
+        .replace(/[^a-z0-9._-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '') || 'repo';
+}
+
+function buildImageTag(repoName) {
+    return `${sanitizeRepoName(repoName)}:${Date.now()}`;
+}
+
+function pushBuildLog(logs, line) {
+    if (!line) return;
+
+    const lines = line
+        .split('\n')
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+
+    for (const entry of lines) {
+        logs.push(entry);
+        if (logs.length > MAX_PIPELINE_LOG_LINES) {
+            logs.shift();
+        }
+    }
+}
+
+async function ensureGeneratedDockerfile(projectType, workspacePath) {
+    const dockerfilePath = join(workspacePath, 'Dockerfile');
+    if (existsSync(dockerfilePath)) return;
+
+    if (projectType === PROJECT_TYPES.NODE) {
+        const content = [
+            'FROM node:20-alpine',
+            'WORKDIR /app',
+            'COPY package*.json ./',
+            'RUN npm ci --omit=dev || npm install --omit=dev',
+            'COPY . .',
+            'EXPOSE 3000',
+            'CMD ["npm", "start"]'
+        ].join('\n');
+
+        await writeFile(dockerfilePath, `${content}\n`, 'utf8');
+        return;
+    }
+
+    if (projectType === PROJECT_TYPES.PYTHON) {
+        const content = [
+            'FROM python:3.11-slim',
+            'WORKDIR /app',
+            'COPY requirements.txt .',
+            'RUN pip install --no-cache-dir -r requirements.txt',
+            'COPY . .',
+            'EXPOSE 8000',
+            'CMD ["python", "app.py"]'
+        ].join('\n');
+
+        await writeFile(dockerfilePath, `${content}\n`, 'utf8');
+    }
+}
+
+export async function runBuildPipeline(repo, payload = {}) {
+    const imageTag = buildImageTag(repo?.repoName);
+    const commitHash = payload?.after || null;
+    const logs = [];
+
+    let build = null;
+
+    try {
+        build = await Build.create({
+            repoId: repo?._id || null,
+            userId: repo?.userId || null,
+            tag: imageTag,
+            imageTag,
+            commitHash,
+            dockerfileContent: 'AUTO_GENERATED_PIPELINE',
+            status: 'running',
+            logs,
+            startedAt: new Date(),
+        });
+
+        pushBuildLog(logs, `[pipeline] starting build for ${repo.repoName}`);
+
+        await pullLatest(repo);
+        pushBuildLog(logs, `[git] pulled latest branch ${repo.defaultBranch || 'main'}`);
+
+        const workspacePath = getWorkspacePath(repo.userId, repo._id);
+        validateSafePath(workspacePath);
+
+        const detection = await detectProjectType(workspacePath);
+        pushBuildLog(logs, `[detector] type=${detection.type} files=${detection.detectedFiles.join(',') || 'none'}`);
+
+        if (detection.type === PROJECT_TYPES.UNKNOWN) {
+            throw new Error('Unsupported project type: unknown');
+        }
+
+        if (detection.type === PROJECT_TYPES.COMPOSE) {
+            await runDockerCommand('docker-compose', ['build'], {
+                cwd: workspacePath,
+                onStdout: (line) => pushBuildLog(logs, line),
+                onStderr: (line) => pushBuildLog(logs, line),
+            });
+        } else {
+            if (detection.type === PROJECT_TYPES.NODE || detection.type === PROJECT_TYPES.PYTHON) {
+                await ensureGeneratedDockerfile(detection.type, workspacePath);
+                pushBuildLog(logs, `[dockerfile] generated default Dockerfile for ${detection.type} (if missing)`);
+            }
+
+            await runDockerCommand('docker', ['build', '-t', imageTag, '.'], {
+                cwd: workspacePath,
+                onStdout: (line) => pushBuildLog(logs, line),
+                onStderr: (line) => pushBuildLog(logs, line),
+            });
+        }
+
+        build.status = 'success';
+        build.logs = logs;
+        build.finishedAt = new Date();
+        build.completedAt = build.finishedAt;
+        build.logSummary = logs.slice(-MAX_LOG_SUMMARY_LINES).join('\n');
+        build.error = null;
+        await build.save();
+
+        await Repository.findByIdAndUpdate(repo._id, { lastBuildId: build._id }).catch(() => null);
+
+        logger.info('Build pipeline completed', {
+            repoId: String(repo._id),
+            buildId: String(build._id),
+            imageTag,
+            status: build.status,
+        });
+
+        return build;
+    } catch (error) {
+        pushBuildLog(logs, `[error] ${error.message}`);
+
+        if (build) {
+            build.status = 'failed';
+            build.logs = logs;
+            build.error = error.message;
+            build.finishedAt = new Date();
+            build.completedAt = build.finishedAt;
+            build.logSummary = logs.slice(-MAX_LOG_SUMMARY_LINES).join('\n');
+            await build.save().catch((saveError) => {
+                logger.error('Failed to persist failed pipeline build', {
+                    repoId: String(repo?._id || ''),
+                    error: saveError.message,
+                });
+            });
+        }
+
+        logger.error('Build pipeline failed', {
+            repoId: String(repo?._id || ''),
+            imageTag,
+            error: error.message,
+        });
+
+        return build;
+    }
+}
 
 class BuildService {
 

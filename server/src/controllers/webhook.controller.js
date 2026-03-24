@@ -1,6 +1,7 @@
 import Repository from "../models/repository.model.js";
 import logger from "../utils/logger.js";
 import { verifyGitHubSignature } from "../helpers/githubSignature.helper.js";
+import { runBuildPipeline } from "../services/build.service.js";
 
 const processedDeliveries = new Set();
 const deliveryOrder = [];
@@ -35,13 +36,15 @@ function isDuplicateDelivery(deliveryId) {
 }
 
 export async function triggerPipeline(repo, payload) {
-  logger.info("Webhook pipeline trigger queued", {
+  logger.info("Webhook pipeline trigger started", {
     event: "push",
     owner: repo.owner,
     repo: repo.repoName,
     deliveryId: payload?.deliveryId,
     status: "processed",
   });
+
+  await runBuildPipeline(repo, payload);
 }
 
 export async function handleGitHubWebhook(req, res) {
