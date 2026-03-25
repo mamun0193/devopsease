@@ -1,4 +1,5 @@
 import Deployment from '../models/deployment.model.js';
+import { assertEnvironmentExists } from './env.service.js';
 import {
     runContainer,
     stopContainer,
@@ -111,6 +112,10 @@ export async function deployFromBuild(build) {
     }
 
     const repoName = build.repoName || build.tag?.split(':')[0] || 'app';
+    const deploymentEnvironment = await assertEnvironmentExists(
+        build.repoId,
+        build.environment || 'development'
+    );
     let deployment = null;
     let containerId = null;
 
@@ -124,6 +129,7 @@ export async function deployFromBuild(build) {
             imageTag,
             containerName,
             port,
+            environment: deploymentEnvironment,
             status: 'deploying',
         });
 

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 
 const DEPLOYMENT_ENVIRONMENTS = ['development', 'staging', 'production'];
 const DEPLOYMENT_STATUSES = ['pending', 'deploying', 'running', 'failed', 'stopped', 'removed'];
+const DEPLOYMENT_ENVIRONMENT_REGEX = /^[a-z][a-z0-9_-]{1,31}$/;
 
 const deploymentSchema = new mongoose.Schema({
     repoId: {
@@ -34,8 +35,13 @@ const deploymentSchema = new mongoose.Schema({
     },
     environment: {
         type: String,
-        enum: DEPLOYMENT_ENVIRONMENTS,
-        default: 'development'
+        trim: true,
+        lowercase: true,
+        default: 'development',
+        validate: {
+            validator: (value) => DEPLOYMENT_ENVIRONMENT_REGEX.test(value),
+            message: 'Invalid deployment environment name'
+        }
     },
     status: {
         type: String,

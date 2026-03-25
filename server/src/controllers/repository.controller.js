@@ -1,4 +1,5 @@
 import Repository from '../models/repository.model.js';
+import { ensureDefaultEnvironments } from '../services/env.service.js';
 
 export const connectRepository = async (req, res, next) => {
     try {
@@ -17,6 +18,8 @@ export const connectRepository = async (req, res, next) => {
             cloneUrl,
             defaultBranch
         });
+
+        await ensureDefaultEnvironments(repository._id);
 
         res.status(201).json({ repository });
     } catch (error) {
