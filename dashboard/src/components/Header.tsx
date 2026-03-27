@@ -6,9 +6,13 @@ import {
   AlertTriangle,
   Pause,
   Bell,
+  Rocket,
+  XCircle,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useContainers, useHealthCheck } from '../hooks/useContainers';
 import { getContainerStats } from '../utils/formatters';
+import { useDeployments } from '../hooks/useDeployments';
 import RefreshButton from './RefreshButton';
 import UserMenu from './UserMenu';
 import AlertsPanel from './AlertsPanel';
@@ -34,11 +38,21 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all', filterItems }) => {
   const { data: containers = [], isFetching, refetch } = useContainers();
   const { data: health } = useHealthCheck();
+  const { data: deployments = [] } = useDeployments();
+  const navigate = useNavigate();
   const stats = getContainerStats(containers);
   const [headerHidden, setHeaderHidden] = React.useState(false);
   const [alertsPanelOpen, setAlertsPanelOpen] = React.useState(false);
   const unresolvedCount = useAppSelector(state => state.alerts.unresolvedCount);
   const lastScrollY = React.useRef(0);
+
+  const deployStats = React.useMemo(() => ({
+    running: deployments.filter(d => d.status === 'running').length,
+    deploying: deployments.filter(d => d.status === 'deploying').length,
+    failed: deployments.filter(d => d.status === 'failed').length,
+    stopped: deployments.filter(d => d.status === 'stopped').length,
+    total: deployments.length,
+  }), [deployments]);
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -196,6 +210,38 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all', f
               {health ? 'Connected' : 'Connecting...'}
             </span>
           </div>
+
+          {/* Deployment status pill */}
+          {deployStats.total > 0 && (
+            <button
+              onClick={() => navigate('/deployments')}
+              title="View deployments"
+              className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-800/70 border border-slate-700/60 hover:border-slate-600 hover:bg-slate-800 transition-all text-xs"
+            >
+              <Rocket size={11} className="text-slate-500" />
+              {deployStats.running > 0 && (
+                <span className="flex items-center gap-1 text-emerald-400 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  {deployStats.running}
+                </span>
+              )}
+              {deployStats.deploying > 0 && (
+                <span className="flex items-center gap-1 text-amber-400 font-medium">
+                  <AlertTriangle size={10} />
+                  {deployStats.deploying}
+                </span>
+              )}
+              {deployStats.failed > 0 && (
+                <span className="flex items-center gap-1 text-red-400 font-medium">
+                  <XCircle size={10} />
+                  {deployStats.failed}
+                </span>
+              )}
+              {deployStats.stopped > 0 && (
+                <span className="text-slate-500 font-medium">{deployStats.stopped}</span>
+              )}
+            </button>
+          )}
 
           <RefreshButton
             onRefresh={() => { refetch(); }}

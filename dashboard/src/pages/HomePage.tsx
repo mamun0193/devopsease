@@ -14,6 +14,7 @@ import {
   FolderKanban,
   XCircle,
   User,
+  Rocket,
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -28,6 +29,7 @@ import { useNetworks } from '../hooks/useNetworks';
 import { useVolumes } from '../hooks/useVolumes';
 import { useProjects } from '../hooks/useProjects';
 import { useDockerHubStatus } from '../hooks/useDockerHub';
+import { useDeployments } from '../hooks/useDeployments';
 
 function formatMB(mb: number): string {
   if (!mb || mb === 0) return '0 MB';
@@ -48,6 +50,7 @@ const HomePage: React.FC = () => {
   const { data: volumes = [] } = useVolumes();
   const { data: projects = [] } = useProjects();
   const { data: hubStatus } = useDockerHubStatus();
+  const { data: deployments = [] } = useDeployments();
 
   // ── derived ───────────────────────────────────────────────────────────────
   const running = containers.filter(c => c.state?.running).length;
@@ -81,6 +84,18 @@ const HomePage: React.FC = () => {
     ...(failedBuilds > 0
       ? [{ text: `${failedBuilds} failed`, colorClass: 'text-red-400' }]
       : []),
+  ];
+
+  const deployRunning = deployments.filter(d => d.status === 'running').length;
+  const deployDeploying = deployments.filter(d => d.status === 'deploying').length;
+  const deployFailed = deployments.filter(d => d.status === 'failed').length;
+  const deployStopped = deployments.filter(d => d.status === 'stopped').length;
+
+  const deployStats = [
+    ...(deployRunning > 0 ? [{ text: `${deployRunning} running`, colorClass: 'text-emerald-400' }] : []),
+    ...(deployDeploying > 0 ? [{ text: `${deployDeploying} deploying`, colorClass: 'text-amber-400', icon: <Loader2 size={10} className="animate-spin" /> }] : []),
+    ...(deployFailed > 0 ? [{ text: `${deployFailed} failed`, colorClass: 'text-red-400' }] : []),
+    ...(deployStopped > 0 ? [{ text: `${deployStopped} stopped`, colorClass: 'text-slate-400' }] : []),
   ];
 
   return (
@@ -119,6 +134,15 @@ const HomePage: React.FC = () => {
               onClick={() => navigate('/builds')}
               count={builds.length}
               stats={buildStats}
+            />
+
+            {/* Deployments */}
+            <OverviewCard
+              icon={<Rocket size={13} />}
+              label="Deployments"
+              onClick={() => navigate('/deployments')}
+              count={deployments.length}
+              stats={deployStats}
             />
 
             {/* Images */}

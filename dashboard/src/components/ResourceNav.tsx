@@ -1,11 +1,12 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Server, Hammer, Layers, FolderKanban, Network, HardDrive, Globe } from 'lucide-react';
+import { LayoutDashboard, Server, Hammer, Rocket, Layers, FolderKanban, Network, HardDrive, Globe } from 'lucide-react';
 
 const TABS = [
     { label: 'Home', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Containers', path: '/containers', icon: Server },
     { label: 'Builds', path: '/builds', icon: Hammer },
+    { label: 'Deployments', path: '/deployments', icon: Rocket },
     { label: 'Images', path: '/images', icon: Layers },
     { label: 'Registry', path: '/registry', icon: Globe },
     { label: 'Projects', path: '/projects', icon: FolderKanban },

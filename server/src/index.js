@@ -22,6 +22,7 @@ import alertRoutes from "./routes/alert.routes.js";
 import repositoryRoutes from "./routes/repository.routes.js";
 import gitRoutes from "./routes/git.routes.js";
 import webhookRoutes from "./routes/webhook.routes.js";
+import deploymentRoutes from "./routes/deployment.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
@@ -102,6 +103,7 @@ app.use("/quota", quotaRoutes);
 app.use("/system", systemRoutes);
 app.use("/api/repos", repositoryRoutes);
 app.use("/api/git", gitRoutes);
+app.use("/api/deployments", deploymentRoutes);
 
 app.use(errorHandler);
 

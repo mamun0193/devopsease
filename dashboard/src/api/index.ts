@@ -802,6 +802,29 @@ export const systemApi = {
   },
 };
 
+// ── Deployments ───────────────────────────────────────────────────────────────
+
+export interface Deployment {
+  _id: string;
+  status: 'running' | 'deploying' | 'failed' | 'stopped';
+  environment: 'dev' | 'staging' | 'production';
+  imageTag?: string;
+  createdAt: string;
+  build: {
+    commitHash: string;
+    branch: string;
+  };
+}
+
+export const deploymentApi = {
+  list: async (): Promise<Deployment[]> => {
+    const response = await api.get<Deployment[] | { deployments: Deployment[] }>('/api/deployments');
+    return Array.isArray(response.data)
+      ? response.data
+      : (response.data as any).deployments ?? [];
+  },
+};
+
 export default api;
 
 // Re-export alerts API

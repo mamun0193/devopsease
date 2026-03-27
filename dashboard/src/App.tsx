@@ -43,6 +43,7 @@ import VolumesPage from './pages/VolumesPage';
 import RegistryPage from './pages/RegistryPage';
 import AlertsPage from './pages/AlertsPage';
 import RepositoriesPage from './pages/RepositoriesPage';
+import DeploymentsPage from './pages/DeploymentsPage';
 import { useAlertSocket } from './hooks/useAlertSocket';
 import { useContainerEvents } from './hooks/useContainerEvents';
 import { useUnresolvedAlertCount } from './hooks/useAlerts';
@@ -199,6 +200,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RepositoriesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/deployments"
+                  element={
+                    <ProtectedRoute>
+                      <DeploymentsPage />
                     </ProtectedRoute>
                   }
                 />
