@@ -8,6 +8,7 @@ import { subscribeToBuild } from "./build.socket.js";
 import { subscribeToMetrics, stopAllStreams } from "./metricsStreamer.js";
 import alertBroadcaster from "./alertBroadcaster.js";
 import eventBroadcaster from "./eventBroadcaster.js";
+import deploymentBroadcaster from "./deploymentBroadcaster.js";
 import { streamContainerLogs } from "./logStreamer.js";
 import { enforceRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { canPerform, ACTIONS, ROLES } from "../config/permissions.js";
@@ -321,6 +322,36 @@ export function initializeWebSocketServer(server) {
                 }
                 wss.emit("connection", ws, request);
             });
+        } else if (pathname === "/ws/deployments") {
+            // Deployment status stream
+            const cookieHeader = request.headers.cookie;
+            const token = cookieHeader && cookieHeader.split(';').find(c => c.trim().startsWith('access_token='))?.split('=')[1];
+
+            if (!token) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            let user;
+            try {
+                user = jwt.verify(token, process.env.JWT_SECRET);
+            } catch (err) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            request._user = user;
+            request._deploymentsPath = true;
+
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                if (lifecycle.isShuttingDown) {
+                    ws.close(1001, "Server shutting down");
+                    return;
+                }
+                wss.emit("connection", ws, request);
+            });
         } else {
             socket.destroy();
         }
@@ -355,6 +386,16 @@ export function initializeWebSocketServer(server) {
             if (userId) {
                 logger.info("WebSocket alert subscription", { userId });
                 alertBroadcaster.register(userId, ws);
+            }
+            return;
+        }
+
+        // Handle deployment subscriptions
+        if (pathname === "/ws/deployments" && request._deploymentsPath) {
+            const userId = request._user?._id || request._user?.userId;
+            if (userId) {
+                logger.info("WebSocket deployment subscription", { userId });
+                deploymentBroadcaster.register(userId, ws);
             }
             return;
         }
@@ -430,6 +471,9 @@ export async function closeWebSocketServer() {
 
         // 3. Close all event broadcaster connections
         eventBroadcaster.closeAll();
+
+        // 4. Close all deployment broadcaster connections
+        deploymentBroadcaster.closeAll();
 
         // 4. Terminate all sessions managed by registry (graceful with notification)
         await execSessionRegistry.terminateAllSessions("server_shutdown");

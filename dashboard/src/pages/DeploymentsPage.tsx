@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Rocket,
   RefreshCw,
@@ -16,6 +17,8 @@ import {
   ScrollText,
   RotateCcw,
   AlertTriangle,
+  Square,
+  Trash2,
 } from 'lucide-react';
 import Header from '../components/Header';
 import type { FilterItem } from '../components/Header';
@@ -23,6 +26,8 @@ import ResourceNav from '../components/ResourceNav';
 import { useAppDispatch } from '../store/hooks';
 import { addToast } from '../store/toastSlice';
 import { useDeployments } from '../hooks/useDeployments';
+import { useDeploymentSocket } from '../hooks/useDeploymentSocket';
+import { deploymentApi } from '../api';
 import type { Deployment } from '../api';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -77,10 +82,56 @@ function SummaryCard({
   );
 }
 
-function DeploymentRow({ deployment, onViewLogs }: { deployment: Deployment; onViewLogs: (id: string) => void }) {
+function ActionButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+  variant = 'default',
+}: {
+  icon: React.ElementType;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: 'default' | 'danger' | 'warning';
+}) {
+  const variantClasses = {
+    default: 'text-slate-400 bg-slate-800 hover:bg-slate-700 hover:text-slate-200 border-slate-700 hover:border-slate-600',
+    danger:  'text-red-400/80 bg-red-500/5 hover:bg-red-500/15 hover:text-red-300 border-red-500/20 hover:border-red-500/40',
+    warning: 'text-amber-400/80 bg-amber-500/5 hover:bg-amber-500/15 hover:text-amber-300 border-amber-500/20 hover:border-amber-500/40',
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${variantClasses[variant]}`}
+    >
+      {disabled ? <Loader2 size={12} className="animate-spin" /> : <Icon size={12} />}
+      {label}
+    </button>
+  );
+}
+
+function DeploymentRow({
+  deployment,
+  onViewLogs,
+  onStop,
+  onRemove,
+  onRollback,
+  loadingAction,
+}: {
+  deployment: Deployment;
+  onViewLogs: (id: string) => void;
+  onStop: (id: string) => void;
+  onRemove: (id: string) => void;
+  onRollback: (id: string) => void;
+  loadingAction: string | null;
+}) {
   const status = STATUS_CONFIG[deployment.status] ?? STATUS_CONFIG.stopped;
   const env = ENV_CONFIG[deployment.environment] ?? ENV_CONFIG.dev;
   const shortHash = deployment.build.commitHash?.slice(0, 7) ?? '-------';
+  const isThisLoading = (action: string) => loadingAction === `${action}:${deployment._id}`;
 
   return (
     <div className="flex items-center justify-between gap-4 px-5 py-3.5 border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30 transition-colors">
@@ -119,7 +170,7 @@ function DeploymentRow({ deployment, onViewLogs }: { deployment: Deployment; onV
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         <span className="hidden sm:flex items-center gap-1 text-xs text-slate-500">
           <Clock size={11} />
           {formatRelativeTime(deployment.createdAt)}
@@ -131,20 +182,39 @@ function DeploymentRow({ deployment, onViewLogs }: { deployment: Deployment; onV
           <ScrollText size={12} />
           Logs
         </button>
-        <button
-          disabled
-          title="Rollback coming soon"
-          className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 border border-slate-800 cursor-not-allowed"
-        >
-          <RotateCcw size={12} />
-          Rollback
-        </button>
+
+        {deployment.status === 'running' && (
+          <ActionButton
+            icon={Square}
+            label="Stop"
+            onClick={() => onStop(deployment._id)}
+            disabled={isThisLoading('stop')}
+            variant="warning"
+          />
+        )}
+
+        {['running', 'stopped', 'failed'].includes(deployment.status) && (
+          <ActionButton
+            icon={Trash2}
+            label="Remove"
+            onClick={() => onRemove(deployment._id)}
+            disabled={isThisLoading('remove')}
+            variant="danger"
+          />
+        )}
+
+        <ActionButton
+          icon={RotateCcw}
+          label="Rollback"
+          onClick={() => onRollback(deployment._id)}
+          disabled={isThisLoading('rollback')}
+        />
       </div>
     </div>
   );
 }
 
-// ── Filter tab config ─────────────────────────────────────────────────────────
+// Filter tab config 
 
 type FilterStatus = 'all' | 'running' | 'deploying' | 'failed' | 'stopped';
 
@@ -161,9 +231,53 @@ const FILTER_TABS: { key: FilterStatus; label: string; activeClass: string }[] =
 const DeploymentsPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
   const { data: deployments = [], isLoading, refetch, isFetching, error } = useDeployments();
+
+  // Real-time updates via WebSocket
+  useDeploymentSocket();
+
+    const stopMutation = useMutation({
+    mutationFn: deploymentApi.stop,
+    onMutate: (id) => setLoadingAction(`stop:${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deployments'] });
+      dispatch(addToast({ message: 'Deployment stopped', type: 'info', duration: 3000 }));
+    },
+    onError: (err: any) => {
+      dispatch(addToast({ message: err?.response?.data?.message ?? 'Failed to stop deployment', type: 'error', duration: 5000 }));
+    },
+    onSettled: () => setLoadingAction(null),
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: deploymentApi.remove,
+    onMutate: (id) => setLoadingAction(`remove:${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deployments'] });
+      dispatch(addToast({ message: 'Deployment removed', type: 'info', duration: 3000 }));
+    },
+    onError: (err: any) => {
+      dispatch(addToast({ message: err?.response?.data?.message ?? 'Failed to remove deployment', type: 'error', duration: 5000 }));
+    },
+    onSettled: () => setLoadingAction(null),
+  });
+
+  const rollbackMutation = useMutation({
+    mutationFn: deploymentApi.rollback,
+    onMutate: (id) => setLoadingAction(`rollback:${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deployments'] });
+      dispatch(addToast({ message: 'Rollback initiated — new deployment created', type: 'info', duration: 4000 }));
+    },
+    onError: (err: any) => {
+      dispatch(addToast({ message: err?.response?.data?.message ?? 'Rollback failed', type: 'error', duration: 5000 }));
+    },
+    onSettled: () => setLoadingAction(null),
+  });
 
   const handleViewLogs = useCallback((id: string) => {
     dispatch(addToast({ message: `Opening logs for deployment ${id.slice(-6)}…`, type: 'info', duration: 3000 }));
@@ -304,6 +418,10 @@ const DeploymentsPage: React.FC = () => {
                         key={deployment._id}
                         deployment={deployment}
                         onViewLogs={handleViewLogs}
+                        onStop={(id) => stopMutation.mutate(id)}
+                        onRemove={(id) => removeMutation.mutate(id)}
+                        onRollback={(id) => rollbackMutation.mutate(id)}
+                        loadingAction={loadingAction}
                       />
                     ))}
                   </motion.div>

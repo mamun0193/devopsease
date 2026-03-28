@@ -823,6 +823,21 @@ export const deploymentApi = {
       ? response.data
       : (response.data as any).deployments ?? [];
   },
+
+  stop: async (id: string): Promise<Deployment> => {
+    const response = await api.post<{ deployment: Deployment }>(`/api/deployments/${id}/stop`);
+    return response.data.deployment;
+  },
+
+  remove: async (id: string): Promise<Deployment> => {
+    const response = await api.post<{ deployment: Deployment }>(`/api/deployments/${id}/remove`);
+    return response.data.deployment;
+  },
+
+  rollback: async (id: string): Promise<Deployment> => {
+    const response = await api.post<{ deployment: Deployment }>(`/api/deployments/${id}/rollback`);
+    return response.data.deployment;
+  },
 };
 
 export default api;

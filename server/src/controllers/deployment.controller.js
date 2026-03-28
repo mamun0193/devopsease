@@ -1,6 +1,11 @@
 import Deployment from '../models/deployment.model.js';
 import Repository from '../models/repository.model.js';
 import Build from '../models/build.model.js';
+import {
+    stopDeployment,
+    removeDeployment,
+    rollbackDeployment,
+} from '../services/deployment.service.js';
 
 const ENV_MAP = { development: 'dev', staging: 'staging', production: 'production' };
 
@@ -44,6 +49,58 @@ export const getDeployments = async (req, res, next) => {
         });
 
         res.json({ deployments: shaped });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Ownership helper 
+
+async function assertDeploymentOwnership(userId, deploymentId) {
+    const deployment = await Deployment.findById(deploymentId).lean();
+    if (!deployment) {
+        const err = new Error('Deployment not found');
+        err.statusCode = 404;
+        throw err;
+    }
+
+    const repo = await Repository.findOne({ _id: deployment.repoId, userId }).lean();
+    if (!repo) {
+        const err = new Error('Not authorized to manage this deployment');
+        err.statusCode = 403;
+        throw err;
+    }
+
+    return deployment;
+}
+
+//  Deployment Actions 
+
+export const stopDeploymentAction = async (req, res, next) => {
+    try {
+        await assertDeploymentOwnership(req.user._id, req.params.id);
+        const deployment = await stopDeployment(req.params.id);
+        res.json({ deployment });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const removeDeploymentAction = async (req, res, next) => {
+    try {
+        await assertDeploymentOwnership(req.user._id, req.params.id);
+        const deployment = await removeDeployment(req.params.id);
+        res.json({ deployment });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const rollbackDeploymentAction = async (req, res, next) => {
+    try {
+        await assertDeploymentOwnership(req.user._id, req.params.id);
+        const deployment = await rollbackDeployment(req.params.id);
+        res.json({ deployment });
     } catch (error) {
         next(error);
     }

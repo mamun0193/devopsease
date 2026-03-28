@@ -5,8 +5,9 @@ import {
     stopContainer,
     removeContainer,
     containerExists
-} from '../docker/deploymentDocker.js';
+} from '../docker/deployment.js';
 import logger from '../utils/logger.js';
+import deploymentBroadcaster from '../websocket/deploymentBroadcaster.js';
 
 const PORT_MIN = 3000;
 const PORT_MAX = 9000;
@@ -146,6 +147,8 @@ export async function deployFromBuild(build) {
             containerId,
         });
 
+        deploymentBroadcaster.broadcast(deployment);
+
         return deployment;
     } catch (error) {
         await tryCleanupContainer(containerId);
@@ -201,6 +204,8 @@ export async function stopDeployment(deploymentId) {
         containerId: deployment.containerId,
     });
 
+    deploymentBroadcaster.broadcast(deployment);
+
     return deployment;
 }
 
@@ -234,5 +239,96 @@ export async function removeDeployment(deploymentId) {
         containerId: deployment.containerId,
     });
 
+    deploymentBroadcaster.broadcast(deployment);
+
     return deployment;
+}
+
+export async function rollbackDeployment(deploymentId) {
+    const current = await Deployment.findById(deploymentId);
+    if (!current) {
+        throw Object.assign(new Error('Deployment not found'), { statusCode: 404 });
+    }
+
+    // Find the previous successful deployment for the same repo
+    const previous = await Deployment.findOne({
+        repoId: current.repoId,
+        _id: { $ne: current._id },
+        status: { $in: ['running', 'stopped'] },
+    })
+        .sort({ createdAt: -1 })
+        .lean();
+
+    if (!previous) {
+        throw Object.assign(
+            new Error('No previous deployment found to rollback to'),
+            { statusCode: 404 }
+        );
+    }
+
+    // Stop current deployment if it is still active
+    if (['running', 'deploying'].includes(current.status)) {
+        await stopDeployment(deploymentId);
+    }
+
+    // Re-deploy the previous image
+    const repoName = previous.imageTag?.split(':')[0] || 'app';
+    let rollbackDeploymentRecord = null;
+    let containerId = null;
+
+    try {
+        const containerName = await allocateContainerName(repoName);
+        const port = await allocatePort();
+
+        rollbackDeploymentRecord = await Deployment.create({
+            repoId: previous.repoId,
+            buildId: previous.buildId,
+            imageTag: previous.imageTag,
+            containerName,
+            port,
+            environment: previous.environment,
+            status: 'deploying',
+        });
+
+        deploymentBroadcaster.broadcast(rollbackDeploymentRecord);
+
+        containerId = await attemptDockerRun(previous.imageTag, containerName, port);
+
+        rollbackDeploymentRecord.containerId = containerId;
+        rollbackDeploymentRecord.status = 'running';
+        await rollbackDeploymentRecord.save();
+
+        logger.info('Rollback deployment successful', {
+            rollbackId: String(rollbackDeploymentRecord._id),
+            originalId: String(current._id),
+            imageTag: previous.imageTag,
+        });
+
+        deploymentBroadcaster.broadcast(rollbackDeploymentRecord);
+
+        return rollbackDeploymentRecord;
+    } catch (error) {
+        await tryCleanupContainer(containerId);
+
+        if (rollbackDeploymentRecord) {
+            rollbackDeploymentRecord.status = 'failed';
+            rollbackDeploymentRecord.errorLog = truncateErrorLog(error.stderr || error.message);
+            await rollbackDeploymentRecord.save().catch((saveErr) => {
+                logger.error('Failed to persist rollback failure', {
+                    deploymentId: String(rollbackDeploymentRecord._id),
+                    error: saveErr.message,
+                });
+            });
+
+            deploymentBroadcaster.broadcast(rollbackDeploymentRecord);
+        }
+
+        logger.error('Rollback failed', {
+            originalId: String(current._id),
+            imageTag: previous.imageTag,
+            error: error.message,
+        });
+
+        throw error;
+    }
 }
