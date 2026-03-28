@@ -66,6 +66,33 @@ class DeploymentBroadcaster {
         }
     }
 
+    broadcastLogs(deploymentId, logs) {
+        if (!deploymentId || !Array.isArray(logs)) return;
+
+        const payload = JSON.stringify({
+            type: 'deployment:logs',
+            data: {
+                deploymentId: String(deploymentId),
+                logs,
+            },
+        });
+
+        for (const [uid, sockets] of this._connections) {
+            for (const ws of sockets) {
+                try {
+                    if (ws.readyState === ws.OPEN) {
+                        ws.send(payload);
+                    }
+                } catch (err) {
+                    logger.debug('Deployment broadcaster: broadcastLogs failed', {
+                        userId: uid,
+                        error: err.message,
+                    });
+                }
+            }
+        }
+    }
+
     // Get total active connection count.
      
     get connectionCount() {

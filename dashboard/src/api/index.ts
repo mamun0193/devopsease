@@ -809,6 +809,8 @@ export interface Deployment {
   status: 'running' | 'deploying' | 'failed' | 'stopped';
   environment: 'dev' | 'staging' | 'production';
   imageTag?: string;
+  containerId?: string | null;
+  containerName?: string | null;
   createdAt: string;
   build: {
     commitHash: string;
@@ -837,6 +839,16 @@ export const deploymentApi = {
   rollback: async (id: string): Promise<Deployment> => {
     const response = await api.post<{ deployment: Deployment }>(`/api/deployments/${id}/rollback`);
     return response.data.deployment;
+  },
+
+  getById: async (id: string): Promise<Deployment> => {
+    const response = await api.get<{ deployment: Deployment }>(`/api/deployments/${id}`);
+    return response.data.deployment;
+  },
+
+  getLogs: async (id: string): Promise<string[]> => {
+    const response = await api.get<{ logs: string[] }>(`/api/deployments/${id}/logs`);
+    return response.data.logs ?? [];
   },
 };
 

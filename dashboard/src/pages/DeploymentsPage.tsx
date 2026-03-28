@@ -29,6 +29,7 @@ import { useDeployments } from '../hooks/useDeployments';
 import { useDeploymentSocket } from '../hooks/useDeploymentSocket';
 import { deploymentApi } from '../api';
 import type { Deployment } from '../api';
+import DeploymentDetailModal from '../components/DeploymentDetailModal';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -234,6 +235,7 @@ const DeploymentsPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [selectedDeployment, setSelectedDeployment] = useState<Deployment | null>(null);
 
   const { data: deployments = [], isLoading, refetch, isFetching, error } = useDeployments();
 
@@ -280,8 +282,11 @@ const DeploymentsPage: React.FC = () => {
   });
 
   const handleViewLogs = useCallback((id: string) => {
-    dispatch(addToast({ message: `Opening logs for deployment ${id.slice(-6)}…`, type: 'info', duration: 3000 }));
-  }, [dispatch]);
+    const deployment = deployments.find(d => d._id === id);
+    if (deployment) {
+      setSelectedDeployment(deployment);
+    }
+  }, [deployments]);
 
   const counts = useMemo(() => ({
     all:       deployments.length,
@@ -431,6 +436,11 @@ const DeploymentsPage: React.FC = () => {
           )}
         </div>
       </main>
+
+      <DeploymentDetailModal
+        deployment={selectedDeployment}
+        onClose={() => setSelectedDeployment(null)}
+      />
     </div>
   );
 };

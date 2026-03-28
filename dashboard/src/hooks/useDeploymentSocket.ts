@@ -3,10 +3,23 @@ import { useQueryClient } from '@tanstack/react-query';
 
 const WS_BASE = 'ws://localhost:3497';
 
-// real time deployment status updates
-export function useDeploymentSocket(isAuthenticated = true) {
+interface UseDeploymentSocketOptions {
+  isAuthenticated?: boolean;
+  onLogs?: (deploymentId: string, logs: string[]) => void;
+}
+
+export function useDeploymentSocket({
+  isAuthenticated = true,
+  onLogs,
+}: UseDeploymentSocketOptions = {}) {
   const queryClient = useQueryClient();
   const backoffRef = useRef(1000);
+  const onLogsRef = useRef(onLogs);
+
+  // Keep ref in sync so reconnect closure sees latest callback
+  useEffect(() => {
+    onLogsRef.current = onLogs;
+  }, [onLogs]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -32,6 +45,11 @@ export function useDeploymentSocket(isAuthenticated = true) {
           const payload = JSON.parse(event.data);
           if (payload.type === 'deployment:update') {
             queryClient.invalidateQueries({ queryKey: ['deployments'] });
+          } else if (payload.type === 'deployment:logs') {
+            const { deploymentId, logs } = payload.data ?? {};
+            if (deploymentId && Array.isArray(logs)) {
+              onLogsRef.current?.(deploymentId, logs);
+            }
           }
         } catch {
           // Ignore malformed messages
@@ -73,3 +91,4 @@ export function useDeploymentSocket(isAuthenticated = true) {
     };
   }, [isAuthenticated, queryClient]);
 }
+

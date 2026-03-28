@@ -1,6 +1,7 @@
 import Deployment from '../models/deployment.model.js';
 import Repository from '../models/repository.model.js';
 import Build from '../models/build.model.js';
+import docker from '../docker/client.js';
 import {
     stopDeployment,
     removeDeployment,
@@ -50,6 +51,46 @@ export const getDeployments = async (req, res, next) => {
 
         res.json({ deployments: shaped });
     } catch (error) {
+        next(error);
+    }
+};
+
+export const getDeploymentById = async (req, res, next) => {
+    try {
+        const deployment = await assertDeploymentOwnership(req.user._id, req.params.id);
+        res.json({ deployment });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getDeploymentLogs = async (req, res, next) => {
+    try {
+        const deployment = await assertDeploymentOwnership(req.user._id, req.params.id);
+
+        if (!deployment.containerId) {
+            return res.json({ logs: [] });
+        }
+
+        const container = docker.getContainer(deployment.containerId);
+        const rawLogs = await container.logs({
+            stdout: true,
+            stderr: true,
+            tail: 300,
+            timestamps: false,
+        });
+
+        const decoded = rawLogs
+            .toString('utf8')
+            .split('\n')
+            .map((line) => line.replace(/^[\x00-\x08\x0b-\x1f]/g, '').trim())
+            .filter(Boolean);
+
+        res.json({ logs: decoded });
+    } catch (error) {
+        if (error?.statusCode === 404 || error?.reason === 'no such container') {
+            return res.json({ logs: [] });
+        }
         next(error);
     }
 };
