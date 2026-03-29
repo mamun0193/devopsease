@@ -30,6 +30,7 @@ import { useDeploymentSocket } from '../hooks/useDeploymentSocket';
 import { deploymentApi } from '../api';
 import type { Deployment } from '../api';
 import DeploymentDetailModal from '../components/DeploymentDetailModal';
+import ConfirmModal from '../components/ConfirmModal';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -236,6 +237,11 @@ const DeploymentsPage: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [selectedDeployment, setSelectedDeployment] = useState<Deployment | null>(null);
+  const [rollbackModal, setRollbackModal] = useState<{ open: boolean; deploymentId: string | null }>({
+    open: false,
+    deploymentId: null,
+  });
+  const [rollbackReason, setRollbackReason] = useState('');
 
   const { data: deployments = [], isLoading, refetch, isFetching, error } = useDeployments();
 
@@ -269,8 +275,8 @@ const DeploymentsPage: React.FC = () => {
   });
 
   const rollbackMutation = useMutation({
-    mutationFn: deploymentApi.rollback,
-    onMutate: (id) => setLoadingAction(`rollback:${id}`),
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => deploymentApi.rollback(id, reason),
+    onMutate: ({ id }) => setLoadingAction(`rollback:${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deployments'] });
       dispatch(addToast({ message: 'Rollback initiated — new deployment created', type: 'info', duration: 4000 }));
@@ -280,6 +286,30 @@ const DeploymentsPage: React.FC = () => {
     },
     onSettled: () => setLoadingAction(null),
   });
+
+  const handleRollback = (id: string) => {
+    setRollbackReason('');
+    setRollbackModal({ open: true, deploymentId: id });
+  };
+
+  const confirmRollback = () => {
+    if (!rollbackModal.deploymentId) {
+      return;
+    }
+
+    const reason = rollbackReason.trim();
+    rollbackMutation.mutate({
+      id: rollbackModal.deploymentId,
+      reason: reason || undefined,
+    });
+    setRollbackModal({ open: false, deploymentId: null });
+    setRollbackReason('');
+  };
+
+  const closeRollbackModal = () => {
+    setRollbackModal({ open: false, deploymentId: null });
+    setRollbackReason('');
+  };
 
   const handleViewLogs = useCallback((id: string) => {
     const deployment = deployments.find(d => d._id === id);
@@ -425,7 +455,7 @@ const DeploymentsPage: React.FC = () => {
                         onViewLogs={handleViewLogs}
                         onStop={(id) => stopMutation.mutate(id)}
                         onRemove={(id) => removeMutation.mutate(id)}
-                        onRollback={(id) => rollbackMutation.mutate(id)}
+                        onRollback={handleRollback}
                         loadingAction={loadingAction}
                       />
                     ))}
@@ -440,6 +470,20 @@ const DeploymentsPage: React.FC = () => {
       <DeploymentDetailModal
         deployment={selectedDeployment}
         onClose={() => setSelectedDeployment(null)}
+      />
+
+      <ConfirmModal
+        isOpen={rollbackModal.open}
+        onClose={closeRollbackModal}
+        onConfirm={confirmRollback}
+        title="Rollback Deployment"
+        message="This will create a new deployment from the latest stable version."
+        confirmLabel="Rollback"
+        cancelLabel="Cancel"
+        inputLabel="Reason (optional)"
+        inputPlaceholder="e.g., recent deploy is unstable"
+        inputValue={rollbackReason}
+        onInputChange={setRollbackReason}
       />
     </div>
   );

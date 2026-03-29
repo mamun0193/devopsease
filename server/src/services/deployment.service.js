@@ -15,6 +15,7 @@ const MAX_PORT_ATTEMPTS = 20;
 const MAX_NAME_ATTEMPTS = 5;
 const MAX_ERROR_LOG_LENGTH = 5000;
 const DOCKER_RUN_MAX_RETRIES = 1;
+const ROLLBACK_LOOKBACK_LIMIT = 5;
 
 function generatePort() {
     return Math.floor(Math.random() * (PORT_MAX - PORT_MIN + 1)) + PORT_MIN;
@@ -244,34 +245,61 @@ export async function removeDeployment(deploymentId) {
     return deployment;
 }
 
-export async function rollbackDeployment(deploymentId) {
+export async function rollbackDeployment(deploymentId, options = {}) {
+    const rollbackReason = options?.reason ? String(options.reason).slice(0, 500) : null;
     const current = await Deployment.findById(deploymentId);
     if (!current) {
         throw Object.assign(new Error('Deployment not found'), { statusCode: 404 });
     }
 
-    // Find the previous successful deployment for the same repo
-    const previous = await Deployment.findOne({
+    if (!current.repoId) {
+        throw Object.assign(new Error('Invalid deployment: repoId missing'), { statusCode: 400 });
+    }
+
+    if (!current.imageTag) {
+        throw Object.assign(new Error('Invalid deployment: imageTag missing'), { statusCode: 400 });
+    }
+
+    logger.info('Rollback triggered', {
+        deploymentId: String(current._id),
+        repoId: String(current.repoId),
+        reason: rollbackReason,
+    });
+
+    const previousCandidates = await Deployment.find({
         repoId: current.repoId,
         _id: { $ne: current._id },
-        status: { $in: ['running', 'stopped'] },
+        status: 'running',
     })
         .sort({ createdAt: -1 })
+        .limit(ROLLBACK_LOOKBACK_LIMIT)
         .lean();
+
+    const previous = previousCandidates[0] || null;
 
     if (!previous) {
         throw Object.assign(
             new Error('No previous deployment found to rollback to'),
-            { statusCode: 404 }
+            { statusCode: 400 }
         );
     }
 
-    // Stop current deployment if it is still active
+    if (!previous.imageTag) {
+        throw Object.assign(new Error('Previous deployment has no imageTag to rollback to'), {
+            statusCode: 400,
+        });
+    }
+
+    logger.info('Rollback source and target selected', {
+        sourceDeploymentId: String(current._id),
+        targetDeploymentId: String(previous._id),
+        targetImageTag: previous.imageTag,
+    });
+
     if (['running', 'deploying'].includes(current.status)) {
         await stopDeployment(deploymentId);
     }
 
-    // Re-deploy the previous image
     const repoName = previous.imageTag?.split(':')[0] || 'app';
     let rollbackDeploymentRecord = null;
     let containerId = null;
@@ -288,6 +316,9 @@ export async function rollbackDeployment(deploymentId) {
             port,
             environment: previous.environment,
             status: 'deploying',
+            isRollback: true,
+            rolledBackFrom: current._id,
+            rollbackReason,
         });
 
         deploymentBroadcaster.broadcast(rollbackDeploymentRecord);
@@ -300,8 +331,10 @@ export async function rollbackDeployment(deploymentId) {
 
         logger.info('Rollback deployment successful', {
             rollbackId: String(rollbackDeploymentRecord._id),
-            originalId: String(current._id),
-            imageTag: previous.imageTag,
+            sourceDeploymentId: String(current._id),
+            targetDeploymentId: String(previous._id),
+            imageTag: rollbackDeploymentRecord.imageTag,
+            result: 'success',
         });
 
         deploymentBroadcaster.broadcast(rollbackDeploymentRecord);
@@ -324,8 +357,10 @@ export async function rollbackDeployment(deploymentId) {
         }
 
         logger.error('Rollback failed', {
-            originalId: String(current._id),
+            sourceDeploymentId: String(current._id),
+            targetDeploymentId: String(previous._id),
             imageTag: previous.imageTag,
+            result: 'failed',
             error: error.message,
         });
 

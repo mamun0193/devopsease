@@ -836,8 +836,9 @@ export const deploymentApi = {
     return response.data.deployment;
   },
 
-  rollback: async (id: string): Promise<Deployment> => {
-    const response = await api.post<{ deployment: Deployment }>(`/api/deployments/${id}/rollback`);
+  rollback: async (id: string, reason?: string): Promise<Deployment> => {
+    const payload = reason ? { reason } : undefined;
+    const response = await api.post<{ deployment: Deployment }>(`/api/deployments/${id}/rollback`, payload);
     return response.data.deployment;
   },
 

@@ -12,6 +12,10 @@ interface ConfirmModalProps {
   confirmLabel?: string;
   cancelLabel?: string;
   isDangerous?: boolean;
+  inputLabel?: string;
+  inputPlaceholder?: string;
+  inputValue?: string;
+  onInputChange?: (value: string) => void;
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -23,7 +27,13 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
   isDangerous = false,
+  inputLabel,
+  inputPlaceholder,
+  inputValue = '',
+  onInputChange,
 }) => {
+  const showInput = Boolean(onInputChange);
+
   return (
     <Transition show={isOpen}>
       <Dialog onClose={onClose} className="relative z-[100]">
@@ -73,6 +83,20 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
               {/* Body */}
               <div className="px-5 py-4">
                 <p className="text-slate-300 text-sm leading-relaxed">{message}</p>
+                {showInput && (
+                  <div className="mt-4">
+                    {inputLabel && (
+                      <label className="block text-xs text-slate-400 mb-2">{inputLabel}</label>
+                    )}
+                    <input
+                      type="text"
+                      value={inputValue}
+                      onChange={(event) => onInputChange?.(event.target.value)}
+                      placeholder={inputPlaceholder}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Footer */}

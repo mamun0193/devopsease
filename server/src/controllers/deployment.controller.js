@@ -140,7 +140,9 @@ export const removeDeploymentAction = async (req, res, next) => {
 export const rollbackDeploymentAction = async (req, res, next) => {
     try {
         await assertDeploymentOwnership(req.user._id, req.params.id);
-        const deployment = await rollbackDeployment(req.params.id);
+        const deployment = await rollbackDeployment(req.params.id, {
+            reason: req.body?.reason,
+        });
         res.json({ deployment });
     } catch (error) {
         next(error);
