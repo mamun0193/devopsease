@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, GitBranch, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
 import Header from '../components/Header';
+import ResourceNav from '../components/ResourceNav';
 import ConnectRepoModal from '../components/ConnectRepoModal';
 import RepoListTable from '../components/RepoListTable';
 import { repoApi } from '../services/repo.api';
@@ -59,7 +60,7 @@ const RepositoriesPage: React.FC = () => {
     setError(null);
     try {
       const data = await repoApi.getAll();
-      setRepos(data);
+      setRepos(data ?? []);
     } catch (err: any) {
       const message = err?.response?.data?.message || 'Failed to load repositories.';
       setError(message);
@@ -95,6 +96,7 @@ const RepositoriesPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950">
       <Header />
+      <ResourceNav />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Page heading */}

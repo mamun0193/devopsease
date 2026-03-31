@@ -15,6 +15,7 @@ import {
   XCircle,
   User,
   Rocket,
+  GitBranch,
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -28,6 +29,7 @@ import { useImages, useImageUsageSummary } from '../hooks/useImages';
 import { useNetworks } from '../hooks/useNetworks';
 import { useVolumes } from '../hooks/useVolumes';
 import { useProjects } from '../hooks/useProjects';
+import { useRepos } from '../hooks/useRepos';
 import { useDockerHubStatus } from '../hooks/useDockerHub';
 import { useDeployments } from '../hooks/useDeployments';
 
@@ -49,6 +51,7 @@ const HomePage: React.FC = () => {
   const { data: networks = [] } = useNetworks();
   const { data: volumes = [] } = useVolumes();
   const { data: projects = [] } = useProjects();
+  const { data: repos = [] } = useRepos();
   const { data: hubStatus } = useDockerHubStatus();
   const { data: deployments = [] } = useDeployments();
 
@@ -73,6 +76,17 @@ const HomePage: React.FC = () => {
 
   const runningProjects = projects.filter(p => p.status === 'RUNNING').length;
   const stoppedProjects = projects.filter(p => p.status === 'STOPPED' || p.status === 'CREATED').length;
+
+  // Repo-derived values for the Projects card
+  const connectedRepos = repos.filter(r => r.status === 'CONNECTED' || r.status === 'SYNCING').length;
+  const lastRepo = repos.length > 0
+    ? [...repos].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
+    : null;
+  const lastRepoLabel = lastRepo?.repoName
+    ? lastRepo.repoName.length > 20
+      ? lastRepo.repoName.slice(0, 20) + '…'
+      : lastRepo.repoName
+    : null;
 
   const isHubConnected = hubStatus?.connected === true;
 
@@ -183,6 +197,22 @@ const HomePage: React.FC = () => {
                   </span>
                 )
               }
+            />
+
+            {/* Repositories */}
+            <OverviewCard
+              icon={<GitBranch size={13} />}
+              label="Repositories"
+              onClick={() => navigate('/repositories')}
+              count={repos.length}
+              stats={[
+                ...(connectedRepos > 0
+                  ? [{ text: `${connectedRepos} connected`, colorClass: 'text-emerald-400' }]
+                  : [{ text: 'No repos linked', colorClass: 'text-slate-500' }]),
+                ...(lastRepoLabel
+                  ? [{ text: `latest: ${lastRepoLabel}`, colorClass: 'text-slate-400' }]
+                  : []),
+              ]}
             />
 
             {/* Projects */}

@@ -84,6 +84,10 @@
   .pulse-dot {
     @apply w-2 h-2 rounded-full animate-pulse;
   }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Custom Scrollbar */

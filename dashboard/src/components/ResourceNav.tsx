@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Server, Hammer, Rocket, Layers, FolderKanban, Network, HardDrive, Globe } from 'lucide-react';
+import { LayoutDashboard, Server, Hammer, Rocket, Layers, FolderKanban, Network, HardDrive, Globe, GitBranch } from 'lucide-react';
 
 const TABS = [
     { label: 'Home', path: '/dashboard', icon: LayoutDashboard },
@@ -9,6 +9,7 @@ const TABS = [
     { label: 'Deployments', path: '/deployments', icon: Rocket },
     { label: 'Images', path: '/images', icon: Layers },
     { label: 'Registry', path: '/registry', icon: Globe },
+    { label: 'Repositories', path: '/repositories', icon: GitBranch },
     { label: 'Projects', path: '/projects', icon: FolderKanban },
     { label: 'Networks', path: '/networks', icon: Network },
     { label: 'Volumes', path: '/volumes', icon: HardDrive },
@@ -30,7 +31,7 @@ const ResourceNav: React.FC = () => {
 
     return (
         <nav className={`bg-slate-900/60 backdrop-blur-xl border-b border-slate-800/80 sticky z-40 transition-all duration-300 ease-out ${headerHidden ? 'top-0' : 'top-16'}`}>
-            <div className="max-w-7xl mx-auto px-6 flex items-center gap-1">
+            <div className="max-w-7xl mx-auto px-6 flex items-center gap-1 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 {TABS.map(({ label, path, icon: Icon }) => {
                     const isActive = location.pathname === path ||
                         (path !== '/dashboard' && location.pathname.startsWith(path));
@@ -39,7 +40,7 @@ const ResourceNav: React.FC = () => {
                         <button
                             key={path}
                             onClick={() => navigate(path)}
-                            className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${isActive
+                            className={`relative flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${isActive
                                 ? 'text-blue-400'
                                 : 'text-slate-500 hover:text-slate-300'
                                 }`}

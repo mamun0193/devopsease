@@ -38,7 +38,7 @@ export const repoApi = {
    
   getAll: async (): Promise<Repository[]> => {
     const response = await api.get<{ success: boolean; data: Repository[] }>('/api/repos');
-    return response.data.data;
+    return response.data?.data ?? [];
   },
 
   // Connect a new Git repository.
