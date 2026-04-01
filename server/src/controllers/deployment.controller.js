@@ -6,6 +6,7 @@ import {
     stopDeployment,
     removeDeployment,
     rollbackDeployment,
+    scaleDeployment,
 } from '../services/deployment.service.js';
 
 const ENV_MAP = { development: 'dev', staging: 'staging', production: 'production' };
@@ -143,6 +144,24 @@ export const rollbackDeploymentAction = async (req, res, next) => {
         const deployment = await rollbackDeployment(req.params.id, {
             reason: req.body?.reason,
         });
+        res.json({ deployment });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const scaleDeploymentAction = async (req, res, next) => {
+    try {
+        await assertDeploymentOwnership(req.user._id, req.params.id);
+
+        const replicas = Number(req.body?.replicas);
+        if (!Number.isInteger(replicas) || replicas < 1) {
+            const err = new Error('"replicas" must be a positive integer');
+            err.statusCode = 400;
+            throw err;
+        }
+
+        const deployment = await scaleDeployment(req.params.id, replicas);
         res.json({ deployment });
     } catch (error) {
         next(error);

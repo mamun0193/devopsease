@@ -82,3 +82,26 @@ export async function containerExists(containerName) {
         return false;
     }
 }
+
+export async function getContainerState(containerId) {
+    try {
+        const { stdout } = await execDocker(
+            ['inspect', '--format', '{{.State.Status}}', containerId],
+            { timeoutMs: 10_000 }
+        );
+        return stdout.trim(); // 'running', 'exited', 'paused', etc.
+    } catch {
+        return null; // container doesn't exist
+    }
+}
+
+export async function getRunningContainerIds(containerIds) {
+    const running = [];
+    for (const id of containerIds) {
+        const state = await getContainerState(id);
+        if (state === 'running') {
+            running.push(id);
+        }
+    }
+    return running;
+}

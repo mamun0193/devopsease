@@ -33,6 +33,16 @@ const deploymentSchema = new mongoose.Schema({
         type: Number,
         default: null
     },
+    desiredReplicas: {
+        type: Number,
+        default: 1,
+        min: 1,
+        max: 10
+    },
+    containerIds: {
+        type: [String],
+        default: []
+    },
     environment: {
         type: String,
         trim: true,

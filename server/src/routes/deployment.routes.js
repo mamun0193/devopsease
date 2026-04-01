@@ -7,6 +7,7 @@ import {
     stopDeploymentAction,
     removeDeploymentAction,
     rollbackDeploymentAction,
+    scaleDeploymentAction,
 } from '../controllers/deployment.controller.js';
 
 const router = Router();
@@ -17,5 +18,6 @@ router.get('/:id/logs', authMiddleware, getDeploymentLogs);
 router.post('/:id/stop', authMiddleware, stopDeploymentAction);
 router.post('/:id/remove', authMiddleware, removeDeploymentAction);
 router.post('/:id/rollback', authMiddleware, rollbackDeploymentAction);
+router.post('/:id/scale', authMiddleware, scaleDeploymentAction);
 
 export default router;
