@@ -853,6 +853,67 @@ export const deploymentApi = {
   },
 };
 
+// ── Kubernetes Clusters ───────────────────────────────────────────────────────
+
+export interface K8sCluster {
+  _id: string;
+  userId: string;
+  name: string;
+  status: 'connected' | 'failed';
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface K8sPodContainer {
+  name: string;
+  ready: boolean;
+  restarts: number;
+  image: string;
+}
+
+export interface K8sPod {
+  name: string;
+  namespace: string;
+  status: string;
+  ready: boolean;
+  restarts: number;
+  age: string | null;
+  nodeName: string | null;
+  containers: K8sPodContainer[];
+}
+
+export interface K8sNamespace {
+  name: string;
+  status: string;
+  age: string | null;
+  labels: Record<string, string>;
+}
+
+export const clusterApi = {
+  connect: async (name: string, kubeconfig: string): Promise<K8sCluster> => {
+    const response = await api.post<{ cluster: K8sCluster }>('/api/clusters/connect', { name, kubeconfig });
+    return response.data.cluster;
+  },
+
+  list: async (): Promise<K8sCluster[]> => {
+    const response = await api.get<{ clusters: K8sCluster[] }>('/api/clusters');
+    return response.data.clusters;
+  },
+
+  getPods: async (clusterId: string, namespace = 'default'): Promise<K8sPod[]> => {
+    const response = await api.get<{ pods: K8sPod[] }>(`/api/clusters/${clusterId}/pods`, {
+      params: { namespace },
+    });
+    return response.data.pods;
+  },
+
+  getNamespaces: async (clusterId: string): Promise<K8sNamespace[]> => {
+    const response = await api.get<{ namespaces: K8sNamespace[] }>(`/api/clusters/${clusterId}/namespaces`);
+    return response.data.namespaces;
+  },
+};
+
 export default api;
 
 // Re-export alerts API
