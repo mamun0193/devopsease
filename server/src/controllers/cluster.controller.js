@@ -3,6 +3,8 @@ import {
     getUserClusters,
     getClusterPods,
     getClusterNamespaces,
+    createNamespace,
+    deleteNamespace,
 } from '../services/cluster.service.js';
 
 
@@ -54,6 +56,34 @@ export const getClusterNamespacesAction = async (req, res, next) => {
 
         const namespaces = await getClusterNamespaces(userId, clusterId);
         res.json({ namespaces });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+export const createNamespaceAction = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const clusterId = req.params.id;
+        const { name } = req.body ?? {};
+
+        const namespace = await createNamespace(userId, clusterId, name);
+        res.status(201).json({ namespace });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+export const deleteNamespaceAction = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const clusterId = req.params.id;
+        const { name } = req.params;
+
+        const result = await deleteNamespace(userId, clusterId, name);
+        res.json({ namespace: result });
     } catch (error) {
         next(error);
     }

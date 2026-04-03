@@ -1,6 +1,11 @@
 import Cluster from '../models/cluster.model.js';
 import { encrypt, decrypt } from '../utils/encryption.js';
 import { loadKubeConfig, listNamespaces, listPods } from './k8sClient.service.js';
+import {
+    createNamespace as createK8sNamespace,
+    deleteNamespace as deleteK8sNamespace,
+    listNamespaces as listK8sNamespaces,
+} from './k8sNamespace.service.js';
 import logger from '../utils/logger.js';
 
 // connect cluster for user 
@@ -96,9 +101,7 @@ export async function getUserClusters(userId) {
 
 // Fetch pods from a saved cluster.  Validates ownership.
 export async function getClusterPods(userId, clusterId, namespace) {
-    const cluster = await assertClusterOwnership(userId, clusterId);
-    const plainKubeconfig = decrypt(cluster.kubeconfig);
-    const kc = loadKubeConfig(plainKubeconfig);
+    const { kc } = await getOwnedClusterKubeConfig(userId, clusterId);
 
     const ns = (namespace || 'default').trim() || 'default';
     return listPods(kc, ns);
@@ -106,14 +109,51 @@ export async function getClusterPods(userId, clusterId, namespace) {
 
 // Fetch namespaces from a saved cluster.  Validates ownership.
 export async function getClusterNamespaces(userId, clusterId) {
+    return getNamespaces(userId, clusterId);
+}
+
+export async function getNamespaces(userId, clusterId) {
+    const { kc } = await getOwnedClusterKubeConfig(userId, clusterId);
+    return listK8sNamespaces(kc);
+}
+
+export async function createNamespace(userId, clusterId, name) {
+    const { cluster, kc } = await getOwnedClusterKubeConfig(userId, clusterId);
+    const namespace = await createK8sNamespace(kc, name);
+
+    logger.info('K8s namespace created', {
+        userId,
+        clusterId: cluster._id,
+        clusterName: cluster.name,
+        namespace: namespace.name,
+    });
+
+    return namespace;
+}
+
+export async function deleteNamespace(userId, clusterId, name) {
+    const { cluster, kc } = await getOwnedClusterKubeConfig(userId, clusterId);
+    const result = await deleteK8sNamespace(kc, name);
+
+    logger.info('K8s namespace deleted', {
+        userId,
+        clusterId: cluster._id,
+        clusterName: cluster.name,
+        namespace: result.name,
+    });
+
+    return result;
+}
+
+// Internal helpers 
+
+async function getOwnedClusterKubeConfig(userId, clusterId) {
     const cluster = await assertClusterOwnership(userId, clusterId);
     const plainKubeconfig = decrypt(cluster.kubeconfig);
     const kc = loadKubeConfig(plainKubeconfig);
 
-    return listNamespaces(kc);
+    return { cluster, kc };
 }
-
-// Internal helpers 
 
 // Verify the requesting user owns the cluster.
 // Returns the full cluster document (including encrypted kubeconfig).
