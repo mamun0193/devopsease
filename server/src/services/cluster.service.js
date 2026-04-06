@@ -1,6 +1,7 @@
 import Cluster from '../models/cluster.model.js';
 import { encrypt, decrypt } from '../utils/encryption.js';
 import { loadKubeConfig, listNamespaces, listPods } from './k8sClient.service.js';
+import { getPodLogs as fetchPodLogs } from './k8sPod.service.js';
 import {
     createNamespace as createK8sNamespace,
     deleteNamespace as deleteK8sNamespace,
@@ -105,6 +106,14 @@ export async function getClusterPods(userId, clusterId, namespace) {
 
     const ns = (namespace || 'default').trim() || 'default';
     return listPods(kc, ns);
+}
+
+// Fetch logs from a specific pod in a saved cluster.  Validates ownership.
+export async function getPodLogs(userId, clusterId, namespace, podName, options = {}) {
+    const { kc } = await getOwnedClusterKubeConfig(userId, clusterId);
+
+    const ns = (namespace || 'default').trim() || 'default';
+    return fetchPodLogs(kc, ns, podName, options);
 }
 
 // Fetch namespaces from a saved cluster.  Validates ownership.

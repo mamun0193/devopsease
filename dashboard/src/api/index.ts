@@ -908,6 +908,24 @@ export const clusterApi = {
     return response.data.pods;
   },
 
+  getPodLogs: async (
+    clusterId: string,
+    podName: string,
+    options: { namespace?: string; tailLines?: number; container?: string } = {},
+  ): Promise<string> => {
+    const response = await api.get<{ logs: string }>(
+      `/api/clusters/${clusterId}/pods/${encodeURIComponent(podName)}/logs`,
+      {
+        params: {
+          namespace: options.namespace || 'default',
+          tailLines: options.tailLines || 100,
+          ...(options.container ? { container: options.container } : {}),
+        },
+      },
+    );
+    return response.data.logs;
+  },
+
   getNamespaces: async (clusterId: string): Promise<K8sNamespace[]> => {
     const response = await api.get<{ namespaces: K8sNamespace[] }>(`/api/clusters/${clusterId}/namespaces`);
     return response.data.namespaces;

@@ -5,6 +5,7 @@ import {
     getClusterNamespaces,
     createNamespace,
     deleteNamespace,
+    getPodLogs,
 } from '../services/cluster.service.js';
 
 
@@ -84,6 +85,26 @@ export const deleteNamespaceAction = async (req, res, next) => {
 
         const result = await deleteNamespace(userId, clusterId, name);
         res.json({ namespace: result });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+export const getPodLogsAction = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const clusterId = req.params.id;
+        const podName = req.params.podName;
+        const namespace = req.query.namespace || 'default';
+        const tailLines = req.query.tailLines ? Number(req.query.tailLines) : 100;
+        const container = req.query.container || undefined;
+
+        const logs = await getPodLogs(userId, clusterId, namespace, podName, {
+            tailLines,
+            container,
+        });
+        res.json({ logs });
     } catch (error) {
         next(error);
     }

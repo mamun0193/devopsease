@@ -45,6 +45,7 @@ import AlertsPage from './pages/AlertsPage';
 import RepositoriesPage from './pages/RepositoriesPage';
 import DeploymentsPage from './pages/DeploymentsPage';
 import ClustersPage from './pages/ClustersPage';
+import PodsPage from './pages/PodsPage';
 import { useAlertSocket } from './hooks/useAlertSocket';
 import { useContainerEvents } from './hooks/useContainerEvents';
 import { useUnresolvedAlertCount } from './hooks/useAlerts';
@@ -217,6 +218,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ClustersPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/pods"
+                  element={
+                    <ProtectedRoute>
+                      <PodsPage />
                     </ProtectedRoute>
                   }
                 />

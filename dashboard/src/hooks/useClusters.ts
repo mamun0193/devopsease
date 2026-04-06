@@ -19,3 +19,36 @@ export function useConnectCluster() {
         },
     });
 }
+
+export function useClusterPods(clusterId: string | null, namespace = 'default') {
+    return useQuery({
+        queryKey: ['cluster-pods', clusterId, namespace],
+        queryFn: () => clusterApi.getPods(clusterId!, namespace),
+        enabled: !!clusterId,
+        staleTime: 15_000,
+        refetchInterval: 30_000,
+    });
+}
+
+export function useClusterNamespaces(clusterId: string | null) {
+    return useQuery({
+        queryKey: ['cluster-namespaces', clusterId],
+        queryFn: () => clusterApi.getNamespaces(clusterId!),
+        enabled: !!clusterId,
+        staleTime: 60_000,
+    });
+}
+
+export function usePodLogs(
+    clusterId: string | null,
+    podName: string | null,
+    options: { namespace?: string; tailLines?: number; container?: string } = {},
+) {
+    return useQuery({
+        queryKey: ['pod-logs', clusterId, podName, options.namespace, options.tailLines, options.container],
+        queryFn: () => clusterApi.getPodLogs(clusterId!, podName!, options),
+        enabled: !!clusterId && !!podName,
+        staleTime: 10_000,
+        refetchInterval: false, // manual refresh via invalidation
+    });
+}
