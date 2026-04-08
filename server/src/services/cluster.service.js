@@ -2,6 +2,7 @@ import Cluster from '../models/cluster.model.js';
 import { encrypt, decrypt } from '../utils/encryption.js';
 import { loadKubeConfig, listNamespaces, listPods } from './k8sClient.service.js';
 import { getPodLogs as fetchPodLogs } from './k8sPod.service.js';
+import { scaleDeployment as scaleK8sDeployment } from './k8sScale.service.js';
 import {
     createNamespace as createK8sNamespace,
     deleteNamespace as deleteK8sNamespace,
@@ -149,6 +150,25 @@ export async function deleteNamespace(userId, clusterId, name) {
         clusterId: cluster._id,
         clusterName: cluster.name,
         namespace: result.name,
+    });
+
+    return result;
+}
+
+// Scale a deployment's replica count.  Validates ownership.
+export async function scaleDeployment(userId, clusterId, namespace, deploymentName, replicas) {
+    const { cluster, kc } = await getOwnedClusterKubeConfig(userId, clusterId);
+
+    const result = await scaleK8sDeployment(kc, namespace, deploymentName, replicas);
+
+    logger.info('K8s deployment scaled via cluster service', {
+        userId,
+        clusterId: cluster._id,
+        clusterName: cluster.name,
+        deployment: result.name,
+        namespace: result.namespace,
+        from: result.previousReplicas,
+        to: result.replicas,
     });
 
     return result;

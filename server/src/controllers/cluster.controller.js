@@ -6,6 +6,7 @@ import {
     createNamespace,
     deleteNamespace,
     getPodLogs,
+    scaleDeployment,
 } from '../services/cluster.service.js';
 
 
@@ -105,6 +106,42 @@ export const getPodLogsAction = async (req, res, next) => {
             container,
         });
         res.json({ logs });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+export const scaleDeploymentAction = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const clusterId = req.params.id;
+        const deploymentName = req.params.name;
+        const { namespace = 'default', replicas } = req.body ?? {};
+
+        if (replicas == null) {
+            const err = new Error('"replicas" is required in the request body');
+            err.statusCode = 400;
+            err.errorCode = 'VALIDATION_ERROR';
+            throw err;
+        }
+
+        const result = await scaleDeployment(
+            userId,
+            clusterId,
+            namespace,
+            deploymentName,
+            replicas,
+        );
+
+        res.json({
+            message: 'Deployment scaled successfully',
+            replicas: result.replicas,
+            previousReplicas: result.previousReplicas,
+            deployment: result.name,
+            namespace: result.namespace,
+            availableReplicas: result.availableReplicas,
+        });
     } catch (error) {
         next(error);
     }
