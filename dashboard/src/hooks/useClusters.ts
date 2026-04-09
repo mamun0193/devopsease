@@ -52,3 +52,14 @@ export function usePodLogs(
         refetchInterval: false, // manual refresh via invalidation
     });
 }
+
+export function useClusterOverview(clusterId: string | null, namespace = 'default') {
+    return useQuery({
+        queryKey: ['cluster-overview', clusterId, namespace],
+        queryFn: () => clusterApi.getOverview(clusterId!, namespace),
+        enabled: !!clusterId,
+        staleTime: 8_000,
+        refetchInterval: 10_000, // auto-refresh every 10 seconds
+    });
+}
+

@@ -7,6 +7,7 @@ import {
     deleteNamespace,
     getPodLogs,
     scaleDeployment,
+    getClusterOverview,
 } from '../services/cluster.service.js';
 
 
@@ -142,6 +143,20 @@ export const scaleDeploymentAction = async (req, res, next) => {
             namespace: result.namespace,
             availableReplicas: result.availableReplicas,
         });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+export const getClusterOverviewAction = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const clusterId = req.params.id;
+        const namespace = req.query.namespace || 'default';
+
+        const overview = await getClusterOverview(userId, clusterId, namespace);
+        res.json(overview);
     } catch (error) {
         next(error);
     }

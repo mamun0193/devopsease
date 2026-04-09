@@ -9,6 +9,7 @@ import {
     deleteNamespaceAction,
     getPodLogsAction,
     scaleDeploymentAction,
+    getClusterOverviewAction,
 } from '../controllers/cluster.controller.js';
 
 const router = Router();
@@ -21,5 +22,6 @@ router.get('/:id/namespaces', authMiddleware, getClusterNamespacesAction);
 router.post('/:id/namespaces', authMiddleware, createNamespaceAction);
 router.delete('/:id/namespaces/:name', authMiddleware, deleteNamespaceAction);
 router.post('/:id/deployments/:name/scale', authMiddleware, scaleDeploymentAction);
+router.get('/:id/overview', authMiddleware, getClusterOverviewAction);
 
 export default router;

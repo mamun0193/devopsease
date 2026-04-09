@@ -46,6 +46,7 @@ import RepositoriesPage from './pages/RepositoriesPage';
 import DeploymentsPage from './pages/DeploymentsPage';
 import ClustersPage from './pages/ClustersPage';
 import PodsPage from './pages/PodsPage';
+import KubernetesDashboardPage from './pages/KubernetesDashboardPage';
 import { useAlertSocket } from './hooks/useAlertSocket';
 import { useContainerEvents } from './hooks/useContainerEvents';
 import { useUnresolvedAlertCount } from './hooks/useAlerts';
@@ -226,6 +227,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <PodsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/kubernetes/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <KubernetesDashboardPage />
                     </ProtectedRoute>
                   }
                 />

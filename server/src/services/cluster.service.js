@@ -3,6 +3,7 @@ import { encrypt, decrypt } from '../utils/encryption.js';
 import { loadKubeConfig, listNamespaces, listPods } from './k8sClient.service.js';
 import { getPodLogs as fetchPodLogs } from './k8sPod.service.js';
 import { scaleDeployment as scaleK8sDeployment } from './k8sScale.service.js';
+import { getClusterOverview as fetchClusterOverview } from './k8sDashboard.service.js';
 import {
     createNamespace as createK8sNamespace,
     deleteNamespace as deleteK8sNamespace,
@@ -172,6 +173,14 @@ export async function scaleDeployment(userId, clusterId, namespace, deploymentNa
     });
 
     return result;
+}
+
+// Fetch aggregated cluster overview (pods, services, deployments) for a namespace.
+export async function getClusterOverview(userId, clusterId, namespace) {
+    const { kc } = await getOwnedClusterKubeConfig(userId, clusterId);
+
+    const ns = (namespace || 'default').trim() || 'default';
+    return fetchClusterOverview(kc, ns);
 }
 
 // Internal helpers 

@@ -890,6 +890,40 @@ export interface K8sNamespace {
   labels: Record<string, string>;
 }
 
+//  K8s Dashboard Overview 
+
+export interface K8sDashboardPod {
+  name: string;
+  status: string;
+  restarts: number;
+  age: string | null;
+}
+
+export interface K8sDashboardService {
+  name: string;
+  type: string;
+  clusterIP: string;
+  ports: Array<{
+    port: number;
+    targetPort: number | string;
+    protocol: string;
+    nodePort?: number;
+  }>;
+}
+
+export interface K8sDashboardDeployment {
+  name: string;
+  replicas: number;
+  availableReplicas: number;
+  age: string | null;
+}
+
+export interface K8sClusterOverview {
+  pods: K8sDashboardPod[];
+  services: K8sDashboardService[];
+  deployments: K8sDashboardDeployment[];
+}
+
 export const clusterApi = {
   connect: async (name: string, kubeconfig: string): Promise<K8sCluster> => {
     const response = await api.post<{ cluster: K8sCluster }>('/api/clusters/connect', { name, kubeconfig });
@@ -930,6 +964,13 @@ export const clusterApi = {
     const response = await api.get<{ namespaces: K8sNamespace[] }>(`/api/clusters/${clusterId}/namespaces`);
     return response.data.namespaces;
   },
+
+  getOverview: async (clusterId: string, namespace = 'default'): Promise<K8sClusterOverview> => {
+    const response = await api.get<K8sClusterOverview>(`/api/clusters/${clusterId}/overview`, {
+      params: { namespace },
+    });
+    return response.data;
+  },
 };
 
 export default api;
@@ -937,3 +978,4 @@ export default api;
 // Re-export alerts API
 export { alertsApi } from './alerts';
 export type { Alert, AlertsResponse } from './alerts';
+
