@@ -25,6 +25,7 @@ import webhookRoutes from "./routes/webhook.routes.js";
 import deploymentRoutes from "./routes/deployment.routes.js";
 import clusterRoutes from "./routes/cluster.routes.js";
 import k8sRoutes from "./routes/k8s.routes.js";
+import pipelineRoutes from "./routes/pipeline.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
 import logger from "./utils/logger.js";
@@ -108,6 +109,7 @@ app.use("/api/git", gitRoutes);
 app.use("/api/deployments", deploymentRoutes);
 app.use("/api/clusters", clusterRoutes);
 app.use("/api/k8s", k8sRoutes);
+app.use("/api/pipelines", pipelineRoutes);
 
 app.use(errorHandler);
 

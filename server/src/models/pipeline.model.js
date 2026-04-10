@@ -1,0 +1,51 @@
+import mongoose from 'mongoose';
+
+const PIPELINE_STATUSES = ['active', 'inactive', 'error'];
+const ALLOWED_STEPS = ['build', 'test', 'deploy'];
+
+const pipelineSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        index: true
+    },
+    repoId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Repository',
+        required: true,
+        index: true
+    },
+    name: {
+        type: String,
+        required: true,
+        trim: true,
+        maxlength: 128
+    },
+    config: {
+        type: Object,
+        required: true
+    },
+    rawYaml: {
+        type: String,
+        required: true
+    },
+    status: {
+        type: String,
+        enum: PIPELINE_STATUSES,
+        default: 'active'
+    },
+    version: {
+        type: Number,
+        default: 1
+    }
+}, {
+    timestamps: true
+});
+
+pipelineSchema.index({ userId: 1, createdAt: -1 });
+pipelineSchema.index({ repoId: 1, createdAt: -1 });
+pipelineSchema.index({ userId: 1, repoId: 1 });
+
+export { PIPELINE_STATUSES, ALLOWED_STEPS };
+export default mongoose.model('Pipeline', pipelineSchema);
