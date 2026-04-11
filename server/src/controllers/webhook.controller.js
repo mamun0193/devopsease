@@ -1,7 +1,7 @@
 import Repository from "../models/repository.model.js";
 import logger from "../utils/logger.js";
 import { verifyGitHubSignature } from "../helpers/githubSignature.helper.js";
-import { runBuildPipeline } from "../services/build.service.js";
+import pipelineService from "../services/pipeline.service.js";
 
 const processedDeliveries = new Set();
 const deliveryOrder = [];
@@ -36,15 +36,40 @@ function isDuplicateDelivery(deliveryId) {
 }
 
 export async function triggerPipeline(repo, payload) {
+  // Find all active pipelines configured for this repository.
+  const pipelines = await pipelineService.getActivePipelinesByRepo(repo._id);
+
   logger.info("Webhook pipeline trigger started", {
     event: "push",
     owner: repo.owner,
     repo: repo.repoName,
     deliveryId: payload?.deliveryId,
+    pipelineCount: pipelines.length,
     status: "processed",
   });
 
-  await runBuildPipeline(repo, payload);
+  if (!pipelines.length) {
+    logger.info("No active pipelines configured for repository", {
+      repoId: String(repo._id),
+      deliveryId: payload?.deliveryId,
+      status: "ignored",
+    });
+    return;
+  }
+
+  // Execute each pipeline sequentially for this webhook event.
+  for (const pipeline of pipelines) {
+    try {
+      await pipelineService.executePipeline(pipeline._id);
+    } catch (error) {
+      logger.error("Pipeline execution failed during webhook trigger", {
+        pipelineId: String(pipeline._id),
+        repoId: String(repo._id),
+        deliveryId: payload?.deliveryId,
+        error: error.message,
+      });
+    }
+  }
 }
 
 export async function handleGitHubWebhook(req, res) {

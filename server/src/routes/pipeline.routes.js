@@ -4,13 +4,17 @@ import {
     createPipeline,
     listPipelines,
     getPipeline,
-    deletePipeline
+    deletePipeline,
+    runPipeline,
+    getPipelineStatus
 } from '../controllers/pipeline.controller.js';
 
 const router = Router();
 
 router.post('/', authMiddleware, createPipeline);
 router.get('/', authMiddleware, listPipelines);
+router.post('/:id/run', authMiddleware, runPipeline);
+router.get('/:id/status', authMiddleware, getPipelineStatus);
 router.get('/:id', authMiddleware, getPipeline);
 router.delete('/:id', authMiddleware, deletePipeline);
 

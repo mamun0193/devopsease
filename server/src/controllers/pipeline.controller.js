@@ -99,3 +99,46 @@ export const deletePipeline = async (req, res, next) => {
         next(error);
     }
 };
+
+export const runPipeline = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+
+        const pipeline = await pipelineService.getPipelineById(id, userId);
+        if (!pipeline) {
+            return res.status(404).json({ message: 'Pipeline not found' });
+        }
+
+        const executed = await pipelineService.executePipeline(id);
+
+        res.json({
+            id: executed._id,
+            name: executed.name,
+            status: executed.executionStatus,
+            startedAt: executed.startedAt,
+            completedAt: executed.completedAt,
+            logs: executed.executionLogs
+        });
+    } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        next(error);
+    }
+};
+
+export const getPipelineStatus = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+
+        const status = await pipelineService.getPipelineExecutionStatus(id, userId);
+        res.json(status);
+    } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        next(error);
+    }
+};
