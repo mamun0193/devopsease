@@ -1,4 +1,4 @@
-import k8s from '@kubernetes/client-node';
+import * as k8s from '@kubernetes/client-node';
 import logger from '../utils/logger.js';
 
 // Stateless Kubernetes client utilities.

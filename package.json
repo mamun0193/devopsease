@@ -25,5 +25,8 @@
   "homepage": "https://github.com/mamun0193/devopsease#readme",
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "@kubernetes/client-node": "^1.4.0"
   }
 }
