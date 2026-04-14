@@ -72,14 +72,14 @@ export async function allocateContainerName(repoName) {
 
 const DOCKER_RUN_MAX_RETRIES = 1;
 
-export async function createReplica(imageTag, repoName) {
+export async function createReplica(imageTag, repoName, envVars = {}) {
     const containerName = await allocateContainerName(repoName);
     const port = await allocatePort();
 
     let lastError = null;
     for (let attempt = 0; attempt <= DOCKER_RUN_MAX_RETRIES; attempt++) {
         try {
-            const containerId = await runContainer(imageTag, containerName, port);
+            const containerId = await runContainer(imageTag, containerName, port, envVars);
 
             logger.info('Created container replica', {
                 containerId,

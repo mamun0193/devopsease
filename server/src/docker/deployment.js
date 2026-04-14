@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 
 const DOCKER_CMD_TIMEOUT_MS = 60_000;
 const MAX_ERROR_LOG_LENGTH = 5000;
+const ENV_KEY_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 function execDocker(args, { timeoutMs = DOCKER_CMD_TIMEOUT_MS } = {}) {
     return new Promise((resolve, reject) => {
@@ -45,16 +46,24 @@ function execDocker(args, { timeoutMs = DOCKER_CMD_TIMEOUT_MS } = {}) {
     });
 }
 
-export async function runContainer(imageTag, containerName, port) {
+export async function runContainer(imageTag, containerName, port, envVars = {}) {
     const args = [
         'run', '-d',
-        '-p', `${port}:3000`,
+        '-p', `${port}:3497`,
         '--name', containerName,
-        imageTag
     ];
 
+    if (envVars && typeof envVars === 'object' && !Array.isArray(envVars)) {
+        for (const [key, rawValue] of Object.entries(envVars)) {
+            if (!ENV_KEY_REGEX.test(key)) continue;
+            args.push('-e', `${key}=${String(rawValue)}`);
+        }
+    }
+
+    args.push(imageTag);
+
     const { stdout } = await execDocker(args);
-    const containerId = stdout.split('\n').pop().trim();
+    const containerId = stdout.split('\n').filter(Boolean).pop()?.trim();
 
     if (!containerId) {
         throw new Error('docker run returned empty container ID');

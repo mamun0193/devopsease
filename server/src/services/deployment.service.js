@@ -1,5 +1,7 @@
 import Deployment from '../models/deployment.model.js';
+import Repository from '../models/repository.model.js';
 import { assertEnvironmentExists } from './env.service.js';
+import { getDecryptedSecretsMap } from './secret.service.js';
 import {
     createReplica,
     destroyReplica,
@@ -21,6 +23,15 @@ function truncateErrorLog(message) {
     return String(message).slice(0, MAX_ERROR_LOG_LENGTH);
 }
 
+async function resolveDeploymentSecretEnv(deployment) {
+    const repo = await Repository.findById(deployment.repoId).select('userId').lean();
+    if (!repo?.userId) {
+        return {};
+    }
+
+    return getDecryptedSecretsMap(repo.userId, deployment.environment || 'development');
+}
+
 // Reconciliation engine: compare desired replica count against actual running containers and create/remove containers to reach the desired state.
 
 export async function reconcileDeployment(deploymentId) {
@@ -39,6 +50,7 @@ export async function reconcileDeployment(deploymentId) {
 
     const desired = deployment.desiredReplicas;
     const repoName = deployment.imageTag?.split(':')[0] || 'app';
+    const runtimeSecretEnv = await resolveDeploymentSecretEnv(deployment);
 
     //  1. Discover actual running containers 
     const recordedIds = deployment.containerIds || [];
@@ -72,7 +84,11 @@ export async function reconcileDeployment(deploymentId) {
 
         try {
             for (let i = 0; i < toCreate; i++) {
-                const { containerId } = await createReplica(deployment.imageTag, `${repoName}-r${actual + i}`);
+                const { containerId } = await createReplica(
+                    deployment.imageTag,
+                    `${repoName}-r${actual + i}`,
+                    runtimeSecretEnv,
+                );
                 newIds.push(containerId);
 
                 logger.info('Created replica', {
@@ -400,6 +416,7 @@ export async function rollbackDeployment(deploymentId, options = {}) {
     }
 
     const repoName = previous.imageTag?.split(':')[0] || 'app';
+    const runtimeSecretEnv = await resolveDeploymentSecretEnv(previous);
     let rollbackDeploymentRecord = null;
     let containerId = null;
 
@@ -422,7 +439,7 @@ export async function rollbackDeployment(deploymentId, options = {}) {
 
         deploymentBroadcaster.broadcast(rollbackDeploymentRecord);
 
-        const result = await createReplica(previous.imageTag, repoName);
+        const result = await createReplica(previous.imageTag, repoName, runtimeSecretEnv);
         containerId = result.containerId;
 
         rollbackDeploymentRecord.containerId = containerId;

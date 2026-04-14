@@ -74,6 +74,7 @@ function parseEnvList(env) {
     return env.map((item, index) => {
         const key = item?.key;
         const value = item?.value;
+        const valueFrom = item?.valueFrom;
 
         if (!key || typeof key !== 'string' || !ENV_KEY_REGEX.test(key)) {
             const err = new Error(
@@ -82,6 +83,27 @@ function parseEnvList(env) {
             err.statusCode = 400;
             err.errorCode = 'INVALID_ENV';
             throw err;
+        }
+
+        if (value != null && valueFrom != null) {
+            const err = new Error(`env[${index}] cannot contain both value and valueFrom`);
+            err.statusCode = 400;
+            err.errorCode = 'INVALID_ENV';
+            throw err;
+        }
+
+        if (valueFrom != null) {
+            if (typeof valueFrom !== 'object' || Array.isArray(valueFrom)) {
+                const err = new Error(`env[${index}].valueFrom must be an object`);
+                err.statusCode = 400;
+                err.errorCode = 'INVALID_ENV';
+                throw err;
+            }
+
+            return {
+                name: key,
+                valueFrom,
+            };
         }
 
         if (value == null) {
