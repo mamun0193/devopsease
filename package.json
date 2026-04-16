@@ -9,7 +9,8 @@
   "scripts": {
     "server": "npm run dev --prefix server",
     "dashboard": "npm run dev --prefix dashboard",
-    "dev": "concurrently \"npm run server\" \"npm run dashboard\""
+    "dev": "concurrently \"npm run server\" \"npm run dashboard\"",
+    "cli": "node cli/bin/devopsease.js"
   },
   "repository": {
     "type": "git",
