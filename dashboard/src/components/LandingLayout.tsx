@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Box, Github } from 'lucide-react';
+import { Box } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import Footer from './Footer';
 
 export const LandingLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
@@ -88,18 +89,7 @@ export const LandingLayout: React.FC<{ children: React.ReactNode }> = ({ childre
         {children}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-800 bg-gray-950 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2">
-            <Box className="w-5 h-5 text-gray-500" />
-            <span className="text-gray-500 font-medium text-sm">DevOpsEase &copy; 2026. Made for developers.</span>
-          </div>
-          <div className="flex items-center gap-6">
-            <a href="#" className="text-gray-500 hover:text-gray-300 transition-colors"><Github className="w-5 h-5" /></a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };

@@ -18,7 +18,7 @@ import {
   GitBranch,
 } from 'lucide-react';
 import Header from '../components/Header';
-import Footer from '../components/Footer';
+import AppFooter from '../components/AppFooter';
 import ResourceNav from '../components/ResourceNav';
 import OverviewCard from '../components/OverviewCard';
 import ResourceUsagePanel from '../components/ResourceUsagePanel';
@@ -302,7 +302,7 @@ const HomePage: React.FC = () => {
       </main>
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
-      <Footer isHealthy={!!health} containerCount={containers.length} />
+      <AppFooter isHealthy={!!health} containerCount={containers.length} />
     </div>
   );
 };

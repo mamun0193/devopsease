@@ -1,77 +1,123 @@
 import React from 'react';
-import { Activity, Cpu, Clock, BookOpen, Github } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { Box, Github } from 'lucide-react';
 
-interface FooterProps {
-  isHealthy: boolean;
-  containerCount: number;
-}
-
-const Footer: React.FC<FooterProps> = ({ isHealthy, containerCount }) => {
-  const now = new Date();
-  const formattedDate = now.toLocaleDateString('en-US', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-  const formattedTime = now.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+const Footer: React.FC = () => {
+  const { pathname } = useLocation();
+  const link = (to: string) =>
+    `text-sm transition-colors ${pathname === to ? 'text-white font-medium' : 'text-gray-500 hover:text-gray-200'}`;
 
   return (
-    <footer className="border-t border-slate-800/60 bg-slate-900/40 mt-auto">
-      <div className="max-w-7xl mx-auto px-6 py-5">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <footer className="border-t border-gray-800 bg-gray-950">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
 
-          {/* Left: branding + status */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                <Activity size={13} className="text-white" />
+          {/* Brand */}
+          <div className="col-span-2 md:col-span-1">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
+                <Box className="w-4 h-4 text-white" />
               </div>
-              <span className="text-sm font-semibold text-slate-300">DevOpsEase</span>
-              <span className="text-xs text-slate-600 font-mono">v1.0</span>
+              <span className="font-bold text-white text-sm">DevOpsEase</span>
             </div>
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500">
-              <div className={`w-1.5 h-1.5 rounded-full ${isHealthy ? 'bg-emerald-500 animate-pulse' : 'bg-yellow-500'}`} />
-              {isHealthy ? 'All systems operational' : 'Connecting to server…'}
+            <p className="text-gray-500 text-xs leading-relaxed max-w-[200px]">
+              DevOpsEase simplifies modern DevOps workflows.
+              Build, deploy, and scale applications with ease.
+              From Git to Kubernetes — all in one platform.
+              Designed for developers who value simplicity.
+            </p>
+            <div className="flex items-center gap-2 mt-4">
+              <a
+                href="https://github.com/mamun0193/devopsease"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-medium transition-colors"
+              >
+                <Github className="w-3.5 h-3.5" />
+                Star on GitHub
+              </a>
             </div>
           </div>
 
-          {/* Right: meta info */}
-          <div className="flex items-center gap-4 text-xs text-slate-600">
-            <span className="flex items-center gap-1.5">
-              <Cpu size={11} />
-              {containerCount} container{containerCount !== 1 ? 's' : ''} tracked
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock size={11} />
-              {formattedDate} · {formattedTime}
-            </span>
+          {/* Product */}
+          <div>
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Product</h4>
+            <ul className="flex flex-col gap-2.5">
+              {[{ label: 'Home', to: '/' },
+              { label: 'About', to: '/about' },
+              { label: 'Features', to: '/features' },
+              { label: 'Pricing', to: '/pricing' },
+              { label: 'Docs', to: '/docs' },
+              { label: 'Contact and Support', to: '/contact' },
+              ].map(l => (
+                <li key={l.label}>
+                  <Link to={l.to} className={link(l.to)}>
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
+
+          {/* Platform */}
+          <div>
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Platform</h4>
+            <ul className="flex flex-col gap-2.5">
+              {[
+                { label: 'CI/CD Pipelines', to: '/features' },
+                { label: 'Docker Builds', to: '/features' },
+                { label: 'Kubernetes', to: '/features' },
+                { label: 'Secrets', to: '/features' },
+                { label: 'CLI Tool', to: '/features' },
+              ].map(l => (
+                <li key={l.label}>
+                  <Link to={l.to} className={link(l.to)}>
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Plans */}
+          <div>
+            <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Plans</h4>
+            <ul className="flex flex-col gap-2.5">
+              {[
+                { label: 'Free — ₹0/mo', to: '/pricing' },
+                { label: 'Pro — ₹199/mo', to: '/pricing' },
+                { label: 'Premium — ₹399/mo', to: '/pricing' },
+              ].map(l => (
+                <li key={l.label}>
+                  <Link to={l.to} className={link(l.to)}>
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+              <li className="mt-2">
+                <Link
+                  to="/login?tab=register"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                >
+                  Get Started Free
+                </Link>
+              </li>
+            </ul>
+          </div>
+
         </div>
 
-        {/* Bottom line */}
-        <div className="mt-4 pt-4 border-t border-slate-800/40 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-700">
-          <span>© {now.getFullYear()} DevOpsEase · Docker management platform</span>
-          <div className="flex items-center gap-3">
-            <a
-              href="https://docs.docker.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 hover:text-slate-400 transition-colors"
-            >
-              <BookOpen size={11} /> Docker Docs
-            </a>
-            <a
-              href="https://github.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 hover:text-slate-400 transition-colors"
-            >
-              <Github size={11} /> GitHub
-            </a>
+        {/* Bottom bar */}
+        <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p className="text-gray-600 text-xs">
+            © 2026 DevOpsEase || Made with ❤️ by <a href="https://github.com/mamun0193" target="_blank" rel="noopener noreferrer">Mamun Rahaman</a>
+          </p>
+          <div className="flex items-center gap-2">
+            {['Node.js','React', 'Docker', 'Kubernetes', 'GitHub'].map(t => (
+              <span key={t} className="px-2 py-0.5 bg-gray-800 text-gray-500 text-[10px] rounded font-mono">
+                {t}
+              </span>
+            ))}
           </div>
         </div>
       </div>

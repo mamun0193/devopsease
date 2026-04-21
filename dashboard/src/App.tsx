@@ -55,6 +55,14 @@ import { useContainerEvents } from './hooks/useContainerEvents';
 import { useUnresolvedAlertCount } from './hooks/useAlerts';
 import AlertsPanel from './components/AlertsPanel';
 import { useAuth } from './context/AuthContext';
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
 
 function AlertSocketProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -72,6 +80,7 @@ function App() {
           <RoleProvider>
             <BrowserRouter>
               <AlertSocketProvider>
+              <ScrollToTop />
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
 
