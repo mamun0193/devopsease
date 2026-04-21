@@ -13,6 +13,8 @@ import {
 import { stopContainer } from '../docker/deployment.js';
 import logger from '../utils/logger.js';
 import deploymentBroadcaster from '../websocket/deploymentBroadcaster.js';
+import { PLANS, DEFAULT_PLAN } from '../config/plans.js';
+import User from '../models/User.js';
 
 const MAX_REPLICAS = 10;
 const MAX_ERROR_LOG_LENGTH = 5000;
@@ -21,6 +23,22 @@ const ROLLBACK_LOOKBACK_LIMIT = 5;
 function truncateErrorLog(message) {
     if (!message) return null;
     return String(message).slice(0, MAX_ERROR_LOG_LENGTH);
+}
+
+// Resolve plan-based resource limits for deployment containers
+async function resolveResourceLimits(repoId) {
+    try {
+        const repo = await Repository.findById(repoId).select('userId').lean();
+        if (!repo?.userId) return {};
+        const user = await User.findById(repo.userId).select('plan').lean();
+        const planConfig = PLANS[user?.plan] || PLANS[DEFAULT_PLAN];
+        return {
+            cpuLimit: planConfig.cpu,
+            memoryLimit: planConfig.memory,
+        };
+    } catch {
+        return {};
+    }
 }
 
 async function resolveDeploymentSecretEnv(deployment) {
@@ -51,6 +69,7 @@ export async function reconcileDeployment(deploymentId) {
     const desired = deployment.desiredReplicas;
     const repoName = deployment.imageTag?.split(':')[0] || 'app';
     const runtimeSecretEnv = await resolveDeploymentSecretEnv(deployment);
+    const resourceLimits = await resolveResourceLimits(deployment.repoId);
 
     //  1. Discover actual running containers 
     const recordedIds = deployment.containerIds || [];
@@ -88,6 +107,7 @@ export async function reconcileDeployment(deploymentId) {
                     deployment.imageTag,
                     `${repoName}-r${actual + i}`,
                     runtimeSecretEnv,
+                    resourceLimits,
                 );
                 newIds.push(containerId);
 
@@ -439,7 +459,7 @@ export async function rollbackDeployment(deploymentId, options = {}) {
 
         deploymentBroadcaster.broadcast(rollbackDeploymentRecord);
 
-        const result = await createReplica(previous.imageTag, repoName, runtimeSecretEnv);
+        const result = await createReplica(previous.imageTag, repoName, runtimeSecretEnv, await resolveResourceLimits(previous.repoId));
         containerId = result.containerId;
 
         rollbackDeploymentRecord.containerId = containerId;

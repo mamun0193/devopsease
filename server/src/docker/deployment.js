@@ -46,12 +46,22 @@ function execDocker(args, { timeoutMs = DOCKER_CMD_TIMEOUT_MS } = {}) {
     });
 }
 
-export async function runContainer(imageTag, containerName, port, envVars = {}) {
+export async function runContainer(imageTag, containerName, port, envVars = {}, { cpuLimit, memoryLimit } = {}) {
     const args = [
         'run', '-d',
         '-p', `${port}:3497`,
         '--name', containerName,
     ];
+
+    // Apply CPU limit (Docker --cpus flag, e.g. '1', '4', '0.5')
+    if (cpuLimit) {
+        args.push('--cpus', String(cpuLimit));
+    }
+
+    // Apply memory limit (Docker --memory flag, e.g. '512m', '4g')
+    if (memoryLimit) {
+        args.push('--memory', String(memoryLimit));
+    }
 
     if (envVars && typeof envVars === 'object' && !Array.isArray(envVars)) {
         for (const [key, rawValue] of Object.entries(envVars)) {

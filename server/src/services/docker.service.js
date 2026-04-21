@@ -72,20 +72,25 @@ export async function allocateContainerName(repoName) {
 
 const DOCKER_RUN_MAX_RETRIES = 1;
 
-export async function createReplica(imageTag, repoName, envVars = {}) {
+export async function createReplica(imageTag, repoName, envVars = {}, resourceLimits = {}) {
     const containerName = await allocateContainerName(repoName);
     const port = await allocatePort();
 
     let lastError = null;
     for (let attempt = 0; attempt <= DOCKER_RUN_MAX_RETRIES; attempt++) {
         try {
-            const containerId = await runContainer(imageTag, containerName, port, envVars);
+            const containerId = await runContainer(imageTag, containerName, port, envVars, {
+                cpuLimit: resourceLimits.cpuLimit,
+                memoryLimit: resourceLimits.memoryLimit,
+            });
 
             logger.info('Created container replica', {
                 containerId,
                 containerName,
                 port,
                 imageTag,
+                cpuLimit: resourceLimits.cpuLimit || 'none',
+                memoryLimit: resourceLimits.memoryLimit || 'none',
             });
 
             return { containerId, containerName, port };

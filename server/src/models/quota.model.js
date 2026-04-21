@@ -26,6 +26,16 @@ const quotaSchema = new mongoose.Schema(
       required: true,
       default: 512,
     },
+    maxStorageMB: {
+      type: Number,  // Megabytes (1024 = 1 GB)
+      required: true,
+      default: 1024,
+    },
+    storageType: {
+      type: String,
+      enum: ['ephemeral', 'persistent'],
+      default: 'ephemeral',
+    },
 
     // --- Current Usage ---
     usedContainers: {
