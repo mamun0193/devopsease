@@ -31,12 +31,12 @@ export const LandingLayout: React.FC<{ children: React.ReactNode }> = ({ childre
               >
                 Home
               </Link>
-              <a
-                href="/#about"
-                className={`text-sm font-medium transition-colors ${location.hash === '#about' ? 'text-white' : 'text-gray-400 hover:text-white'}`}
+              <Link
+                to="/about"
+                className={`text-sm font-medium transition-colors ${location.pathname === '/about' ? 'text-white' : 'text-gray-400 hover:text-white'}`}
               >
                 About
-              </a>
+              </Link>
               <Link
                 to="/features"
                 className={`text-sm font-medium transition-colors ${location.pathname === '/features' ? 'text-white' : 'text-gray-400 hover:text-white'}`}
