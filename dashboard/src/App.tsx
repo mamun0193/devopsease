@@ -30,6 +30,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import { LandingPage } from './pages/LandingPage';
 import { DocsPage } from './pages/DocsPage';
+import FeaturesPage from './pages/FeaturesPage';
 import Toast from './components/Toast';
 import AdminObservabilityPage from './pages/AdminObservabilityPage';
 import BuildsPage from './pages/BuildsPage';
@@ -75,6 +76,8 @@ function App() {
                 <Route path="/" element={<LandingPage />} />
 
                 <Route path="/docs" element={<DocsPage />} />
+
+                <Route path="/features" element={<FeaturesPage />} />
 
                 {/* Protected Dashboard Routes */}
                 <Route
