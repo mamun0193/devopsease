@@ -271,7 +271,7 @@ export const FeaturesPage: React.FC = () => {
     return (
         <LandingLayout>
             {/* Hero */}
-            <section className="py-10 text-center relative">
+            <section className="py-12 text-center relative">
                 <div className="max-w-3xl mx-auto px-4">
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
@@ -282,7 +282,7 @@ export const FeaturesPage: React.FC = () => {
                             <CheckCircle className="w-3.5 h-3.5" />
                             Everything in one platform
                         </span>
-                        <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
+                        <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 leading-tight">
                             Features built for<br />
                             <span className="bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
                                 real DevOps workflows

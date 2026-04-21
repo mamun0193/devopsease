@@ -43,12 +43,12 @@ export const LandingLayout: React.FC<{ children: React.ReactNode }> = ({ childre
               >
                 Features
               </Link>
-              <a
-                href="/#pricing"
-                className={`text-sm font-medium transition-colors ${location.hash === '#pricing' ? 'text-white' : 'text-gray-400 hover:text-white'}`}
+              <Link
+                to="/pricing"
+                className={`text-sm font-medium transition-colors ${location.pathname === '/pricing' ? 'text-white' : 'text-gray-400 hover:text-white'}`}
               >
                 Pricing
-              </a>
+              </Link>
               <Link
                 to="/docs"
                 className={`text-sm font-medium transition-colors ${location.pathname === '/docs' ? 'text-white' : 'text-gray-400 hover:text-white'}`}

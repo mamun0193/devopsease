@@ -32,6 +32,7 @@ import { LandingPage } from './pages/LandingPage';
 import { DocsPage } from './pages/DocsPage';
 import FeaturesPage from './pages/FeaturesPage';
 import AboutPage from './pages/AboutPage';
+import PricingPage from './pages/PricingPage';
 import Toast from './components/Toast';
 import AdminObservabilityPage from './pages/AdminObservabilityPage';
 import BuildsPage from './pages/BuildsPage';
@@ -81,6 +82,8 @@ function App() {
                 <Route path="/features" element={<FeaturesPage />} />
 
                 <Route path="/about" element={<AboutPage />} />
+
+                <Route path="/pricing" element={<PricingPage />} />
 
                 {/* Protected Dashboard Routes */}
                 <Route
