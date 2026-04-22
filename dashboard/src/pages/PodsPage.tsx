@@ -21,6 +21,7 @@ import {
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import Header from '../components/Header';
+import type { FilterItem } from '../components/Header';
 import ResourceNav from '../components/ResourceNav';
 import {
     useClusters,
@@ -473,6 +474,45 @@ const PodsPage: React.FC = () => {
         succeeded: pods.filter(p => p.status === 'Succeeded').length,
     }), [pods]);
 
+    const filterItems: FilterItem[] = React.useMemo(() => [
+        {
+            key: 'all',
+            label: 'Total',
+            count: summary.total,
+            color: 'text-slate-300',
+            activeBg: 'bg-slate-700',
+            activeBorder: 'border-slate-600',
+            icon: <Box size={14} className="text-slate-400" />,
+        },
+        {
+            key: 'running',
+            label: 'Running',
+            count: summary.running,
+            color: 'text-emerald-400',
+            activeBg: 'bg-emerald-500/20',
+            activeBorder: 'border-emerald-500/50',
+            dot: 'bg-emerald-400',
+        },
+        {
+            key: 'pending',
+            label: 'Pending',
+            count: summary.pending,
+            color: 'text-amber-400',
+            activeBg: 'bg-amber-500/20',
+            activeBorder: 'border-amber-500/50',
+            dot: 'bg-amber-400',
+        },
+        {
+            key: 'failed',
+            label: 'Failed',
+            count: summary.failed,
+            color: 'text-red-400',
+            activeBg: 'bg-red-500/20',
+            activeBorder: 'border-red-500/50',
+            dot: 'bg-red-400',
+        },
+    ], [summary]);
+
     const filteredPods = useMemo(() => {
         if (statusFilter === 'all') return pods;
         return pods.filter(p => p.status.toLowerCase() === statusFilter.toLowerCase());
@@ -496,7 +536,7 @@ const PodsPage: React.FC = () => {
 
     return (
         <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header />
+            <Header onFilterChange={setStatusFilter} activeFilter={statusFilter} filterItems={filterItems} />
             <ResourceNav />
 
             <main className="flex-1 p-6 lg:p-8">

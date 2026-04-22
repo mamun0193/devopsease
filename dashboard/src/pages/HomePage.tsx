@@ -16,6 +16,10 @@ import {
   User,
   Rocket,
   GitBranch,
+  LayoutDashboard,
+  Cloud,
+  ArrowLeft,
+  Box,
 } from 'lucide-react';
 import Header from '../components/Header';
 import AppFooter from '../components/AppFooter';
@@ -32,6 +36,7 @@ import { useProjects } from '../hooks/useProjects';
 import { useRepos } from '../hooks/useRepos';
 import { useDockerHubStatus } from '../hooks/useDockerHub';
 import { useDeployments } from '../hooks/useDeployments';
+import { useClusters } from '../hooks/useClusters';
 
 function formatMB(mb: number): string {
   if (!mb || mb === 0) return '0 MB';
@@ -54,6 +59,7 @@ const HomePage: React.FC = () => {
   const { data: repos = [] } = useRepos();
   const { data: hubStatus } = useDockerHubStatus();
   const { data: deployments = [] } = useDeployments();
+  const { data: clusters = [] } = useClusters();
 
   // ── derived ───────────────────────────────────────────────────────────────
   const running = containers.filter(c => c.state?.running).length;
@@ -75,6 +81,9 @@ const HomePage: React.FC = () => {
   const unusedVolumes = volumes.filter(v => v.status === 'UNUSED').length;
 
   const runningProjects = projects.filter(p => p.status === 'RUNNING').length;
+
+  const connectedClusters = clusters.filter(c => c.status === 'CONNECTED' || c.status === 'ACTIVE').length;
+  const offlineClusters = clusters.filter(c => c.status === 'DISCONNECTED' || c.status === 'ERROR').length;
   const stoppedProjects = projects.filter(p => p.status === 'STOPPED' || p.status === 'CREATED').length;
 
   // Repo-derived values for the Projects card
@@ -157,6 +166,35 @@ const HomePage: React.FC = () => {
               onClick={() => navigate('/deployments')}
               count={deployments.length}
               stats={deployStats}
+            />
+
+            {/* Clusters */}
+            <OverviewCard
+              icon={<Cloud size={13} />}
+              label="Clusters"
+              onClick={() => navigate('/clusters')}
+              count={clusters.length}
+              stats={[
+                ...(connectedClusters > 0
+                  ? [{ text: `${connectedClusters} connected`, colorClass: 'text-emerald-400' }]
+                  : [{ text: 'No clusters connected', colorClass: 'text-slate-500' }]),
+                ...(offlineClusters > 0
+                  ? [{ text: `${offlineClusters} offline`, colorClass: 'text-red-400' }]
+                  : []),
+              ]}
+            />
+
+            {/* Pods */}
+            <OverviewCard
+              icon={<Box size={13} />}
+              label="Pods"
+              onClick={() => navigate('/pods')}
+              count={clusters.length > 0 ? clusters.length : 0}
+              stats={[
+                clusters.length > 0
+                  ? { text: `across ${clusters.length} cluster${clusters.length !== 1 ? 's' : ''}`, colorClass: 'text-slate-400' }
+                  : { text: 'No clusters available', colorClass: 'text-slate-500' },
+              ]}
             />
 
             {/* Images */}

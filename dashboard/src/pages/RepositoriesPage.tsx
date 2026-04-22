@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, GitBranch, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
 import Header from '../components/Header';
+import type { FilterItem } from '../components/Header';
 import ResourceNav from '../components/ResourceNav';
 import ConnectRepoModal from '../components/ConnectRepoModal';
 import RepoListTable from '../components/RepoListTable';
@@ -54,6 +55,45 @@ const RepositoriesPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
+  const repoFilterItems: FilterItem[] = React.useMemo(() => [
+    {
+      key: 'all',
+      label: 'Total',
+      count: repos.length,
+      color: 'text-slate-300',
+      activeBg: 'bg-slate-700',
+      activeBorder: 'border-slate-600',
+      icon: <GitBranch size={14} className="text-slate-400" />,
+    },
+    {
+      key: 'connected',
+      label: 'Connected',
+      count: repos.filter(r => r.status === 'CONNECTED').length,
+      color: 'text-emerald-400',
+      activeBg: 'bg-emerald-500/20',
+      activeBorder: 'border-emerald-500/50',
+      dot: 'bg-emerald-400',
+    },
+    {
+      key: 'syncing',
+      label: 'Syncing',
+      count: repos.filter(r => r.status === 'SYNCING').length,
+      color: 'text-blue-400',
+      activeBg: 'bg-blue-500/20',
+      activeBorder: 'border-blue-500/50',
+      dot: 'bg-blue-400',
+    },
+    {
+      key: 'error',
+      label: 'Error',
+      count: repos.filter(r => r.status === 'ERROR').length,
+      color: 'text-red-400',
+      activeBg: 'bg-red-500/20',
+      activeBorder: 'border-red-500/50',
+      dot: 'bg-red-400',
+    },
+  ], [repos]);
+
   const fetchRepos = useCallback(async (opts: { silent?: boolean } = {}) => {
     if (!opts.silent) setIsLoading(true);
     else setIsRefreshing(true);
@@ -95,7 +135,7 @@ const RepositoriesPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950">
-      <Header />
+      <Header onFilterChange={() => {}} activeFilter="all" filterItems={repoFilterItems} />
       <ResourceNav />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">

@@ -29,13 +29,20 @@ export interface FilterItem {
   dot?: string;
 }
 
+export interface QuickLink {
+  label: string;
+  path: string;
+  icon: React.ReactNode;
+}
+
 interface HeaderProps {
   onFilterChange?: (filter: any) => void;
   activeFilter?: string;
   filterItems?: FilterItem[];
+  quickLinks?: QuickLink[];
 }
 
-const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all', filterItems }) => {
+const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all', filterItems, quickLinks }) => {
   const { data: containers = [], isFetching, refetch } = useContainers();
   const { data: health } = useHealthCheck();
   const { data: deployments = [] } = useDeployments();
@@ -101,8 +108,24 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all', f
           </div>
         </div>
 
-        {/* Stats - Visible when page provides filters */}
-        {onFilterChange && filterItems ? (
+        {/* Center: quick nav links OR filter badges */}
+        {quickLinks ? (
+          <div className="hidden md:flex items-center gap-2">
+            {quickLinks.map((ql) => (
+              <motion.button
+                key={ql.path}
+                onClick={() => navigate(ql.path)}
+                title="Back to public site"
+                className="flex items-center gap-1.5 text-slate-500 hover:text-slate-300 transition-colors"
+                whileHover={{ x: -2 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {ql.icon}
+                <span className="text-xs font-medium">{ql.label}</span>
+              </motion.button>
+            ))}
+          </div>
+        ) : onFilterChange && filterItems ? (
           <div className="hidden md:flex items-center gap-2">
             {filterItems.map((item, i) => (
               <motion.button
