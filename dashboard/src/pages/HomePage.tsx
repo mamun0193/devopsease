@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   Server,
@@ -38,6 +39,14 @@ import { useDockerHubStatus } from '../hooks/useDockerHub';
 import { useDeployments } from '../hooks/useDeployments';
 import { useClusters } from '../hooks/useClusters';
 
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45 } },
+};
+const stagger = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
+};
 function formatMB(mb: number): string {
   if (!mb || mb === 0) return '0 MB';
   if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
@@ -130,16 +139,27 @@ const HomePage: React.FC = () => {
         <div className="max-w-7xl mx-auto space-y-6">
 
           {/* ── Section title ───────────────────────────────────────────── */}
-          <div className="flex items-center gap-3">
+          <motion.div
+            className="flex items-center gap-3"
+            variants={fadeUp}
+            initial="hidden"
+            animate="visible"
+          >
             <div className={`w-2.5 h-2.5 rounded-full ${health ? 'bg-emerald-500 animate-pulse' : 'bg-yellow-500'}`} />
             <h1 className="text-2xl font-bold text-slate-100">System Overview</h1>
-          </div>
+          </motion.div>
 
           {/* ── Stats grid ──────────────────────────────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
+            variants={stagger}
+            initial="hidden"
+            animate="visible"
+          >
 
             {/* Containers */}
             <OverviewCard
+              col={0}
               icon={<Server size={13} />}
               label="Containers"
               onClick={() => navigate('/containers')}
@@ -152,6 +172,7 @@ const HomePage: React.FC = () => {
 
             {/* Builds */}
             <OverviewCard
+              col={1}
               icon={<Hammer size={13} />}
               label="Builds"
               onClick={() => navigate('/builds')}
@@ -161,6 +182,7 @@ const HomePage: React.FC = () => {
 
             {/* Deployments */}
             <OverviewCard
+              col={2}
               icon={<Rocket size={13} />}
               label="Deployments"
               onClick={() => navigate('/deployments')}
@@ -170,6 +192,7 @@ const HomePage: React.FC = () => {
 
             {/* Clusters */}
             <OverviewCard
+              col={0}
               icon={<Cloud size={13} />}
               label="Clusters"
               onClick={() => navigate('/clusters')}
@@ -186,6 +209,7 @@ const HomePage: React.FC = () => {
 
             {/* Pods */}
             <OverviewCard
+              col={1}
               icon={<Box size={13} />}
               label="Pods"
               onClick={() => navigate('/pods')}
@@ -199,6 +223,7 @@ const HomePage: React.FC = () => {
 
             {/* Images */}
             <OverviewCard
+              col={2}
               icon={<Layers size={13} />}
               label="Images"
               onClick={() => navigate('/images')}
@@ -213,6 +238,7 @@ const HomePage: React.FC = () => {
 
             {/* Registry */}
             <OverviewCard
+              col={0}
               icon={<Globe size={13} />}
               label="Registry"
               onClick={() => navigate('/registry')}
@@ -239,6 +265,7 @@ const HomePage: React.FC = () => {
 
             {/* Repositories */}
             <OverviewCard
+              col={1}
               icon={<GitBranch size={13} />}
               label="Repositories"
               onClick={() => navigate('/repositories')}
@@ -255,6 +282,7 @@ const HomePage: React.FC = () => {
 
             {/* Projects */}
             <OverviewCard
+              col={2}
               icon={<FolderKanban size={13} />}
               label="Projects"
               onClick={() => navigate('/projects')}
@@ -267,6 +295,7 @@ const HomePage: React.FC = () => {
 
             {/* Networks */}
             <OverviewCard
+              col={0}
               icon={<Network size={13} />}
               label="Networks"
               onClick={() => navigate('/networks')}
@@ -281,6 +310,7 @@ const HomePage: React.FC = () => {
 
             {/* Volumes */}
             <OverviewCard
+              col={1}
               icon={<HardDrive size={13} />}
               label="Volumes"
               onClick={() => navigate('/volumes')}
@@ -293,26 +323,9 @@ const HomePage: React.FC = () => {
               ]}
             />
 
-            {/* Server */}
-            <OverviewCard
-              icon={<Activity size={13} />}
-              label="Server"
-              variant="status"
-              statusNode={
-                health ? (
-                  <span className="flex items-center gap-1.5 text-emerald-400 text-sm font-medium">
-                    <CheckCircle2 size={14} /> Healthy
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1.5 text-yellow-400 text-sm font-medium">
-                    <AlertTriangle size={14} /> Connecting…
-                  </span>
-                )
-              }
-            />
-
             {/* Docker */}
             <OverviewCard
+              col={2}
               icon={<HardDrive size={13} />}
               label="Docker"
               variant="status"
@@ -328,13 +341,18 @@ const HomePage: React.FC = () => {
                 )
               }
             />
-          </div>
+
+          </motion.div>
 
           {/* Resource Quota Panel */}
-          <ResourceUsagePanel />
+          <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ delay: 0.4 }}>
+            <ResourceUsagePanel />
+          </motion.div>
 
           {/* Top Containers */}
-          <TopContainersPanel />
+          <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ delay: 0.55 }}>
+            <TopContainersPanel />
+          </motion.div>
 
         </div>
       </main>

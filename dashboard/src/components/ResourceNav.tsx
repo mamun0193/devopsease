@@ -32,8 +32,8 @@ const ResourceNav: React.FC = () => {
     }, []);
 
     return (
-        <nav className={`bg-slate-900/60 backdrop-blur-xl border-b border-slate-800/80 sticky z-40 transition-all duration-300 ease-out ${headerHidden ? 'top-0' : 'top-16'}`}>
-            <div className="max-w-7xl mx-auto px-6 flex items-center gap-1 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <nav className={`bg-slate-900/60 backdrop-blur-xl border-b border-slate-800/80 sticky z-40 transition-all duration-300 ease-out ${headerHidden ? 'top-0' : 'top-12'}`}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-1 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
 
                 {/* ← Back to public site */}
                 <button

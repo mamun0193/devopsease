@@ -1,6 +1,21 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
+
+const cardVariant = {
+    hidden: (col: number) => ({
+        opacity: 0,
+        x: col === 0 ? -36 : col === 2 ? 36 : 0,
+        y: col === 1 ? 24 : 0,
+    }),
+    visible: {
+        opacity: 1,
+        x: 0,
+        y: 0,
+        transition: { duration: 0.45, ease: 'easeOut' },
+    },
+};
+
 export interface OverviewStatLine {
     text: string;
     colorClass: string;
@@ -16,6 +31,7 @@ interface OverviewCardProps {
     stats?: OverviewStatLine[];
     statusNode?: React.ReactNode;
     className?: string;
+    col?: 0 | 1 | 2;
 }
 
 const base =
@@ -30,6 +46,7 @@ const OverviewCard: React.FC<OverviewCardProps> = ({
     stats = [],
     statusNode,
     className = '',
+    col = 1,
 }) => {
     const inner = (
         <>
@@ -68,6 +85,8 @@ const OverviewCard: React.FC<OverviewCardProps> = ({
             <motion.div
                 className={`${base} cursor-pointer hover:border-slate-700 ${className}`}
                 onClick={onClick}
+                variants={cardVariant}
+                custom={col}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
             >
@@ -76,7 +95,7 @@ const OverviewCard: React.FC<OverviewCardProps> = ({
         );
     }
 
-    return <div className={`${base} ${className}`}>{inner}</div>;
+    return <motion.div className={`${base} ${className}`} variants={cardVariant} custom={col}>{inner}</motion.div>;
 };
 
 export default OverviewCard;

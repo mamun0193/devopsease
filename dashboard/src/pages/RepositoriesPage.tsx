@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, GitBranch, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, GitBranch, AlertCircle, Loader2 } from 'lucide-react';
+import RefreshButton from '../components/RefreshButton';
 import Header from '../components/Header';
 import type { FilterItem } from '../components/Header';
 import ResourceNav from '../components/ResourceNav';
@@ -162,18 +163,11 @@ const RepositoriesPage: React.FC = () => {
 
           <div className="flex items-center gap-2.5">
             {/* Refresh button */}
-            <button
-              onClick={handleRefresh}
-              disabled={isLoading || isRefreshing}
-              className="p-2 rounded-xl border border-slate-700 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all disabled:opacity-50"
-              title="Refresh"
-            >
-              {isRefreshing ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <RefreshCw size={16} />
-              )}
-            </button>
+            <RefreshButton
+              onRefresh={handleRefresh}
+              isLoading={isLoading || isRefreshing}
+              size="md"
+            />
 
             {/* Connect repo CTA */}
             <motion.button
@@ -238,13 +232,7 @@ const RepositoriesPage: React.FC = () => {
                 </div>
                 <h3 className="text-slate-200 font-semibold mb-2">Failed to load repositories</h3>
                 <p className="text-slate-500 text-sm mb-5 max-w-xs">{error}</p>
-                <button
-                  onClick={() => fetchRepos()}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-slate-100 text-sm transition-all border border-slate-700"
-                >
-                  <RefreshCw size={14} />
-                  Try Again
-                </button>
+                  <RefreshButton onRefresh={() => fetchRepos()} size="md" />
               </motion.div>
             )}
 

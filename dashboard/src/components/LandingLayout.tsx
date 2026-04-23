@@ -54,7 +54,13 @@ export const LandingLayout: React.FC<{ children: React.ReactNode }> = ({ childre
                 to="/docs"
                 className={`text-sm font-medium transition-colors ${location.pathname === '/docs' ? 'text-white' : 'text-gray-400 hover:text-white'}`}
               >
-                Docs
+                Documentation
+              </Link>
+              <Link
+                to="/developers"
+                className={`text-sm font-medium transition-colors ${location.pathname === '/developers' ? 'text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                Developers area
               </Link>
             </div>
             <div className="flex items-center gap-4">

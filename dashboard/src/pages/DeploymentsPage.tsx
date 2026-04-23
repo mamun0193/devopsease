@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Rocket,
-  RefreshCw,
   AlertCircle,
   Loader2,
   ArrowLeft,
@@ -20,6 +19,7 @@ import {
   Square,
   Trash2,
 } from 'lucide-react';
+import RefreshButton from '../components/RefreshButton';
 import Header from '../components/Header';
 import type { FilterItem } from '../components/Header';
 import ResourceNav from '../components/ResourceNav';
@@ -359,14 +359,12 @@ const DeploymentsPage: React.FC = () => {
               </button>
               <h1 className="text-2xl font-bold text-slate-100">Deployments</h1>
             </div>
-            <button
-              onClick={() => refetch()}
-              disabled={isLoading || isFetching}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-slate-400 border border-slate-700 hover:border-slate-600 hover:text-slate-200 hover:bg-slate-800/50 transition-all disabled:opacity-40"
-            >
-              {isFetching ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-              Refresh
-            </button>
+            <RefreshButton
+              onRefresh={refetch}
+              isFetching={isFetching}
+              isLoading={isLoading}
+              size="md"
+            />
           </div>
 
           {/* ── Loading ────────────────────────────────────────────────── */}
@@ -384,12 +382,7 @@ const DeploymentsPage: React.FC = () => {
               <p className="text-slate-500 text-sm mb-5 max-w-xs">
                 {(error as any)?.response?.data?.message ?? 'Could not reach the server.'}
               </p>
-              <button
-                onClick={() => refetch()}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition-all border border-slate-700"
-              >
-                <RefreshCw size={14} /> Try Again
-              </button>
+              <RefreshButton onRefresh={refetch} size="md" />
             </div>
           ) : (
             <>

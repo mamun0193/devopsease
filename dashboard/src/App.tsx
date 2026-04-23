@@ -30,6 +30,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import { LandingPage } from './pages/LandingPage';
 import { DocsPage } from './pages/DocsPage';
+import DevelopersPage from './pages/DevelopersPage';
 import FeaturesPage from './pages/FeaturesPage';
 import AboutPage from './pages/AboutPage';
 import PricingPage from './pages/PricingPage';
@@ -87,6 +88,8 @@ function App() {
                 <Route path="/" element={<LandingPage />} />
 
                 <Route path="/docs" element={<DocsPage />} />
+
+                <Route path="/developers" element={<DevelopersPage />} />
 
                 <Route path="/features" element={<FeaturesPage />} />
 

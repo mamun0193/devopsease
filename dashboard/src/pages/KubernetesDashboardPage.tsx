@@ -7,10 +7,10 @@ import {
     Layers,
     Loader2,
     ArrowLeft,
-    RefreshCw,
     ChevronDown,
     AlertTriangle,
 } from 'lucide-react';
+import RefreshButton from '../components/RefreshButton';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 import ResourceNav from '../components/ResourceNav';
@@ -465,15 +465,12 @@ const KubernetesDashboardPage: React.FC = () => {
                                 selectedNamespace={namespace}
                                 onSelect={setNamespace}
                             />
-                            <button
-                                onClick={() => refetch()}
-                                disabled={!clusterId || isFetching}
-                                className="flex items-center gap-1.5 px-3 py-2 bg-slate-800/60 border border-slate-700/60 rounded-lg text-sm text-slate-300 hover:text-slate-100 hover:border-slate-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                id="refresh-overview"
-                            >
-                                <RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />
-                                Refresh
-                            </button>
+                            <RefreshButton
+                                onRefresh={refetch}
+                                isFetching={isFetching}
+                                isLoading={!clusterId}
+                                size="md"
+                            />
                         </div>
                     </div>
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import {
   Activity,
+  Box,
   Server,
   AlertTriangle,
   Pause,
@@ -88,24 +89,23 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all', f
 
   return (
     <header
-      className={`bg-slate-900/80 backdrop-blur-xl border-b border-slate-800 sticky top-0 z-50 transition-transform duration-300 ease-out h-16 ${headerHidden ? '-translate-y-full' : 'translate-y-0'}`}
+      className={`bg-gray-900/50 backdrop-blur-md border-b border-gray-800 sticky top-0 z-50 transition-transform duration-300 ease-out h-12 ${headerHidden ? '-translate-y-full' : 'translate-y-0'}`}
     >
-      <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-6">
         {/* Logo & Title */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <motion.div
             className="relative"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <div className="w-9 h-9 rounded-xl bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-              <Activity size={20} className="text-white" />
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+              <Box size={18} className="text-white" />
             </div>
-            <div className="absolute -bottom-1 -right-1 rounded-full bg-emerald-500 border-2 border-slate-900 animate-pulse w-2.5 h-2.5" />
           </motion.div>
-          <div className="hidden sm:block">
-            <h1 className="font-bold bg-linear-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent text-lg">DevOpsEase</h1>
-          </div>
+          <span className="hidden sm:block font-bold text-xl bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
+            DevOpsEase
+          </span>
         </div>
 
         {/* Center: quick nav links OR filter badges */}

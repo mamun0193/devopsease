@@ -143,17 +143,17 @@ export const LandingPage: React.FC = () => {
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                         {HOW_IT_WORKS_STEPS.map((s, i) => (
-                            <div key={i} className="relative flex flex-col items-start p-5 bg-gray-900 border border-gray-800 rounded-2xl hover:border-gray-700 transition-colors">
-                                <div className="flex items-center gap-3 mb-4">
-                                    <div className="w-9 h-9 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <div key={i} className="relative flex flex-col items-start p-7 bg-gray-900 border border-gray-800 rounded-2xl hover:border-gray-700 transition-colors min-h-[170px]">
+                                <div className="flex items-center gap-3 mb-5">
+                                    <div className="w-10 h-10 bg-gray-800 rounded-xl flex items-center justify-center flex-shrink-0">
                                         {s.icon}
                                     </div>
                                     <span className="text-xs font-bold text-gray-600 tracking-widest">{s.step}</span>
                                 </div>
-                                <h3 className="text-sm font-bold text-gray-100 mb-2">{s.title}</h3>
-                                <p className="text-gray-500 text-xs leading-relaxed">{s.description}</p>
+                                <h3 className="text-base font-bold text-gray-100 mb-3">{s.title}</h3>
+                                <p className="text-gray-400 text-sm leading-relaxed">{s.description}</p>
                             </div>
                         ))}
                     </div>
@@ -323,12 +323,7 @@ const FeatureCard: React.FC<{ icon: React.ReactNode, title: string, description:
             ))}
         </ul>
 
-        <div className="mt-6 pt-6 border-t border-gray-800">
-            <Link to="/docs" className="text-sm font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors group">
-                Learn more
-                <span className="group-hover:translate-x-0.5 transition-transform">→</span>
-            </Link>
-        </div>
+
     </div>
 );
 

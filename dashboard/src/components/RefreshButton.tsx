@@ -1,144 +1,81 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Check } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface RefreshButtonProps {
   onRefresh: () => void | Promise<void>;
   isLoading?: boolean;
   isFetching?: boolean;
-  label?: string;
-  successLabel?: string;
   size?: 'sm' | 'md' | 'lg';
   variant?: 'default' | 'ghost' | 'outline';
   showLabel?: boolean;
+  label?: string;
+  successLabel?: string;
   className?: string;
 }
+
+const iconSizes = { sm: 14, md: 16, lg: 20 };
+const MIN_SPIN_MS = 700; // always spin for at least this long
 
 const RefreshButton: React.FC<RefreshButtonProps> = ({
   onRefresh,
   isLoading = false,
   isFetching = false,
-  label = 'Refresh',
-  successLabel = 'Refreshed',
   size = 'md',
-  variant = 'default',
-  showLabel = true,
   className = '',
 }) => {
-  const [refreshSuccess, setRefreshSuccess] = React.useState(false);
-  const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [internalSpin, setInternalSpin] = React.useState(false);
+  const [done, setDone] = React.useState(false);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
+  const handleClick = async () => {
+    if (internalSpin || isLoading || isFetching) return;
+    setInternalSpin(true);
+    setDone(false);
+    const start = Date.now();
     try {
       await onRefresh();
-      setRefreshSuccess(true);
-      setTimeout(() => setRefreshSuccess(false), 2000);
     } finally {
-      setIsRefreshing(false);
+      const elapsed = Date.now() - start;
+      const wait = Math.max(0, MIN_SPIN_MS - elapsed);
+      setTimeout(() => {
+        setInternalSpin(false);
+        setDone(true);
+        setTimeout(() => setDone(false), 1200);
+      }, wait);
     }
   };
 
-  const loading = isLoading || isFetching || isRefreshing;
-
-  // Size variants
-  const sizeClasses = {
-    sm: 'px-2.5 py-1.5 text-xs gap-1.5',
-    md: 'px-3 py-2 text-sm gap-2',
-    lg: 'px-4 py-2.5 text-base gap-2.5',
-  };
-
-  const iconSizes = {
-    sm: 12,
-    md: 14,
-    lg: 16,
-  };
-
-  // Variant styles with shimmer
-  const variantClasses = {
-    default: refreshSuccess
-      ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50'
-      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 hover:border-slate-600 hover:shadow-lg hover:shadow-slate-900/50',
-    ghost: refreshSuccess
-      ? 'text-emerald-400 hover:bg-emerald-500/10 border-transparent'
-      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent',
-    outline: refreshSuccess
-      ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/5 hover:bg-emerald-500/10'
-      : 'border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 hover:bg-slate-800/30',
-  };
+  const spinning = internalSpin || isLoading || isFetching;
+  const s = iconSizes[size];
+  const px = size === 'sm' ? 'p-1.5' : size === 'lg' ? 'p-2.5' : 'p-2';
 
   return (
     <motion.button
-      onClick={handleRefresh}
-      disabled={loading}
-      className={`
-        relative flex items-center justify-center font-medium rounded-lg 
-        transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
-        border overflow-hidden group
-        ${sizeClasses[size]}
-        ${variantClasses[variant]}
-        ${className}
-      `}
-      whileHover={{ scale: loading ? 1 : 1.02 }}
-      whileTap={{ scale: loading ? 1 : 0.98 }}
+      onClick={handleClick}
+      disabled={spinning}
+      title="Refresh"
+      className={`${px} rounded-lg transition-colors disabled:cursor-not-allowed
+        ${done
+          ? 'text-emerald-400 bg-emerald-500/10'
+          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+        } ${className}`}
+      whileHover={{ scale: spinning ? 1 : 1.1 }}
+      whileTap={{ scale: spinning ? 1 : 0.88 }}
     >
-      {/* Enhanced shimmer effect on hover */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-      </div>
-
-      {/* Content with AnimatePresence */}
-      <div className="relative flex items-center">
-        <AnimatePresence mode="wait">
-          {refreshSuccess ? (
-            <motion.div
-              key="success"
-              initial={{ scale: 0, rotate: -90 }}
-              animate={{ scale: 1, rotate: 0 }}
-              exit={{ scale: 0, rotate: 90 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-              className="flex items-center gap-2"
-            >
-              <Check size={iconSizes[size]} />
-              {showLabel && <span>{successLabel}</span>}
-            </motion.div>
-          ) : (
-            <motion.div
-              key="refresh"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              className="flex items-center gap-2"
-            >
-              <motion.div
-                animate={loading ? { rotate: 360 } : {}}
-                transition={loading ? { duration: 1, repeat: Infinity, ease: 'linear' } : {}}
-              >
-                <RefreshCw size={iconSizes[size]} />
-              </motion.div>
-              {showLabel && <span>{label}</span>}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Loading glow effect */}
-      {loading && (
-        <motion.div
-          className="absolute inset-0 rounded-lg"
-          style={{
-            background: 'radial-gradient(circle at center, rgba(59, 130, 246, 0.15) 0%, transparent 70%)',
-          }}
-          animate={{
-            opacity: [0.3, 0.6, 0.3],
-          }}
-          transition={{
-            duration: 1.5,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-      )}
+      <motion.svg
+        xmlns="http://www.w3.org/2000/svg"
+        width={s}
+        height={s}
+        viewBox="0 0 30 30"
+        fill="currentColor"
+        animate={spinning ? { rotate: 360 } : { rotate: 0 }}
+        transition={
+          spinning
+            ? { duration: 0.7, repeat: Infinity, ease: 'linear' }
+            : { duration: 0.25, ease: 'easeOut' }
+        }
+      >
+        <path d="M 15 3 C 12.053086 3 9.3294211 4.0897803 7.2558594 5.8359375 A 1.0001 1.0001 0 1 0 8.5449219 7.3652344 C 10.27136 5.9113916 12.546914 5 15 5 C 20.226608 5 24.456683 8.9136179 24.951172 14 L 22 14 L 26 20 L 30 14 L 26.949219 14 C 26.441216 7.8348596 21.297943 3 15 3 z M 4.3007812 9 L 0.30078125 15 L 3 15 C 3 21.635519 8.3644809 27 15 27 C 17.946914 27 20.670579 25.91022 22.744141 24.164062 A 1.0001 1.0001 0 1 0 21.455078 22.634766 C 19.72864 24.088608 17.453086 25 15 25 C 9.4355191 25 5 20.564481 5 15 L 8.3007812 15 L 4.3007812 9 z" />
+      </motion.svg>
     </motion.button>
   );
 };
