@@ -394,6 +394,189 @@ Duration:        1 hour
             </ul>
             <Note type="warn">Tunnel URLs are publicly accessible. Never expose databases or internal APIs without application-level authentication.</Note>
 
+            {/* ─── 17. IMAGE BUILD ENGINE ─── */}
+            <H2 id="builds-intro">Image Build Engine</H2>
+            <P>DevOpsEase has a built-in Docker image build engine — write a Dockerfile directly in the browser, hit <strong className="text-white">Build Image</strong>, and watch the output stream live. No local Docker CLI, no CI runner needed.</P>
+            <H3>How It Works</H3>
+            <CodeBlock lang="text" code={`1. Write or paste your Dockerfile in the editor
+2. Give the image a tag  (e.g. my-app:v1.0)
+3. Click Build Image — a build job is queued
+4. Live build output streams to your browser via WebSocket
+5. On success the image appears in Images → ready to run`} />
+            <H3>Build Form Fields</H3>
+            <Table
+              headers={['Field', 'Required', 'Details']}
+              rows={[
+                ['Image Tag',   '✅ Yes', 'e.g. my-app:v1.0  —  max 128 characters, Docker tag format'],
+                ['Dockerfile',  '✅ Yes', 'Full Dockerfile content — pasted or typed in the Monaco-style textarea'],
+              ]}
+            />
+            <H3>Live Build Output</H3>
+            <ul className="mb-4">
+              <Li><strong className="text-white">WebSocket streaming</strong> — every build log line appears in real time with line numbers</Li>
+              <Li><strong className="text-white">Colour-coded lines</strong> — ERROR/FATAL lines highlighted red, WARN lines amber</Li>
+              <Li><strong className="text-white">Connection indicator</strong> — Live (green) / Reconnecting (amber) / Connecting (grey)</Li>
+              <Li><strong className="text-white">Auto-scroll</strong> — log viewer follows output as lines arrive</Li>
+              <Li>On completion the viewer switches to showing the persisted <code className="text-indigo-300">logSummary</code> from the database</Li>
+            </ul>
+            <H3>Build Status Flow</H3>
+            <Table
+              headers={['Status', 'Meaning']}
+              rows={[
+                ['PENDING',  'Job queued — waiting for the build worker'],
+                ['RUNNING',  'Docker build in progress — logs streaming'],
+                ['SUCCESS',  'Image built — size, layer count, and image ID recorded'],
+                ['FAILED',   'Build error — failure analysis panel shown automatically'],
+                ['TIMEOUT',  'Build exceeded 15-minute limit — treated as failure'],
+              ]}
+            />
+            <H3>Resource Quota</H3>
+            <P>The <strong className="text-white">Resource Quota</strong> bar at the top of the Builds page shows your live infrastructure usage — containers, CPU cores, and memory — updated every 20 seconds. Builds run inside the same quota envelope as containers.</P>
+            <ul className="mb-4">
+              <Li>Container creation is blocked when the container quota is at 100%</Li>
+              <Li>CPU and memory bars turn amber at 75%, red at 90% — a visual warning before builds start competing for resources</Li>
+              <Li>Total build count is shown in the top-right of the quota bar for quick reference</Li>
+            </ul>
+            <Note type="tip">Keep Dockerfiles minimal — start with a small base image (<code className="text-emerald-300">alpine</code>, <code className="text-emerald-300">node:alpine</code>, <code className="text-emerald-300">python:slim</code>) to reduce build time and image size.</Note>
+            <Note type="warn">The 15-minute build timeout is a hard limit. Multi-stage builds and large dependency installs may need to be split or pre-cached in the base image.</Note>
+
+            {/* ─── 18. BUILD INTELLIGENCE ─── */}
+            <H2 id="build-intel">Build Intelligence</H2>
+            <P>When a build fails, DevOpsEase automatically analyses the captured log output and classifies the failure into one of <strong className="text-white">7 failure types</strong> — no manual log-grepping needed. The result appears as a <strong className="text-white">Failure Intelligence</strong> panel directly on the Build Detail page.</P>
+
+            <H3>The 7 Failure Types</H3>
+            <Table
+              headers={['Type', 'What triggers it', 'Accent']}
+              rows={[
+                ['BUILD_SYNTAX_ERROR',        'Dockerfile instruction error — invalid RUN, COPY, FROM, etc.', '🔴 Red'],
+                ['BUILD_BASE_IMAGE_MISSING',  '"manifest unknown" or "pull access denied" — base image not found or private', '🔴 Red'],
+                ['BUILD_PERMISSION_DENIED',   'COPY/ADD denied, chmod failures, bind-mount permission errors', '🟡 Amber'],
+                ['BUILD_RESOURCE_EXHAUSTION', '"no space left on device", memory kill during build, OOM in RUN step', '🟠 Orange'],
+                ['BUILD_DISK_SPACE',          'Disk quota exceeded on the build host — distinct from resource exhaustion', '🟠 Orange'],
+                ['BUILD_TIMEOUT',             'Build exceeded the 15-minute hard limit', '🟠 Orange'],
+                ['BUILD_UNKNOWN',             'No pattern matched — generic fallback, confidence is always Low', '⚫ Grey'],
+              ]}
+            />
+
+            <H3>Confidence Score</H3>
+            <P>Every classification comes with a <strong className="text-white">confidence percentage</strong> (0–100%) derived from how many log signals matched the expected pattern for that failure type:</P>
+            <ul className="mb-4">
+              <Li><strong className="text-white">≥ 90%</strong> — displayed in <span className="text-emerald-400">green</span>; pattern match is unambiguous</Li>
+              <Li><strong className="text-white">60–89%</strong> — displayed in <span className="text-yellow-400">amber</span>; likely correct but some signals were absent</Li>
+              <Li><strong className="text-white">&lt; 60%</strong> — displayed in <span className="text-slate-400">grey</span>; low evidence, treat as a hint not a diagnosis</Li>
+            </ul>
+
+            <H3>Failing Stage</H3>
+            <P>Where available, the panel also shows the <strong className="text-white">Failing Stage</strong> — the exact Dockerfile instruction that caused the build to stop (e.g. <code className="text-indigo-300">RUN npm install</code> or <code className="text-indigo-300">COPY . /app</code>). This is extracted directly from the Docker build log output.</P>
+
+            <H3>Evidence Lines</H3>
+            <P>The raw log lines that triggered the classification are shown in a scrollable <strong className="text-white">Evidence</strong> box — so you can verify the diagnosis and trace it back to the exact output.</P>
+
+            <Note type="tip">For <code className="text-emerald-300">BUILD_BASE_IMAGE_MISSING</code> errors — check the image name spelling and confirm it's public on Docker Hub, or connect your Docker Hub account in Registry if it's a private image.</Note>
+            <Note type="info">Build Intelligence is purely deterministic — no ML, no external API calls. Classification runs entirely on the backend against the captured <code className="text-blue-300">logSummary</code> using regex pattern sets.</Note>
+
+            {/* ─── 19. IMAGE GOVERNANCE ─── */}
+            <H2 id="images">Image Governance</H2>
+            <P>The <strong className="text-white">Images</strong> page gives you a full inventory of every Docker image on your account with storage accounting, usage classification, and one-click cleanup — so you're never blindsided by disk space creep.</P>
+
+            <H3>Image Status Classification</H3>
+            <P>Every image is automatically classified into one of three states, updated whenever containers start, stop, or are removed:</P>
+            <Table
+              headers={['Status', 'Meaning', 'Badge']}
+              rows={[
+                ['ACTIVE',   'Currently used by at least one running or stopped container', '🟢 Green'],
+                ['UNUSED',   'Exists on disk but no container references it — safe to delete', '🟡 Amber'],
+                ['DANGLING', '<none>:<none> — untagged layer from a failed or superseded build', '🔴 Red'],
+              ]}
+            />
+
+            <H3>Storage Summary</H3>
+            <P>Five summary cards at the top of the Images page give you an instant storage snapshot:</P>
+            <ul className="mb-4">
+              <Li><strong className="text-white">Total Storage</strong> — combined size of all images on disk</Li>
+              <Li><strong className="text-white">Build Cache</strong> — space used by Docker's layer cache from previous builds</Li>
+              <Li><strong className="text-white">Active</strong> — count of images currently in use</Li>
+              <Li><strong className="text-white">Unused</strong> — count of images with no container reference</Li>
+              <Li><strong className="text-white">Dangling</strong> — count of untagged intermediate layers</Li>
+            </ul>
+
+            <H3>Safe Clean Storage</H3>
+            <P>Click <strong className="text-white">Safe Clean Storage</strong> to open the prune modal. It runs a <strong className="text-white">preview scan first</strong> — showing you exactly which images will be removed and how much space will be reclaimed — before anything is deleted.</P>
+            <CodeBlock lang="text" code={`Preview scan → lists UNUSED + DANGLING images
+  ↓
+Shows:  3 images can be removed · 1.4 GB reclaimable
+  ↓
+Confirm Clean → images deleted → Images list refreshed`} />
+            <ul className="mb-4">
+              <Li>Only UNUSED and DANGLING images are targeted — ACTIVE images are never touched</Li>
+              <Li>Partial failures are reported per-image (e.g. image locked by a stopped container)</Li>
+              <Li>Storage summary cards refresh automatically after a successful prune</Li>
+            </ul>
+
+            <H3>Clean Build Cache</H3>
+            <P>The <strong className="text-white">Clean Cache</strong> button clears Docker's build layer cache — separate from image deletion. The modal shows the current cache size before you confirm. This is safe to run at any time; Docker will rebuild layers on the next build as needed.</P>
+
+            <H3>Filtering by Status</H3>
+            <P>Use the filter tabs in the header — <strong className="text-white">All / Active / Unused / Dangling</strong> — to focus on exactly the images you want to inspect or clean up. Counts update live.</P>
+
+            <H3>Push to Docker Hub</H3>
+            <P>Each row in the image table has a <strong className="text-white">Push</strong> button. This sends the image to your connected Docker Hub account under a repository tag you specify. The button is disabled until Docker Hub is connected — see <button onClick={() => {}} className="underline text-indigo-400">Docker Hub Registry</button> below.</P>
+
+            <Note type="tip">Run <strong>Safe Clean Storage</strong> regularly to keep your storage quota healthy. Dangling images accumulate quickly during active development.</Note>
+            <Note type="warn">Deleting an UNUSED image is permanent. If you need the image again you will have to rebuild it or re-pull it from Docker Hub.</Note>
+
+            {/* ─── 20. DOCKER HUB REGISTRY ─── */}
+            <H2 id="registry">Docker Hub Registry</H2>
+            <P>The <strong className="text-white">Registry</strong> page is your Docker Hub integration hub — connect your account once and unlock pulling public/private images, pushing your built images, and searching Docker Hub directly from the dashboard.</P>
+
+            <H3>Connecting Your Account</H3>
+            <P>Enter your Docker Hub <strong className="text-white">username</strong> and <strong className="text-white">password or access token</strong> and click <strong className="text-white">Connect Docker Hub</strong>. Your credentials are encrypted immediately with <strong className="text-white">AES-256-GCM</strong> before being written to the database — the plaintext password is never stored.</P>
+            <ul className="mb-4">
+              <Li>A <strong className="text-white">violet AES-256-GCM</strong> badge is shown next to the password field as a reminder that credentials are encrypted at rest</Li>
+              <Li>Once connected, a green <strong className="text-white">Connected</strong> badge and your Docker Hub username are shown in the card header</Li>
+              <Li>Click <strong className="text-white">Disconnect</strong> at any time to wipe the stored credentials — requires confirmation</Li>
+            </ul>
+
+            <H3>Rate Limits</H3>
+            <P>Docker Hub enforces pull rate limits based on whether you are authenticated:</P>
+            <Table
+              headers={['Auth State', 'Pull Limit', 'Reset Window']}
+              rows={[
+                ['Not connected (anonymous)', '100 pulls', 'per 6 hours per IP address'],
+                ['Connected (authenticated)',  '200 pulls', 'per 6 hours per Docker Hub account'],
+                ['Push',                       'Unlimited', 'No rate limit on push operations'],
+              ]}
+            />
+            <ul className="mb-4">
+              <Li>The <strong className="text-white">amber warning banner</strong> on the connect form reminds you of the anonymous limit before you log in</Li>
+              <Li>After connecting, a <strong className="text-white">green rate-limit info row</strong> confirms your authenticated allowance</Li>
+              <Li>Hitting the pull limit returns a <code className="text-indigo-300">429 Too Many Requests</code> error — wait for the window to reset or connect an account</Li>
+            </ul>
+
+            <H3>Pulling Images</H3>
+            <P>Use the <strong className="text-white">Pull Image</strong> card to pull any image from Docker Hub directly onto your DevOpsEase host. Type the image name (with optional tag) and hit Pull:</P>
+            <CodeBlock lang="bash" code={`nginx:latest
+redis:7-alpine
+my-org/my-private-image:v2.1`} />
+            <ul className="mb-4">
+              <Li>Pulled images appear immediately in the <strong className="text-white">Images</strong> page with source tagged as <code className="text-indigo-300">REGISTRY</code></Li>
+              <Li>Pull count is tracked per-image — visible on the Image Detail page</Li>
+              <Li>Private images require a connected and authenticated Docker Hub account</Li>
+            </ul>
+
+            <H3>Searching Docker Hub</H3>
+            <P>The <strong className="text-white">Explore Docker Hub</strong> search panel lets you find images without leaving the dashboard. Type at least 2 characters — results appear automatically with a 400ms debounce.</P>
+            <ul className="mb-4">
+              <Li>Each result shows: image name, description, star count, pull count, and an <strong className="text-white">Official</strong> badge for Docker-verified images</Li>
+              <Li>Click <strong className="text-white">Pull</strong> on any result to pull it instantly</Li>
+              <Li>The <strong className="text-white">Popular Images</strong> grid (nginx, redis, postgres, mongo, node, python…) is shown when the search is empty — click any tile to pull</Li>
+            </ul>
+
+            <H3>Pushing Images</H3>
+            <P>From the <strong className="text-white">Images</strong> page, hit <strong className="text-white">Push</strong> on any image row to open the Push modal. Enter the target repository tag (e.g. <code className="text-indigo-300">my-org/my-app:v1.0</code>) and confirm. The push runs server-side and reports the final pushed tag on success.</P>
+            <Note type="tip">Use Docker Hub <strong>access tokens</strong> instead of your account password — they are revocable and can be scoped to read-only or read/write as needed.</Note>
+            <Note type="warn">Pushing to a repository you don't own will fail with a 403. Make sure the repository name matches your Docker Hub username or organisation namespace.</Note>
+
             {/* ── footer ── */}
             <div className="mt-20 pt-8 border-t border-gray-800 flex items-center justify-between text-sm text-gray-500">
               <span>DevOpsEase Docs — updated April 2026</span>
