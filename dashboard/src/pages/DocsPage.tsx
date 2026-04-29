@@ -777,10 +777,10 @@ New deployment record created — rollback reason logged`} />
 
             {/* ─── 26. DOCKER COMPOSE PROJECTS ─── */}
             <H2 id="projects">Docker Compose Projects</H2>
-            <P>The <strong className="text-white">Projects</strong> page lets you deploy multi-service applications from a Docker Compose YAML definition — all services, networks, and volumes created and managed as a single unit.</P>
+            <P>The <strong className="text-white">Projects</strong> page lets you define, deploy, and manage multi-service applications from a single Docker Compose YAML — all containers, networks, and volumes created and managed as one atomic unit.</P>
 
             <H3>Creating a Project</H3>
-            <P>Click <strong className="text-white">New Project</strong>, enter a project name and paste your Compose YAML:</P>
+            <P>Click <strong className="text-white">New Project</strong>, enter a project name, and paste your Compose YAML. DevOpsEase validates the file before creating anything:</P>
             <CodeBlock lang="yaml" code={`version: "3.8"
 services:
   web:
@@ -805,128 +805,155 @@ services:
 volumes:
   db-data:`} />
             <ul className="mb-4">
-              <Li><strong className="text-white">YAML validation</strong> — the Compose file is parsed and validated before any containers are created; errors are shown inline</Li>
-              <Li>Project <strong className="text-white">namespace</strong> — all containers, networks, and volumes are prefixed with the project name for isolation</Li>
-              <Li>Services are started in <strong className="text-white">dependency order</strong> — <code className="text-indigo-300">depends_on</code> is respected</Li>
+              <Li><strong className="text-white">YAML validation</strong> — the Compose file is parsed and validated before any containers are created; errors are shown inline with the failing line</Li>
+              <Li>All containers, networks, and volumes are <strong className="text-white">namespaced</strong> with the project name — e.g. <code className="text-indigo-300">myapp-web-1</code>, <code className="text-indigo-300">myapp-db-1</code></Li>
+              <Li>Services start in <strong className="text-white">dependency order</strong> — <code className="text-indigo-300">depends_on</code> is respected; upstream services start first</Li>
             </ul>
 
             <H3>Project Status</H3>
             <Table
-              headers={['Status', 'Meaning']}
+              headers={['Status', 'Meaning', 'Badge']}
               rows={[
-                ['CREATED',  'Project defined but not yet started'],
-                ['RUNNING',  'All services are up and containers are live'],
-                ['STOPPED',  'All containers have been stopped — definition preserved'],
-                ['FAILED',   'One or more services failed to start'],
+                ['CREATED', 'Project defined but no containers started yet',                  '🔵 Blue'],
+                ['RUNNING', 'All services are up and containers are live',                    '🟢 Green'],
+                ['STOPPED', 'All containers have been stopped — Compose definition preserved', '⚫ Grey'],
+                ['FAILED',  'One or more services failed to start',                           '🔴 Red'],
               ]}
             />
 
             <H3>Network Isolation</H3>
-            <P>Each project automatically gets a <strong className="text-white">dedicated Docker network</strong> — services within the project can reach each other by service name (e.g. <code className="text-indigo-300">http://api:3000</code>), and are isolated from containers in other projects.</P>
+            <P>Each project automatically gets a <strong className="text-white">dedicated Docker network</strong> — services within the project reach each other by service name (e.g. <code className="text-indigo-300">http://api:3000</code>), and are fully isolated from containers in other projects or standalone deployments.</P>
 
             <H3>Lifecycle Controls</H3>
             <ul className="mb-4">
               <Li><strong className="text-white">Start</strong> — brings all stopped containers back up, recreating any that were removed</Li>
-              <Li><strong className="text-white">Stop</strong> — gracefully stops all running containers in the project</Li>
-              <Li><strong className="text-white">Delete</strong> — stops and removes all containers, then deletes the project record. Volumes are <em>not</em> deleted automatically</Li>
+              <Li><strong className="text-white">Stop</strong> — gracefully stops all running containers in the project; Compose definition is preserved</Li>
+              <Li><strong className="text-white">Delete</strong> — stops and removes all containers and the shared project network; named volumes are <em>not</em> deleted automatically</Li>
             </ul>
 
             <H3>Viewing Services</H3>
-            <P>Expand any project card to see all its services — each listed with container name, image, and current status. Click a service to jump to its container detail page for logs, stats, and exec.</P>
+            <P>Expand any project card to see all its services — each listed with container name, image, and current status. Click a service to jump to its container detail page for logs, stats, and exec terminal.</P>
 
-            <Note type="tip">Use project namespacing to run multiple environments side by side — e.g. <code className="text-emerald-300">myapp-dev</code> and <code className="text-emerald-300">myapp-staging</code> as separate projects on the same host.</Note>
-            <Note type="warn">Deleting a project removes all its containers and the shared network, but <strong>named volumes are preserved</strong>. Clean them up manually from the Volumes page if no longer needed.</Note>
+            <Note type="tip">Use project namespacing to run multiple environments side by side — e.g. <code className="text-emerald-300">myapp-dev</code> and <code className="text-emerald-300">myapp-staging</code> as separate projects on the same host with no port conflicts.</Note>
+            <Note type="warn">Deleting a project removes all its containers and the shared network, but <strong>named volumes are preserved</strong>. Remove them from the Volumes page if no longer needed.</Note>
 
             {/* ─── 27. NETWORKS ─── */}
             <H2 id="networks">Networks</H2>
-            <P>The <strong className="text-white">Networks</strong> page lists every Docker network on your account — both user-created and project-managed — with usage status and safe-delete controls.</P>
+            <P>The <strong className="text-white">Networks</strong> page lists every user-scoped Docker network on your account — with live usage tracking, safe-delete enforcement, and automatic reconciliation against the Docker daemon.</P>
+
+            <H3>Creating a Network</H3>
+            <ul className="mb-4">
+              <Li>Click <strong className="text-white">Create Network</strong> and enter a name — DevOpsEase creates a standard <code className="text-indigo-300">bridge</code> network scoped to your account</Li>
+              <Li>Network names must be unique per host — duplicates are rejected at the Docker level</Li>
+              <Li>User-created networks can be manually assigned when launching containers via the Create Container modal</Li>
+            </ul>
 
             <H3>Network Status</H3>
             <Table
-              headers={['Status', 'Meaning']}
+              headers={['Status', 'Meaning', 'Badge']}
               rows={[
-                ['ACTIVE', 'At least one container is connected to this network'],
-                ['UNUSED', 'No containers currently connected — safe to remove'],
+                ['ACTIVE', 'At least one container is currently connected to this network', '🟢 Green'],
+                ['UNUSED', 'No containers connected — safe to remove without side effects',  '🟡 Amber'],
               ]}
             />
 
             <H3>Safe Delete</H3>
             <ul className="mb-4">
               <Li>Removing an <strong className="text-white">UNUSED</strong> network is instant and non-destructive — no containers are affected</Li>
-              <Li>Attempting to remove an <strong className="text-white">ACTIVE</strong> network is blocked with a clear error — you must disconnect or stop all containers first</Li>
-              <Li>Networks created by a <strong className="text-white">Project</strong> are labelled with the project name — delete them via the Projects page instead</Li>
+              <Li>Attempting to remove an <strong className="text-white">ACTIVE</strong> network is blocked — you must disconnect or stop all connected containers first</Li>
+              <Li>Networks created by a <strong className="text-white">Project</strong> are labelled with the project name — delete them via the Projects page, not here</Li>
             </ul>
 
             <H3>Reconciliation</H3>
-            <P>DevOpsEase periodically <strong className="text-white">reconciles</strong> the network list with the Docker daemon — stale records from containers that were removed externally are cleaned up automatically. You can also trigger a manual reconcile from the Networks page.</P>
-            <Note type="warn">Default Docker networks (<code className="text-indigo-300">bridge</code>, <code className="text-indigo-300">host</code>, <code className="text-indigo-300">none</code>) are not shown — only user-scoped networks are listed.</Note>
+            <P>DevOpsEase periodically <strong className="text-white">reconciles</strong> the network list with the Docker daemon — stale records from containers removed externally are cleaned up automatically. A manual reconcile button is available on the Networks page.</P>
+            <Note type="tip">Create a shared network once and attach multiple containers to it — they can communicate by container name without exposing any ports to the host.</Note>
+            <Note type="warn">Default Docker networks (<code className="text-indigo-300">bridge</code>, <code className="text-indigo-300">host</code>, <code className="text-indigo-300">none</code>) are not listed — only user-created networks are shown and managed.</Note>
 
             {/* ─── 28. VOLUMES ─── */}
             <H2 id="volumes">Volumes</H2>
-            <P>The <strong className="text-white">Volumes</strong> page manages named Docker volumes — persistent storage that outlives containers. DevOpsEase tracks size, container attachment, and project ownership for every volume.</P>
+            <P>The <strong className="text-white">Volumes</strong> page manages named Docker volumes — persistent storage that survives container restarts and removals. DevOpsEase tracks size, container attachment, and project ownership for every volume.</P>
+
+            <H3>Creating a Volume</H3>
+            <ul className="mb-4">
+              <Li>Click <strong className="text-white">Create Volume</strong> and enter a name — DevOpsEase creates a named Docker volume scoped to your account</Li>
+              <Li>Only <strong className="text-white">named volumes</strong> are tracked — anonymous volumes (no name at create time) are not managed or shown</Li>
+              <Li>Mount volumes to containers via the <strong className="text-white">Create Container</strong> modal using the volume name</Li>
+            </ul>
 
             <H3>Volume Status</H3>
             <Table
-              headers={['Status', 'Meaning']}
+              headers={['Status', 'Meaning', 'Badge']}
               rows={[
-                ['ACTIVE',         'Currently mounted by one or more running containers'],
-                ['UNUSED',         'Not mounted by any container — safe to delete'],
-                ['PENDING_DELETE',  'Marked for deletion — will be removed on next reconcile'],
+                ['ACTIVE',         'Currently mounted by one or more running containers',           '🟢 Green'],
+                ['UNUSED',         'Not mounted by any container — safe to delete',                 '🟡 Amber'],
+                ['PENDING_DELETE',  'Marked for deletion — will be removed on the next reconcile',  '🔴 Red'],
               ]}
             />
 
             <H3>Storage Accounting</H3>
             <ul className="mb-4">
               <Li>Each volume card shows its <strong className="text-white">size in MB</strong> and the list of <strong className="text-white">attached container IDs</strong></Li>
-              <Li>Only <strong className="text-white">named volumes</strong> are tracked — anonymous volumes (created without a name) are not managed by DevOpsEase</Li>
-              <Li>Volumes created by Projects are labelled with the project name</Li>
+              <Li>Volumes created by a <strong className="text-white">Project</strong> are labelled with the project name — delete them via the Projects page to avoid orphans</Li>
+              <Li>Total volume storage is tracked toward your <strong className="text-white">storage quota</strong> — shown in the quota bar at the top of the page</Li>
             </ul>
 
             <H3>Safe Prune</H3>
-            <P>Click <strong className="text-white">Prune Unused Volumes</strong> to open the prune modal. A preview scan runs first — showing you which volumes will be removed and the total space reclaimed — before anything is deleted.</P>
+            <P>Click <strong className="text-white">Prune Unused Volumes</strong> to open the prune modal. A preview scan runs first — showing exactly which volumes will be removed and the total space reclaimed — before anything is deleted.</P>
             <CodeBlock lang="text" code={`Preview scan → lists UNUSED volumes with sizes
   ↓
 Shows:  4 volumes · 2.1 GB reclaimable
   ↓
-Confirm → volumes deleted → list refreshed`} />
+Confirm Prune → volumes deleted → list refreshed`} />
             <Note type="tip">Run volume prune after deleting stale projects to reclaim disk space from leftover database and cache volumes.</Note>
             <Note type="warn">Volume deletion is <strong>permanent and irreversible</strong>. Any data stored in the volume — databases, file uploads, caches — is gone. Always back up important data before pruning.</Note>
 
             {/* ─── 29. SECRETS ─── */}
             <H2 id="secrets">Secrets</H2>
-            <P>The <strong className="text-white">Secrets</strong> page is a secure key-value store for sensitive configuration — API keys, database passwords, tokens, and any value you don't want hardcoded in a Dockerfile or Compose file.</P>
+            <P>The <strong className="text-white">Secrets</strong> page is a secure, environment-scoped key-value store for sensitive configuration — API keys, database passwords, tokens, and any value you don't want hardcoded in a Dockerfile or Compose file.</P>
 
-            <H3>Encryption</H3>
-            <P>Every secret value is encrypted with <strong className="text-white">AES-256-GCM</strong> before being written to the database. The encryption key (<code className="text-indigo-300">ENCRYPTION_KEY</code> in <code className="text-indigo-300">.env</code>) never leaves the server — plaintext values are never stored or logged.</P>
+            <H3>Encryption at Rest</H3>
+            <P>Every secret value is encrypted with <strong className="text-white">AES-256-GCM</strong> before being written to the database — the plaintext value is never stored or logged.</P>
+            <Table
+              headers={['Property', 'Value']}
+              rows={[
+                ['Algorithm',     'AES-256-GCM'],
+                ['Key source',    'ENCRYPTION_KEY env var — 64 hex chars (32 bytes)'],
+                ['Stored format', 'iv:authTag:ciphertext — all hex-encoded'],
+                ['Auth tag',      '16 bytes — prevents ciphertext tampering (authenticated encryption)'],
+              ]}
+            />
             <ul className="mb-4">
-              <Li>Secret <strong className="text-white">values are never returned</strong> by the API after creation — you can only overwrite or delete</Li>
-              <Li>Secret <strong className="text-white">names</strong> are visible in the UI — only the value is hidden</Li>
+              <Li>Secret <strong className="text-white">values are never returned</strong> by the API after creation — the UI always shows <code className="text-indigo-300">****</code></Li>
+              <Li>Secret <strong className="text-white">names</strong> follow env-var format — validated against <code className="text-indigo-300">^[A-Za-z_][A-Za-z0-9_]*$</code></Li>
+              <Li>Max value length before encryption: <strong className="text-white">8192 characters</strong></Li>
             </ul>
 
-            <H3>Scoping</H3>
+            <H3>Environment Scoping</H3>
             <Table
               headers={['Scope', 'Meaning']}
               rows={[
-                ['global',     'Available to all containers and pipelines in your account'],
-                ['environment', 'Scoped to a specific environment: dev, staging, or production'],
+                ['development', 'Injected into containers and pipelines in dev environments only'],
+                ['staging',     'Injected into staging deployments only'],
+                ['production',  'Injected into production deployments only — kept separate from dev/staging'],
               ]}
             />
 
-            <H3>Injecting into Containers</H3>
-            <P>When creating a container, select secrets from the <strong className="text-white">Secrets</strong> dropdown — DevOpsEase injects them as <strong className="text-white">environment variables</strong> at container start time via Docker's <code className="text-indigo-300">Env</code> HostConfig field:</P>
-            <CodeBlock lang="bash" code={`# Equivalent to:
-docker run -e MY_SECRET=<decrypted-value> my-image`} />
+            <H3>Docker Container Injection</H3>
+            <P>Secrets are injected as <strong className="text-white">environment variables</strong> at container start time — passed directly as Docker <code className="text-indigo-300">-e KEY=VALUE</code> args, never touching <code className="text-indigo-300">process.env</code> or the host environment:</P>
+            <CodeBlock lang="bash" code={`# DevOpsEase decrypts and injects at container start:
+docker run -e DATABASE_PASSWORD=<decrypted> -e API_KEY=<decrypted> my-image`} />
 
             <H3>Kubernetes secretKeyRef</H3>
-            <P>For Kubernetes deployments, secrets can be referenced as <strong className="text-white">secretKeyRef</strong> in generated YAML manifests — DevOpsEase creates the corresponding <code className="text-indigo-300">Secret</code> object in the target namespace automatically.</P>
+            <P>For Kubernetes YAML generation, secrets are referenced via <strong className="text-white">secretKeyRef</strong> pointing to a K8s Secret named <code className="text-indigo-300">devopsease-managed-{'<environment>'}</code> — plaintext values never appear in any manifest:</P>
             <CodeBlock lang="yaml" code={`env:
   - name: DATABASE_PASSWORD
     valueFrom:
       secretKeyRef:
-        name: devopsease-secrets
+        name: devopsease-managed-production
         key: DATABASE_PASSWORD`} />
-            <Note type="tip">Use <strong>environment-scoped secrets</strong> to keep prod credentials completely separate from dev — a pipeline deploying to production will only see production-scoped secrets.</Note>
-            <Note type="warn">Never commit the <code className="text-indigo-300">ENCRYPTION_KEY</code> to version control. If it is compromised or lost, all stored secrets become unreadable.</Note>
+            <Note type="tip">Use environment-scoped secrets to keep production credentials completely separate from dev — a pipeline deploying to production will only resolve production-scoped secrets.</Note>
+            <Note type="warn">Never change or lose your <code className="text-indigo-300">ENCRYPTION_KEY</code>. All secrets, Docker Hub credentials, and kubeconfigs are encrypted with it — changing it makes all encrypted data permanently unreadable.</Note>
+
 
             {/* ── footer ── */}
             <div className="mt-20 pt-8 border-t border-gray-800 flex items-center justify-between text-sm text-gray-500">
