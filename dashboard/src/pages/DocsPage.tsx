@@ -1426,6 +1426,110 @@ dse secrets list --json | jq '.[] | select(.name=="DATABASE_PASSWORD")'`} />
             <Note type="tip">Combine <code className="text-emerald-300">--json</code> with <code className="text-emerald-300">jq</code> in shell scripts to build automation workflows around any DevOpsEase resource — containers, pods, pipelines, secrets, tunnels.</Note>
             <Note type="warn">The <code className="text-indigo-300">dse registry add</code> command stores credentials encrypted via the server's <code className="text-indigo-300">ENCRYPTION_KEY</code>. If the key changes, registry credentials become unreadable and must be re-added.</Note>
 
+            {/* ─── 41. TROUBLESHOOTING ─── */}
+            <H2 id="troubleshooting">Troubleshooting</H2>
+            <P>Quick reference for the most common issues — symptom, likely cause, and the exact fix. Run <code className="text-indigo-300">dse doctor</code> first — it catches 90% of connectivity and auth issues automatically.</P>
+
+            <H3>Auth & Session Issues</H3>
+            <Table
+              headers={['Symptom', 'Cause', 'Fix']}
+              rows={[
+                ['401 Unauthorized on every request',    'Access token expired',                        'Run dse login — or click Login in the dashboard'],
+                ['CORS error in browser console',        'CORS_ORIGIN env var does not match your URL', 'Set CORS_ORIGIN=https://your-frontend-url in server .env and restart'],
+                ['Session lost after server restart',    'JWT_SECRET changed or not set',               'Ensure JWT_SECRET is set and stable across restarts in .env'],
+                ['"No token found" on CLI command',      'Not logged in or config was reset',           'Run dse login or dse config show to inspect stored tokens'],
+              ]}
+            />
+
+            <H3>Docker & Container Issues</H3>
+            <Table
+              headers={['Symptom', 'Cause', 'Fix']}
+              rows={[
+                ['Container fails to start — "daemon not running"', 'Docker daemon stopped',              'Run: sudo systemctl start docker (Linux) or start Docker Desktop'],
+                ['Permission denied on /var/run/docker.sock',       'Server user not in docker group',    'Run: sudo usermod -aG docker $USER then re-login'],
+                ['Port already in use',                             'Host port conflict',                  'Change the host port mapping in the Create Container modal'],
+                ['Container exits immediately',                     'App crash on startup — see logs',    'Open container logs in the dashboard or: dse container logs <id>'],
+              ]}
+            />
+
+            <H3>Build & Image Issues</H3>
+            <Table
+              headers={['Symptom', 'Cause', 'Fix']}
+              rows={[
+                ['Build times out after 15 minutes',    'Dockerfile has heavy layer — no cache hit',    'Split into smaller stages; use multi-stage builds to reduce context size'],
+                ['Build quota exceeded',                'Hit the max concurrent build limit',           'Wait for running builds to finish or delete unused images to free space'],
+                ['"Duplicate tag" error on build',      'Tag already exists in local image store',      'Use versioned tags like my-app:v1.2 instead of my-app:latest'],
+                ['Image pull fails — rate limited',     'Docker Hub anonymous pull limit reached',      'Add a Docker Hub registry credential in Settings → Registries'],
+              ]}
+            />
+
+            <H3>Pipeline & CI/CD Issues</H3>
+            <Table
+              headers={['Symptom', 'Cause', 'Fix']}
+              rows={[
+                ['Webhook not firing on push',          'GitHub webhook delivery failed or URL wrong',  'Check GitHub → your repo → Settings → Webhooks → Recent Deliveries'],
+                ['YAML parse error on pipeline link',   'devopsease.yml has a syntax error',            'Validate YAML at yaml.org/spec — check indentation and required fields'],
+                ['Pipeline stuck in PENDING forever',   'Previous run is still active',                 'Check Pipelines page for a stuck RUNNING run and cancel it'],
+                ['Deploy step fails — image not found', 'Build step did not produce the expected tag',  'Check build logs — ensure the tag in deploy.image matches build.tag'],
+              ]}
+            />
+
+            <H3>Kubernetes Issues</H3>
+            <Table
+              headers={['Symptom', 'Cause', 'Fix']}
+              rows={[
+                ['Cluster shows "failed" status',         'API server unreachable or kubeconfig expired', 'Reconnect the cluster with a fresh kubeconfig from the Clusters page'],
+                ['Namespace not found error',             'Active namespace was deleted externally',      'Run dse ns list and set a valid namespace with dse cluster use'],
+                ['Pod in CrashLoopBackOff',               'App crashes on startup — restart loop',        'Open pod logs in the Pods page or: dse pod logs <name> --tail 500'],
+                ['kubectl apply fails on generated YAML', 'API version mismatch for your cluster',       'Check apiVersion — older clusters may need apps/v1beta instead of apps/v1'],
+              ]}
+            />
+            <Note type="tip">Run <code className="text-emerald-300">dse doctor</code> first — it checks config, token validity, API connectivity, cluster selection, and namespace existence in one command.</Note>
+            <Note type="warn">If you change <code className="text-indigo-300">ENCRYPTION_KEY</code> on the server, all stored secrets, Docker Hub credentials, and kubeconfigs become permanently unreadable. Never change it on a running instance with data.</Note>
+
+            {/* ─── 42. FAQ ─── */}
+            <H2 id="faq">FAQ</H2>
+            <P>Answers to the most common questions about DevOpsEase — from self-hosting and pricing to Kubernetes support and contributing.</P>
+
+            <H3>Is DevOpsEase free to self-host?</H3>
+            <P>Yes — completely. DevOpsEase is open source and free to self-host. You run it on your own server, your own infrastructure, and there are no usage limits, seat limits, or call-home requirements. See the Installation section to get started in under 10 minutes.</P>
+
+            <H3>Does it work with my existing Docker containers?</H3>
+            <P>Yes. DevOpsEase talks to the Docker daemon directly via the socket (<code className="text-indigo-300">/var/run/docker.sock</code>). Any container already running on the host — whether started by docker run, Docker Compose, or another tool — is visible in the Containers page immediately after linking.</P>
+
+            <H3>Can multiple users share one DevOpsEase instance?</H3>
+            <P>Yes. DevOpsEase has a full <strong className="text-white">multi-user auth system</strong> — each user has their own account, and resources (containers, pipelines, secrets, tunnels) are user-scoped. An admin role controls platform-wide settings. Sign-up can be open or invite-only depending on your configuration.</P>
+
+            <H3>What happens to my running containers if the DevOpsEase server restarts?</H3>
+            <P>Nothing — Docker containers run independently of the DevOpsEase server process. If the server goes down and comes back up, the containers are still running and DevOpsEase re-discovers them on startup via the Docker daemon. Pipeline runs and builds in progress at the time of restart will need to be re-triggered.</P>
+
+            <H3>What Kubernetes distributions are supported?</H3>
+            <P>Any distribution accessible via a standard <strong className="text-white">kubeconfig</strong> — including EKS (AWS), GKE (Google Cloud), AKS (Azure), kubeadm, k3s, k0s, RKE2, and kind for local development. If <code className="text-indigo-300">kubectl</code> works with your kubeconfig, DevOpsEase will too.</P>
+
+            <H3>Can I use DevOpsEase without Kubernetes?</H3>
+            <P>Yes — Kubernetes is entirely optional. The full Docker container management, CI/CD pipeline, build engine, secrets, tunnels, and CLI features work with just a Docker daemon. Kubernetes features simply won't be available if no cluster is connected.</P>
+
+            <H3>How do I back up my DevOpsEase data?</H3>
+            <P>All platform data lives in <strong className="text-white">MongoDB</strong>. Use <code className="text-indigo-300">mongodump</code> for a consistent snapshot, or configure continuous backups with your MongoDB provider. Also back up your <code className="text-indigo-300">.env</code> file — specifically the <code className="text-indigo-300">ENCRYPTION_KEY</code> — as losing it makes all encrypted secrets and kubeconfigs unreadable.</P>
+
+            <H3>How do I update DevOpsEase to a new version?</H3>
+            <CodeBlock lang="bash" code={`# Pull latest changes:
+git pull origin main
+
+# Rebuild the dashboard:
+cd dashboard && npm install && npm run build
+
+# Restart the server:
+cd ../server && npm install && pm2 restart devopsease`} />
+
+            <H3>Is there a hosted / cloud version?</H3>
+            <P>Not currently — DevOpsEase is a self-hosted platform. A managed cloud version is on the roadmap. Until then, it takes under 10 minutes to self-host on any VPS with Docker and Node.js installed.</P>
+
+            <H3>How do I contribute or request a feature?</H3>
+            <P>Open an issue or pull request on <strong className="text-white">GitHub</strong>. Bug reports should include your OS, Docker version, Node.js version, and the error message. Feature requests should describe the use case and expected behaviour. Good first issues are labelled in the repository.</P>
+            <Note type="tip">The fastest way to get help is to open a GitHub Discussion — the community and maintainers are active and typically respond within 24 hours.</Note>
+            <Note type="warn">Before opening a bug report, run <code className="text-indigo-300">dse doctor</code> and include its output — it immediately rules out the most common configuration and connectivity issues.</Note>
+
             {/* ── footer ── */}
             <div className="mt-20 pt-8 border-t border-gray-800 flex items-center justify-between text-sm text-gray-500">
               <span>DevOpsEase Docs — updated April 2026</span>
