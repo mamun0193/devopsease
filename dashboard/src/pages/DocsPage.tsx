@@ -570,8 +570,6 @@ my-org/my-private-image:v2.1`} />
               <Li>Each result shows: image name, description, star count, pull count, and an <strong className="text-white">Official</strong> badge for Docker-verified images</Li>
               <Li>Click <strong className="text-white">Pull</strong> on any result to pull it instantly</Li>
               <Li>The <strong className="text-white">Popular Images</strong> grid (nginx, redis, postgres, mongo, node, python…) is shown when the search is empty — click any tile to pull</Li>
-            </ul>
-
             <H3>Pushing Images</H3>
             <P>From the <strong className="text-white">Images</strong> page, hit <strong className="text-white">Push</strong> on any image row to open the Push modal. Enter the target repository tag (e.g. <code className="text-indigo-300">my-org/my-app:v1.0</code>) and confirm. The push runs server-side and reports the final pushed tag on success.</P>
             <Note type="tip">Use Docker Hub <strong>access tokens</strong> instead of your account password — they are revocable and can be scoped to read-only or read/write as needed.</Note>
@@ -579,48 +577,53 @@ my-org/my-private-image:v2.1`} />
 
             {/* ─── 21. LINKING REPOSITORIES ─── */}
             <H2 id="repositories">Linking Repositories</H2>
-            <P>The <strong className="text-white">Repositories</strong> page connects your GitHub repositories to DevOpsEase so that pipeline runs, builds, and deployments can be triggered automatically on every push — no manual CI scripts needed.</P>
+            <P>The <strong className="text-white">Repositories</strong> page connects your GitHub repositories to DevOpsEase so that every <code className="text-indigo-300">git push</code> automatically triggers your full CI/CD pipeline — build, test, and deploy — with zero manual intervention.</P>
 
-            <H3>Connecting GitHub</H3>
-            <P>Click <strong className="text-white">Link Repository</strong> and enter the GitHub repository URL. DevOpsEase uses your stored GitHub OAuth token to verify access and register the repository:</P>
-            <CodeBlock lang="bash" code={`https://github.com/your-org/my-app
+            <H3>Linking a Repository</H3>
+            <P>Click <strong className="text-white">Link Repository</strong>, paste the full GitHub HTTPS URL, and choose the branch to track:</P>
+            <CodeBlock lang="bash" code={`# Both formats work:
+https://github.com/your-org/my-app
 https://github.com/your-username/my-service`} />
-            <ul className="mb-4">
-              <Li>Both <strong className="text-white">public and private</strong> repositories are supported — private repos require GitHub OAuth login</Li>
-              <Li>The repository is cloned with a <strong className="text-white">shallow clone</strong> (<code className="text-indigo-300">--depth 1</code>) on the target branch — fast and bandwidth-efficient</Li>
-              <Li>Each linked repo shows its <strong className="text-white">last commit hash, branch, and sync status</strong> in the repository list</Li>
-            </ul>
-
-            <H3>Webhook Auto-Setup</H3>
-            <P>When you link a repository, DevOpsEase automatically registers a <strong className="text-white">GitHub webhook</strong> pointing to your DevOpsEase instance. No manual webhook configuration in GitHub settings is required.</P>
             <Table
-              headers={['Webhook Event', 'What it triggers']}
+              headers={['Field', 'Required', 'Detail']}
               rows={[
-                ['push',               'Runs the pipeline defined for that branch — build → test → deploy'],
-                ['pull_request',       'Not currently used — reserved for future PR checks'],
+                ['Repository URL', '✅ Yes', 'Full GitHub HTTPS URL — SSH URLs are not supported'],
+                ['Branch',         '❌ Optional', 'Defaults to main — only pushes to this branch trigger runs'],
               ]}
             />
             <ul className="mb-4">
-              <Li>Webhook payloads are verified with a <strong className="text-white">HMAC-SHA256 signature</strong> — forged or replayed events are rejected</Li>
-              <Li>Only pushes to the <strong className="text-white">tracked branch</strong> (default: <code className="text-indigo-300">main</code>) trigger a pipeline run</Li>
-              <Li>The webhook delivery log is visible in your GitHub repo → Settings → Webhooks</Li>
+              <Li>Both <strong className="text-white">public and private</strong> repositories are supported — private repos require a GitHub OAuth login or fine-grained access token</Li>
+              <Li>On every pipeline run, the repo is cloned with <strong className="text-white">shallow clone</strong> (<code className="text-indigo-300">--depth 1</code>) on the tracked branch — fast and bandwidth-efficient</Li>
+              <Li>Each linked repo card shows its <strong className="text-white">last commit hash, branch, pipeline status, and sync time</strong></Li>
             </ul>
 
-            <H3>Repository List</H3>
-            <P>Each linked repository card shows:</P>
+            <H3>Webhook Auto-Setup</H3>
+            <P>DevOpsEase automatically registers a <strong className="text-white">GitHub webhook</strong> on the repository the moment it's linked — no manual configuration in GitHub settings required.</P>
+            <Table
+              headers={['Webhook Event', 'What it triggers', 'Verified?']}
+              rows={[
+                ['push',         'Pipeline run — build → test → deploy on the tracked branch', '✅ HMAC-SHA256'],
+                ['pull_request', 'Reserved — not used yet',                                    '✅ HMAC-SHA256'],
+              ]}
+            />
             <ul className="mb-4">
-              <Li><strong className="text-white">Repo name and URL</strong> — click to open on GitHub</Li>
-              <Li><strong className="text-white">Tracked branch</strong> — the branch webhooks listen on</Li>
-              <Li><strong className="text-white">Last commit</strong> — short hash of the most recent push received</Li>
-              <Li><strong className="text-white">Pipeline status</strong> — last run result (SUCCESS / FAILED / RUNNING) for that repo</Li>
-              <Li><strong className="text-white">Unlink</strong> button — removes the repo and deletes the GitHub webhook</Li>
+              <Li>Webhook payloads are verified with <strong className="text-white">HMAC-SHA256 signatures</strong> — forged or replayed requests are rejected automatically</Li>
+              <Li>Pushes to <em>non-tracked</em> branches are silently ignored — no false pipeline triggers</Li>
+              <Li>The full webhook delivery log is visible in GitHub → your repo → Settings → Webhooks</Li>
             </ul>
-            <Note type="tip">Use a dedicated <strong>GitHub access token</strong> (fine-grained, repo scope only) instead of your personal password when linking private repositories.</Note>
-            <Note type="warn">Unlinking a repository removes the webhook from GitHub and stops all future pipeline triggers. Existing pipeline run history is preserved.</Note>
+
+            <H3>Managing Linked Repos</H3>
+            <ul className="mb-4">
+              <Li><strong className="text-white">Repo name and URL</strong> — shown on the card; click to open on GitHub</Li>
+              <Li><strong className="text-white">Pipeline status</strong> — last run result (SUCCESS / FAILED / RUNNING) shown inline</Li>
+              <Li><strong className="text-white">Unlink</strong> — removes the repo record <em>and</em> deletes the GitHub webhook in one action; existing pipeline run history is preserved</Li>
+            </ul>
+            <Note type="tip">Use a <strong>fine-grained GitHub Personal Access Token</strong> (repo scope only) for private repos — it can be revoked independently without affecting your GitHub password.</Note>
+            <Note type="warn">Unlinking a repository removes the GitHub webhook and stops all future pipeline triggers. To re-enable, simply link the repository again.</Note>
 
             {/* ─── 22. DEFINING PIPELINES ─── */}
             <H2 id="pipeline-def">Defining Pipelines</H2>
-            <P>Pipelines are defined in a <strong className="text-white">YAML file</strong> committed to your repository. DevOpsEase reads and validates the file when you link the repo, and re-parses it on every webhook push.</P>
+            <P>Pipelines are defined in a <strong className="text-white">YAML file</strong> committed to your repository root. DevOpsEase reads and validates it when you link the repo, and re-parses it on every webhook push — always running the latest committed version.</P>
 
             <H3>Pipeline YAML Schema</H3>
             <CodeBlock lang="yaml" code={`name: my-app-pipeline
@@ -641,113 +644,136 @@ steps:
     image: my-app:latest
     environment: production`} />
 
+            <H3>Top-Level Fields</H3>
+            <Table
+              headers={['Field', 'Required', 'Detail']}
+              rows={[
+                ['name',    '✅ Yes', 'Display name shown in the Pipelines UI'],
+                ['version', '✅ Yes', 'Schema version — currently "1.0"'],
+                ['steps',   '✅ Yes', 'Ordered array of step definitions — minimum 1 step required'],
+              ]}
+            />
+
             <H3>Step Types</H3>
             <Table
-              headers={['Type', 'What it does', 'Required fields']}
+              headers={['type', 'What it does', 'Required step fields']}
               rows={[
-                ['build',  'Builds a Docker image from a Dockerfile in the repo',  'dockerfile, tag'],
-                ['test',   'Runs a shell command inside the build context',         'command'],
-                ['deploy', 'Deploys the image as a Docker container or K8s workload', 'image, environment'],
+                ['build',  'Builds a Docker image from a Dockerfile in the cloned repo',      'dockerfile, tag'],
+                ['test',   'Runs a shell command in the build context — exit code 0 = pass',  'command'],
+                ['deploy', 'Deploys the built image as a Docker container or K8s workload',   'image, environment'],
               ]}
             />
             <ul className="mb-4">
-              <Li><strong className="text-white">name</strong> — pipeline display name shown in the UI</Li>
-              <Li><strong className="text-white">version</strong> — pipeline schema version (<code className="text-indigo-300">"1.0"</code> is current)</Li>
-              <Li>Steps execute in the <strong className="text-white">order defined</strong> — top to bottom</Li>
-              <Li>A failed step <strong className="text-white">stops the pipeline</strong> immediately (fail-fast) — subsequent steps are skipped</Li>
+              <Li>Steps execute <strong className="text-white">top to bottom</strong> — the order in YAML is the execution order</Li>
+              <Li>A failed step <strong className="text-white">stops the pipeline immediately</strong> (fail-fast) — remaining steps are marked SKIPPED</Li>
+              <Li>The <code className="text-indigo-300">environment</code> field on deploy steps accepts <code className="text-indigo-300">dev</code>, <code className="text-indigo-300">staging</code>, or <code className="text-indigo-300">production</code></Li>
             </ul>
-            <Note type="tip">Name your YAML file <code className="text-emerald-300">devopsease.yml</code> and commit it to the root of your repository for automatic detection.</Note>
-            <Note type="warn">YAML syntax errors are caught at parse time — the pipeline is rejected with a validation error and no steps are run.</Note>
+            <Note type="tip">Name your file <code className="text-emerald-300">devopsease.yml</code> and commit it to the <strong>repository root</strong> — subdirectory paths are not scanned.</Note>
+            <Note type="warn">YAML syntax errors and missing required fields are caught at parse time — no steps are run until the file is valid.</Note>
 
             {/* ─── 23. PIPELINE EXECUTION ─── */}
             <H2 id="pipeline-exec">Pipeline Execution</H2>
-            <P>Every pipeline run is a first-class record — tracked from trigger to completion with live logs, timing, and a full status trail.</P>
+            <P>Every pipeline run is a first-class record — tracked from the moment a webhook fires to final completion, with live logs, per-step timing, and a full status trail persisted to the database.</P>
 
             <H3>How a Run Starts</H3>
-            <CodeBlock lang="text" code={`GitHub push → webhook → HMAC-SHA256 verified
+            <CodeBlock lang="text" code={`git push → GitHub webhook → HMAC-SHA256 verified
   ↓
-DevOpsEase queues a pipeline run
+DevOpsEase queues a pipeline run (status: PENDING)
   ↓
 Steps execute sequentially: build → test → deploy
   ↓
-Run record saved with status, timing, and log output`} />
+Run record saved with status, timing, and full log output`} />
+
+            <H3>Run Status</H3>
+            <Table
+              headers={['Status', 'Meaning']}
+              rows={[
+                ['PENDING',  'Queued — waiting for the previous run to finish or resources to free'],
+                ['RUNNING',  'Actively executing — one or more steps in progress'],
+                ['SUCCESS',  'All steps completed with exit code 0'],
+                ['FAILED',   'A step failed — pipeline aborted, remaining steps skipped'],
+              ]}
+            />
 
             <H3>Live Execution Logs</H3>
             <ul className="mb-4">
-              <Li>Each step streams output in <strong className="text-white">real time</strong> via WebSocket — visible on the Pipeline Run detail page</Li>
-              <Li>Logs are colour-coded: ERROR (red), WARN (amber), INFO (slate)</Li>
-              <Li>On completion logs are <strong className="text-white">persisted to the database</strong> — accessible any time after the run</Li>
+              <Li>Each step streams output in <strong className="text-white">real time</strong> via WebSocket — visible on the Pipeline Run detail page as it happens</Li>
+              <Li>Logs are colour-coded: <strong className="text-white">ERROR</strong> (red), <strong className="text-white">WARN</strong> (amber), <strong className="text-white">INFO</strong> (slate)</Li>
+              <Li>On completion, logs are <strong className="text-white">persisted to the database</strong> — accessible any time after the run finishes</Li>
             </ul>
 
-            <H3>Execution Behaviour</H3>
+            <H3>Execution Guarantees</H3>
             <Table
               headers={['Behaviour', 'Detail']}
               rows={[
-                ['Sequential',   'Steps run one at a time — no parallelism within a pipeline'],
-                ['Fail-fast',    'Any step failure aborts the run — remaining steps are marked SKIPPED'],
-                ['Timeout',      'Individual steps time out after 15 minutes — same limit as image builds'],
-                ['Concurrency',  'Only one run per pipeline is active at a time — new pushes queue behind it'],
+                ['Sequential',  'Steps run one at a time — no parallelism within a single pipeline'],
+                ['Fail-fast',   'Any step failure aborts the run — remaining steps are marked SKIPPED'],
+                ['Timeout',     'Each step times out after 15 minutes — same hard limit as image builds'],
+                ['Concurrency', 'Only one run per pipeline is active at a time — new pushes queue behind it'],
               ]}
             />
-            <Note type="info">Pipeline runs triggered by webhook pushes include the commit hash and branch in the run metadata — visible on the run detail page.</Note>
+            <Note type="tip">Every pipeline run records the triggering <strong>commit hash and branch</strong> — visible on the run detail page, making it easy to trace a deploy back to the exact code change.</Note>
+            <Note type="warn">If a push arrives while a run is active, it queues — it does not cancel the in-progress run. Back-to-back pushes will run sequentially, not in parallel.</Note>
 
             {/* ─── 24. DEPLOYMENTS ─── */}
             <H2 id="deployments">Deployments</H2>
-            <P>The <strong className="text-white">Deployments</strong> page shows every deployment DevOpsEase has created — from pipeline deploy steps, manual deploys, and Kubernetes rollouts. Each deployment is a live record with status, environment, and linked container or pod.</P>
+            <P>The <strong className="text-white">Deployments</strong> page is the live record of every service DevOpsEase has deployed — from pipeline <code className="text-indigo-300">deploy</code> steps, to manual triggers, to Kubernetes rollouts — each with status, environment, linked container, and full metadata.</P>
 
             <H3>Deployment Status</H3>
             <Table
               headers={['Status', 'Meaning', 'Badge']}
               rows={[
-                ['running',   'Container or pod is live and healthy',           '🟢 Green'],
-                ['deploying', 'Deploy step is in progress — container starting', '🔵 Blue'],
-                ['failed',    'Container exited or pod failed to schedule',      '🔴 Red'],
-                ['stopped',   'Deployment was manually stopped',                 '⚫ Grey'],
+                ['running',   'Container or pod is live and serving traffic',            '🟢 Green'],
+                ['deploying', 'Deploy step is in progress — container is starting up',   '🔵 Blue'],
+                ['failed',    'Container exited or pod failed to schedule',              '🔴 Red'],
+                ['stopped',   'Deployment was manually stopped',                         '⚫ Grey'],
               ]}
             />
 
-            <H3>Deployment Fields</H3>
+            <H3>What Each Deployment Records</H3>
             <ul className="mb-4">
-              <Li><strong className="text-white">Environment</strong> — <code className="text-indigo-300">dev</code>, <code className="text-indigo-300">staging</code>, or <code className="text-indigo-300">production</code></Li>
-              <Li><strong className="text-white">Image tag</strong> — the Docker image used for this deployment</Li>
-              <Li><strong className="text-white">Commit hash & branch</strong> — the Git commit that triggered this deploy</Li>
-              <Li><strong className="text-white">Container / Pod link</strong> — click to jump to the running container or Kubernetes pod</Li>
+              <Li><strong className="text-white">Environment</strong> — <code className="text-indigo-300">dev</code>, <code className="text-indigo-300">staging</code>, or <code className="text-indigo-300">production</code> — set by the pipeline YAML deploy step</Li>
+              <Li><strong className="text-white">Image tag</strong> — the exact Docker image used for this deployment</Li>
+              <Li><strong className="text-white">Commit hash & branch</strong> — the Git commit that triggered this deploy, for full traceability</Li>
+              <Li><strong className="text-white">Container / Pod link</strong> — click to jump directly to the running container or Kubernetes pod</Li>
             </ul>
 
             <H3>Actions</H3>
             <ul className="mb-4">
-              <Li><strong className="text-white">Stop</strong> — gracefully stops the running container or scales the K8s deployment to 0</Li>
-              <Li><strong className="text-white">Remove</strong> — permanently deletes the deployment record and its container</Li>
-              <Li><strong className="text-white">Rollback</strong> — see the next section</Li>
+              <Li><strong className="text-white">Stop</strong> — gracefully stops the running container (SIGTERM → SIGKILL after 10s) or scales the K8s deployment to 0 replicas</Li>
+              <Li><strong className="text-white">Remove</strong> — permanently deletes the deployment record and its associated container</Li>
+              <Li><strong className="text-white">Rollback</strong> — re-deploys using a previous deployment's image tag; see the next section</Li>
             </ul>
-            <Note type="tip">Filter the Deployments list by environment (dev / staging / production) to quickly find what's running where.</Note>
+            <Note type="tip">Filter the Deployments list by <strong>environment</strong> (dev / staging / production) to instantly see what's running in each stage.</Note>
+            <Note type="warn">Remove permanently deletes both the deployment record and the container. The container's writable layer is gone — use named volumes for any data you need to keep.</Note>
 
             {/* ─── 25. ROLLBACK & HISTORY ─── */}
             <H2 id="rollback">Rollback & History</H2>
-            <P>Every deployment is stored permanently — giving you a full audit trail and the ability to roll back to any previous version in one click.</P>
+            <P>Every deployment is stored permanently — giving you a full audit trail and the ability to re-deploy any previous version in one click, without touching your source code or pipeline.</P>
 
             <H3>How Rollback Works</H3>
-            <CodeBlock lang="text" code={`Select a previous deployment → click Rollback
+            <CodeBlock lang="text" code={`Select any previous deployment → click Rollback
   ↓
-DevOpsEase stops the current deployment
+DevOpsEase stops the current running deployment
   ↓
-Re-deploys using the previous deployment's image tag
+Re-deploys using the selected deployment's exact image tag
   ↓
-New deployment record created with rollback reason logged`} />
+New deployment record created — rollback reason logged`} />
             <ul className="mb-4">
-              <Li>Rollback creates a <strong className="text-white">new deployment record</strong> — the history is never mutated</Li>
-              <Li>An optional <strong className="text-white">reason</strong> can be provided — stored in the deployment metadata</Li>
-              <Li>The rollback target image must still be available locally — if the image was pruned, rollback will fail</Li>
+              <Li>Rollback creates a <strong className="text-white">new deployment record</strong> — history is never mutated or overwritten</Li>
+              <Li>An optional <strong className="text-white">rollback reason</strong> can be provided — stored in the deployment metadata for audit purposes</Li>
+              <Li>The target image must still be available locally — if it was pruned via Safe Clean Storage, the rollback will fail</Li>
             </ul>
 
             <H3>Deployment History</H3>
             <ul className="mb-4">
-              <Li>All deployments are listed in reverse-chronological order with full metadata</Li>
-              <Li>Each entry shows: environment, image tag, commit hash, branch, created time, and final status</Li>
-              <Li>Click any deployment to view its <strong className="text-white">log output</strong> from the deploy step</Li>
-              <Li>History is never automatically deleted — you control retention</Li>
+              <Li>All deployments listed in <strong className="text-white">reverse-chronological order</strong> with full metadata</Li>
+              <Li>Each entry shows: <strong className="text-white">environment, image tag, commit hash, branch, created time, and final status</strong></Li>
+              <Li>Click any deployment to view its full <strong className="text-white">log output</strong> from the deploy step</Li>
+              <Li>History is <strong className="text-white">never automatically deleted</strong> — you control retention</Li>
             </ul>
-            <Note type="warn">If a rollback target image has been deleted via <strong>Safe Clean Storage</strong>, the rollback will fail. Tag and preserve images you may need to roll back to before pruning.</Note>
+            <Note type="tip">Before pruning images, check Deployments history — <strong>tag and preserve</strong> any image you might need to roll back to later.</Note>
+            <Note type="warn">If a rollback target image has been deleted via Safe Clean Storage, the rollback will fail with an image-not-found error. Re-build or re-pull the image first.</Note>
 
             {/* ─── 26. DOCKER COMPOSE PROJECTS ─── */}
             <H2 id="projects">Docker Compose Projects</H2>
