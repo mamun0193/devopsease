@@ -1168,6 +1168,264 @@ spec:
             <Note type="tip">Copy the generated YAML and apply it with <code className="text-emerald-300">kubectl apply -f manifest.yaml</code> — or pipe it directly: <code className="text-emerald-300">echo "$YAML" | kubectl apply -f -</code>.</Note>
             <Note type="warn">Generated YAML is for reference and manual apply only — DevOpsEase does not automatically apply it to the cluster. Review all manifests before running kubectl apply in production.</Note>
 
+            {/* ─── 35. CLI INSTALLATION & SETUP ─── */}
+            <H2 id="cli-install">CLI — Installation & Setup</H2>
+            <P>The <strong className="text-white">DevOpsEase CLI</strong> (<code className="text-indigo-300">devopsease</code> / <code className="text-indigo-300">dse</code>) is a single binary that puts your entire platform — containers, pipelines, Kubernetes, secrets, tunnels — on the command line. 25 command modules, 80+ sub-commands, built for scripting and DX.</P>
+
+            <H3>Installing</H3>
+            <CodeBlock lang="bash" code={`npm install -g devopsease-cli
+
+# Verify installation:
+dse --version          # 1.0.0
+devopsease --version   # same binary, full name`} />
+
+            <H3>Short Aliases</H3>
+            <Table
+              headers={['Alias', 'Expands to', 'Purpose']}
+              rows={[
+                ['dse',   'devopsease', 'Short form for every command'],
+                ['dse s', 'dse status', 'Quick cluster overview — pods, deployments, services'],
+                ['dse p', 'dse pod list', 'List pods in active namespace'],
+                ['dse d', 'dse deploy list', 'List all deployments'],
+              ]}
+            />
+
+            <H3>Config File</H3>
+            <P>All CLI state is persisted to <code className="text-indigo-300">~/.devopsease/config.json</code> — created automatically on first login:</P>
+            <Table
+              headers={['Field', 'Default', 'Set by']}
+              rows={[
+                ['token',             '—',                       'dse login'],
+                ['refreshToken',      '—',                       'dse login'],
+                ['baseUrl',           'http://localhost:3497',   'dse config set-url <url>'],
+                ['currentProject',    '—',                       'dse config set-project <id>'],
+                ['currentCluster',    '—',                       'dse cluster use <id>'],
+                ['currentNamespace',  'default',                 'dse ns use <name>'],
+              ]}
+            />
+
+            <H3>First-Time Setup</H3>
+            <CodeBlock lang="bash" code={`# 1. Point CLI at your DevOpsEase server:
+dse config set-url https://your-devopsease-server.com
+
+# 2. Login — interactive email + password prompt:
+dse login
+
+# 3. Verify everything is connected:
+dse doctor`} />
+            <Note type="tip">Run <code className="text-emerald-300">dse doctor</code> after setup — it runs 7 live health checks (config loaded → API reachable → token valid → cluster selected → namespace set) and tells you exactly what to fix.</Note>
+            <Note type="warn">Never commit <code className="text-indigo-300">~/.devopsease/config.json</code> — it contains your access and refresh tokens. Add it to your global <code className="text-indigo-300">.gitignore</code>.</Note>
+
+            {/* ─── 36. AUTH COMMANDS ─── */}
+            <H2 id="cli-auth">Auth Commands</H2>
+            <P><code className="text-indigo-300">login</code>, <code className="text-indigo-300">logout</code>, <code className="text-indigo-300">whoami</code>, <code className="text-indigo-300">doctor</code>, and <code className="text-indigo-300">config</code> — manage your session, verify connectivity, and control CLI configuration.</P>
+
+            <H3>Session Commands</H3>
+            <Table
+              headers={['Command', 'Description']}
+              rows={[
+                ['dse login',           'Interactive email + password → stores access_token and refresh_token to config'],
+                ['dse logout',          'Clears stored tokens from config — does not invalidate the server session'],
+                ['dse whoami',          'Fetches /auth/me and displays name, email, role, and plan'],
+                ['dse doctor',          'Runs 7 sequential health checks and prints ✔ / ✖ per item'],
+                ['dse config show',     'Displays all config fields — tokens are always masked as ****'],
+                ['dse config set-url',  'Updates the API base URL — e.g. https://devopsease.mycompany.com'],
+                ['dse config set-project', 'Sets the active project / repository ID'],
+                ['dse config reset',    'Deletes the config file and restores all defaults'],
+              ]}
+            />
+
+            <H3>dse doctor — Health Checks</H3>
+            <P>Runs seven checks in sequence — each prints <code className="text-indigo-300">✔</code> or <code className="text-indigo-300">✖</code> with a remediation hint on failure:</P>
+            <ul className="mb-4">
+              <Li><strong className="text-white">1.</strong> Configuration file loaded</Li>
+              <Li><strong className="text-white">2.</strong> API server reachable (<code className="text-indigo-300">/health</code>)</Li>
+              <Li><strong className="text-white">3.</strong> Authentication token present in config</Li>
+              <Li><strong className="text-white">4.</strong> Token valid — live call to <code className="text-indigo-300">/auth/me</code></Li>
+              <Li><strong className="text-white">5.</strong> Cluster selected in config</Li>
+              <Li><strong className="text-white">6.</strong> Namespace set in config</Li>
+              <Li><strong className="text-white">7.</strong> Namespace exists in the selected cluster (live K8s API call)</Li>
+            </ul>
+            <Note type="tip">Every auth error surfaces a specific remediation hint — <code className="text-emerald-300">dse login</code>, <code className="text-emerald-300">dse config set-url</code>, or <code className="text-emerald-300">dse cluster use</code> — so you're never left guessing.</Note>
+            <Note type="warn"><code className="text-indigo-300">dse config reset</code> wipes all stored tokens. You will need to run <code className="text-indigo-300">dse login</code> again before any authenticated commands will work.</Note>
+
+            {/* ─── 37. CONTAINER COMMANDS ─── */}
+            <H2 id="cli-containers">Container Commands</H2>
+            <P>Full Docker container lifecycle from the terminal — list, start, stop, restart, remove, exec into, and stream logs for any container managed by DevOpsEase.</P>
+
+            <H3>Container Subcommands</H3>
+            <Table
+              headers={['Command', 'Description']}
+              rows={[
+                ['dse container list',          'List all containers with name, image, status, and created time'],
+                ['dse container start <id>',    'Start a stopped container'],
+                ['dse container stop <id>',     'Gracefully stop a running container — confirm prompt required'],
+                ['dse container restart <id>',  'Restart a container'],
+                ['dse container remove <id>',   'Remove a container permanently — confirm prompt required'],
+                ['dse container logs <id>',     'Fetch container logs — supports --tail <n> and --follow'],
+                ['dse container inspect <id>',  'Full container detail — image, env, mounts, network, resource limits'],
+                ['dse container exec <id>',     'Run an interactive command inside a running container'],
+              ]}
+            />
+
+            <H3>Log Streaming</H3>
+            <CodeBlock lang="bash" code={`# Tail last 100 lines:
+dse container logs <id> --tail 100
+
+# Stream live (polls every 3s):
+dse container logs <id> --follow
+
+# Cross-resource log viewer by app name:
+dse logs my-app --tail 200 --follow`} />
+
+            <H3>dse logs — Cross-Resource Viewer</H3>
+            <P><code className="text-indigo-300">dse logs {'<app>'}</code> finds the matching container or pod by app name across both Docker and Kubernetes — useful when you don't know the exact container ID or pod name.</P>
+            <Note type="tip">Use <code className="text-emerald-300">dse container list --json | jq '.[] | select(.status=="running")'</code> to script filtered container queries.</Note>
+            <Note type="warn">Destructive commands (<code className="text-indigo-300">stop</code>, <code className="text-indigo-300">remove</code>) always prompt for confirmation. Use <code className="text-indigo-300">--force</code> to skip the prompt in automation scripts.</Note>
+
+            {/* ─── 38. KUBERNETES COMMANDS ─── */}
+            <H2 id="cli-k8s">Kubernetes Commands</H2>
+            <P>Manage clusters, namespaces, pods, deployments, services, and ingress — and get a live cluster overview with <code className="text-indigo-300">dse status</code> — all without leaving the terminal.</P>
+
+            <H3>Command Groups</H3>
+            <Table
+              headers={['Group', 'Key commands']}
+              rows={[
+                ['dse cluster',   'list · connect · use <id> · disconnect <id>'],
+                ['dse ns',        'list · create <name> · delete <name>'],
+                ['dse pod',       'list · logs <name> · describe <name>'],
+                ['dse k8s',       'deploy list/create/delete · generate-yaml · service list · ingress list'],
+                ['dse scale',     'scale <app> -r <replicas>'],
+                ['dse status (s)','Cluster overview — pods + deployments + services in one table'],
+              ]}
+            />
+
+            <H3>Cluster & Namespace Management</H3>
+            <CodeBlock lang="bash" code={`# List connected clusters:
+dse cluster list
+
+# Switch active cluster:
+dse cluster use <cluster-id>
+
+# List namespaces in active cluster:
+dse ns list
+
+# Create and set a new namespace:
+dse ns create staging`} />
+
+            <H3>Pod Commands</H3>
+            <CodeBlock lang="bash" code={`# List all pods in active namespace:
+dse pod list                           # or: dse p
+
+# Tail pod logs (last 200 lines, follow):
+dse pod logs my-app-xyz --tail 200 --follow
+
+# Multi-container pod — select container:
+dse pod logs my-app-xyz --container sidecar
+
+# Full pod describe:
+dse pod describe my-app-xyz`} />
+
+            <H3>--namespace Flag</H3>
+            <P>All K8s commands accept <code className="text-indigo-300">--namespace {'<ns>'}</code> to override the persisted active namespace without changing the config — useful for one-off cross-namespace operations.</P>
+            <Note type="tip">Run <code className="text-emerald-300">dse s</code> every morning for an instant cluster health snapshot — pods, deployments, and services in three colour-coded tables.</Note>
+            <Note type="warn"><code className="text-indigo-300">dse ns delete</code> removes all Kubernetes resources inside the namespace. There is no undo — the Kubernetes API processes the deletion immediately.</Note>
+
+            {/* ─── 39. PIPELINE COMMANDS ─── */}
+            <H2 id="cli-pipelines">Pipeline Commands</H2>
+            <P>Link repositories, create and run pipelines, trigger deployments, and roll back — the full CI/CD lifecycle managed entirely from the terminal.</P>
+
+            <H3>Command Groups</H3>
+            <Table
+              headers={['Group', 'Key commands']}
+              rows={[
+                ['dse repo',      'list · link · unlink <id>'],
+                ['dse pipeline',  'list · create (interactive) · run <id> · status <id> · delete <id>'],
+                ['dse build',     'list · trigger (repo selector) · logs <id>'],
+                ['dse deploy',    'list · trigger (repo + env selector) · rollback <id>'],
+                ['dse init',      'Detects project type and scaffolds a devopsease.yml interactively'],
+              ]}
+            />
+
+            <H3>dse init — Project Scaffold</H3>
+            <P><code className="text-indigo-300">dse init</code> scans the working directory for signature files and detects the project type automatically:</P>
+            <Table
+              headers={['Detected type', 'Signature files']}
+              rows={[
+                ['Node.js', 'package.json'],
+                ['Python',  'requirements.txt · Pipfile · pyproject.toml · setup.py'],
+                ['Go',      'go.mod'],
+                ['Java',    'pom.xml · build.gradle · build.gradle.kts'],
+                ['Rust',    'Cargo.toml'],
+                ['Docker',  'Dockerfile'],
+              ]}
+            />
+            <P>After detection, interactive prompts ask for repository, pipeline name, and step selection — then POSTs to <code className="text-indigo-300">/api/pipelines</code> and prints next-step instructions.</P>
+
+            <H3>Pipeline Execution</H3>
+            <CodeBlock lang="bash" code={`# Run a pipeline manually:
+dse pipeline run <pipeline-id>
+
+# Watch execution status:
+dse pipeline status <pipeline-id>
+
+# Stream build logs:
+dse build logs <build-id>
+
+# Rollback a deployment (confirm prompt):
+dse deploy rollback <deployment-id>`} />
+            <Note type="tip"><code className="text-emerald-300">dse init</code> scaffolds a complete <code className="text-emerald-300">devopsease.yml</code> in under 30 seconds — run it in any project root to get started without writing YAML manually.</Note>
+            <Note type="warn"><code className="text-indigo-300">dse deploy rollback</code> re-deploys from the target image tag. If that image was pruned from the registry, the rollback will fail with an image-not-found error.</Note>
+
+            {/* ─── 40. ADVANCED COMMANDS ─── */}
+            <H2 id="cli-advanced">Advanced Commands</H2>
+            <P>Secrets, tunnels, registry, image and volume management — plus the <code className="text-indigo-300">--json</code> flag that makes every read command scriptable and pipeable to <code className="text-indigo-300">jq</code>.</P>
+
+            <H3>Command Groups</H3>
+            <Table
+              headers={['Group', 'Key commands']}
+              rows={[
+                ['dse secrets',   'list · add (interactive) · update <id> · delete <id>'],
+                ['dse tunnel',    'list · create (service + duration) · delete <id>'],
+                ['dse registry',  'list · add (interactive: URL, username, password) · remove <id>'],
+                ['dse image',     'list · pull <name> · remove <name>'],
+                ['dse network',   'list · create <name> · remove <name>'],
+                ['dse volume',    'list · create <name> · remove <name>'],
+                ['dse project',   'list · create · use <id> · delete <id>'],
+              ]}
+            />
+
+            <H3>dse secrets — Always Masked</H3>
+            <ul className="mb-4">
+              <Li><code className="text-indigo-300">dse secrets list</code> — shows name, environment, and created time — values are always <strong className="text-white">****</strong> in all output</Li>
+              <Li><code className="text-indigo-300">dse secrets add</code> — interactive prompts for name, value, and environment (<code className="text-indigo-300">development</code> / <code className="text-indigo-300">staging</code> / <code className="text-indigo-300">production</code>)</Li>
+              <Li>You cannot retrieve a secret value after creation — only <strong className="text-white">overwrite</strong> it with <code className="text-indigo-300">dse secrets update</code></Li>
+            </ul>
+
+            <H3>--json Flag & Scripting</H3>
+            <P>Every read command supports <code className="text-indigo-300">--json</code> — outputs raw JSON to stdout for piping and automation:</P>
+            <CodeBlock lang="bash" code={`# List only running containers:
+dse container list --json | jq '.[] | select(.status=="running")'
+
+# Get pod names in a namespace:
+dse pod list --json | jq '.[].name'
+
+# Find failed deployments:
+dse deploy list --json | jq '.[] | select(.status=="failed") | .id'
+
+# Check if a secret exists:
+dse secrets list --json | jq '.[] | select(.name=="DATABASE_PASSWORD")'`} />
+
+            <H3>Spinner & Output System</H3>
+            <ul className="mb-4">
+              <Li>Every network call is wrapped in an <strong className="text-white">ora spinner</strong> — no bare console output during async operations</Li>
+              <Li>Tables rendered with <strong className="text-white">cli-table3</strong> unicode box-drawing — consistent across all list commands</Li>
+              <Li>Relative timestamps everywhere — <code className="text-indigo-300">5m ago</code>, <code className="text-indigo-300">2h ago</code>, <code className="text-indigo-300">3d ago</code> — via <code className="text-indigo-300">formatDate()</code></Li>
+              <Li>Status strings colour-coded: green=running/success, cyan=pending, red=failed, yellow=stopped</Li>
+            </ul>
+            <Note type="tip">Combine <code className="text-emerald-300">--json</code> with <code className="text-emerald-300">jq</code> in shell scripts to build automation workflows around any DevOpsEase resource — containers, pods, pipelines, secrets, tunnels.</Note>
+            <Note type="warn">The <code className="text-indigo-300">dse registry add</code> command stores credentials encrypted via the server's <code className="text-indigo-300">ENCRYPTION_KEY</code>. If the key changes, registry credentials become unreadable and must be re-added.</Note>
+
             {/* ── footer ── */}
             <div className="mt-20 pt-8 border-t border-gray-800 flex items-center justify-between text-sm text-gray-500">
               <span>DevOpsEase Docs — updated April 2026</span>
