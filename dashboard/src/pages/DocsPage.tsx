@@ -955,6 +955,219 @@ docker run -e DATABASE_PASSWORD=<decrypted> -e API_KEY=<decrypted> my-image`} />
             <Note type="warn">Never change or lose your <code className="text-indigo-300">ENCRYPTION_KEY</code>. All secrets, Docker Hub credentials, and kubeconfigs are encrypted with it — changing it makes all encrypted data permanently unreadable.</Note>
 
 
+            {/* ─── 30. CONNECTING CLUSTERS ─── */}
+            <H2 id="clusters">Connecting Clusters</H2>
+            <P>The <strong className="text-white">Clusters</strong> page connects your existing Kubernetes clusters to DevOpsEase — EKS, GKE, AKS, kubeadm, k3s, and kind are all supported. Paste a kubeconfig and you're ready to manage pods, namespaces, deployments, and generate YAML from the dashboard.</P>
+
+            <H3>Adding a Cluster</H3>
+            <P>Click <strong className="text-white">Connect Cluster</strong> and fill in the two fields:</P>
+            <Table
+              headers={['Field', 'Required', 'Detail']}
+              rows={[
+                ['Cluster Name', '✅ Yes', 'A display label for this cluster — shown in all K8s page selectors'],
+                ['kubeconfig',   '✅ Yes', 'Full kubeconfig YAML — paste the contents of your ~/.kube/config or a service account kubeconfig'],
+              ]}
+            />
+            <ul className="mb-4">
+              <Li>DevOpsEase immediately tests the connection after saving — the cluster shows <strong className="text-white">connected</strong> or <strong className="text-white">failed</strong> within seconds</Li>
+              <Li>All K8s distributions are supported — any cluster reachable via a valid kubeconfig works</Li>
+              <Li>You can connect <strong className="text-white">unlimited clusters</strong> — a cluster selector dropdown appears on every Kubernetes page</Li>
+            </ul>
+
+            <H3>Credential Security</H3>
+            <P>The kubeconfig is encrypted with <strong className="text-white">AES-256-GCM</strong> before being written to the database — the same encryption used for secrets and Docker Hub credentials.</P>
+            <ul className="mb-4">
+              <Li>The plaintext kubeconfig is <strong className="text-white">never logged or returned</strong> by the API — only the cluster name and connection status are exposed</Li>
+              <Li>On each API call, the kubeconfig is decrypted <strong className="text-white">in memory only</strong> and discarded immediately after the K8s API response</Li>
+              <Li>Startup fails immediately if <code className="text-indigo-300">ENCRYPTION_KEY</code> is missing — stored kubeconfigs are never accessible without it</Li>
+            </ul>
+
+            <H3>Connection Status</H3>
+            <Table
+              headers={['Status', 'Meaning', 'Badge']}
+              rows={[
+                ['connected', 'API server reachable and credentials valid',                  '🟢 Green'],
+                ['failed',    'Connection test failed — API server unreachable or 401/403',  '🔴 Red'],
+              ]}
+            />
+
+            <H3>Removing a Cluster</H3>
+            <ul className="mb-4">
+              <Li>Click <strong className="text-white">Disconnect</strong> on any cluster card — requires confirmation</Li>
+              <Li>Removing deletes the encrypted kubeconfig from the database only — <strong className="text-white">the actual cluster is completely unaffected</strong></Li>
+              <Li>All namespace, pod, and dashboard data for that cluster is cleared from the UI</Li>
+            </ul>
+            <Note type="tip">Use a <strong>dedicated service account</strong> with minimal RBAC permissions rather than a cluster-admin kubeconfig — principle of least privilege applies here too.</Note>
+            <Note type="warn">If your cluster's API server IP or certificate changes, you must reconnect — the stored kubeconfig will fail the connection test until updated.</Note>
+
+            {/* ─── 31. NAMESPACES ─── */}
+            <H2 id="namespaces">Namespaces</H2>
+            <P>The <strong className="text-white">Namespaces</strong> panel lets you list, create, and delete Kubernetes namespaces from the dashboard — and set the active namespace used by all other K8s pages and CLI commands.</P>
+
+            <H3>Listing Namespaces</H3>
+            <ul className="mb-4">
+              <Li>Select a cluster from the dropdown — namespaces load from the live Kubernetes API</Li>
+              <Li>The list shows all namespaces in the cluster, including system namespaces (<code className="text-indigo-300">kube-system</code>, <code className="text-indigo-300">kube-public</code>)</Li>
+              <Li>The currently active namespace is <strong className="text-white">highlighted</strong> — used as the default for pods, dashboard, and YAML generator</Li>
+            </ul>
+
+            <H3>Creating a Namespace</H3>
+            <ul className="mb-4">
+              <Li>Enter a name and click <strong className="text-white">Create</strong> — DevOpsEase POSTs to the Kubernetes API and refreshes the list</Li>
+              <Li>Names must be <strong className="text-white">lowercase DNS-label format</strong> — letters, numbers, and hyphens only; max 63 characters</Li>
+              <Li>Duplicate names are rejected by the Kubernetes API with a clear error</Li>
+            </ul>
+
+            <H3>Deleting a Namespace</H3>
+            <ul className="mb-4">
+              <Li>Click <strong className="text-white">Delete</strong> on any namespace — a confirmation prompt shows before anything is sent to the cluster</Li>
+              <Li>Deletion is <strong className="text-white">permanent and cascading</strong> — all pods, deployments, services, and configmaps in the namespace are removed</Li>
+              <Li>System namespaces can be deleted via the API but doing so will break your cluster — DevOpsEase warns but does not block</Li>
+            </ul>
+            <Note type="tip">Use one namespace per environment — <code className="text-emerald-300">dev</code>, <code className="text-emerald-300">staging</code>, <code className="text-emerald-300">production</code> — to isolate workloads on a shared cluster.</Note>
+            <Note type="warn">Deleting a namespace removes every Kubernetes resource inside it. There is no undo — back up any important workloads or persistent volume claims first.</Note>
+
+            {/* ─── 32. POD MANAGEMENT ─── */}
+            <H2 id="pods">Pod Management</H2>
+            <P>The <strong className="text-white">Pods</strong> page gives you full observability into running Kubernetes workloads — list all pods in a namespace, monitor their health, inspect restart counts, and retrieve logs without leaving the dashboard.</P>
+
+            <H3>Pod List</H3>
+            <ul className="mb-4">
+              <Li>Select a cluster and namespace — pods load from the live Kubernetes API and <strong className="text-white">auto-refresh every 30 seconds</strong></Li>
+              <Li>Summary cards at the top show counts for <strong className="text-white">Total, Running, Pending, Failed, and Succeeded</strong></Li>
+              <Li>Status filter pills let you instantly focus on a specific phase — click <strong className="text-white">Failed</strong> to see only broken pods</Li>
+            </ul>
+
+            <H3>Pod Status</H3>
+            <Table
+              headers={['Status', 'Meaning', 'Badge']}
+              rows={[
+                ['Running',   'All containers in the pod are live and ready',           '🟢 Green'],
+                ['Pending',   'Pod scheduled but containers not yet started',           '🟡 Amber'],
+                ['Failed',    'One or more containers exited with a non-zero code',     '🔴 Red'],
+                ['Succeeded', 'All containers completed successfully (batch/job pods)', '🔵 Blue'],
+              ]}
+            />
+
+            <H3>Pod Logs</H3>
+            <ul className="mb-4">
+              <Li>Click any pod to open its <strong className="text-white">log viewer</strong> — a terminal-style pane with syntax-highlighted output (errors red, warnings amber)</Li>
+              <Li>Tail options: <strong className="text-white">50 / 100 / 500 / 1000</strong> lines — use 50 for quick debug, 1000 for crash analysis</Li>
+              <Li>For <strong className="text-white">multi-container pods</strong>, a container selector lets you switch between containers within the same pod</Li>
+              <Li>Manual refresh button — logs are not streamed live, click to reload the latest output</Li>
+            </ul>
+
+            <H3>Pod Describe</H3>
+            <ul className="mb-4">
+              <Li>Shows full pod metadata: name, namespace, node, IP, labels, and creation timestamp</Li>
+              <Li>Container table: image, readiness, restart count, and current state for each container</Li>
+              <Li>Restart count shown in <strong className="text-white">amber</strong> when greater than 0 — a quick visual signal of instability</Li>
+            </ul>
+            <Note type="tip">Use tail=50 for a quick sanity check on a live pod, and tail=1000 when diagnosing a recent crash or startup failure.</Note>
+            <Note type="warn">Pod logs are not persisted by DevOpsEase — they are fetched live from the Kubernetes API. Once a pod is removed, its logs are gone unless you've forwarded them to an external system.</Note>
+
+            {/* ─── 33. CLUSTER DASHBOARD ─── */}
+            <H2 id="k8s-dashboard">Cluster Dashboard</H2>
+            <P>The <strong className="text-white">Kubernetes Dashboard</strong> aggregates pods, deployments, and services from a live cluster into one screen — with a 10-second auto-refresh, namespace switching, and colour-coded health indicators.</P>
+
+            <H3>Controls</H3>
+            <ul className="mb-4">
+              <Li><strong className="text-white">Cluster selector</strong> — dropdown of all connected clusters; auto-selects the first on load</Li>
+              <Li><strong className="text-white">Namespace selector</strong> — populated from live namespaces; resets to default when the cluster changes</Li>
+              <Li><strong className="text-white">Manual refresh</strong> button — forces an immediate data reload outside the 10s cycle</Li>
+              <Li>A <strong className="text-white">pulsing live indicator</strong> shows the auto-refresh is active; an error banner appears on API failure</Li>
+            </ul>
+
+            <H3>Summary Cards</H3>
+            <ul className="mb-4">
+              <Li><strong className="text-white">Total Pods</strong> — count of all pods in the selected namespace</Li>
+              <Li><strong className="text-white">Deployments</strong> — count of all deployments</Li>
+              <Li><strong className="text-white">Services</strong> — count of all services</Li>
+            </ul>
+
+            <H3>Pods Table</H3>
+            <ul className="mb-4">
+              <Li><strong className="text-white">Name</strong> (monospace) · <strong className="text-white">Status badge</strong> (Running=green, Pending=amber, Failed=red, Succeeded=blue)</Li>
+              <Li><strong className="text-white">Restarts</strong> — shown in amber if greater than 0, a quick instability signal</Li>
+              <Li><strong className="text-white">Age</strong> — human-readable relative time (e.g. <code className="text-indigo-300">5m ago</code>, <code className="text-indigo-300">2d ago</code>)</Li>
+            </ul>
+
+            <H3>Deployments Table</H3>
+            <ul className="mb-4">
+              <Li><strong className="text-white">Name</strong> · <strong className="text-white">Replicas</strong> shown as <code className="text-indigo-300">available/desired</code> — green if fully available, amber if degraded</Li>
+              <Li><strong className="text-white">Age</strong> — relative time since the deployment was created</Li>
+            </ul>
+
+            <H3>Services Table</H3>
+            <ul className="mb-4">
+              <Li><strong className="text-white">Name</strong> · <strong className="text-white">Type badge</strong> — ClusterIP, NodePort, or LoadBalancer</Li>
+              <Li><strong className="text-white">Port mappings</strong> shown as <code className="text-indigo-300">port→targetPort/PROTOCOL</code> (e.g. <code className="text-indigo-300">80→3000/TCP</code>)</Li>
+            </ul>
+            <Note type="tip">The dashboard fetches pods, deployments, and services in <strong>parallel</strong> — load time equals the slowest of the three calls, not their sum.</Note>
+            <Note type="warn">Data is live — a failing deployment turns red immediately on the next 10-second refresh. If the cluster becomes unreachable, an error banner replaces the tables.</Note>
+
+            {/* ─── 34. YAML GENERATOR ─── */}
+            <H2 id="yaml-gen">YAML Generator</H2>
+            <P>The <strong className="text-white">YAML Generator</strong> produces production-ready Kubernetes manifests — Deployment, Service, and Ingress — from a guided form. No manual YAML editing or kubectl knowledge required to generate a valid manifest.</P>
+
+            <H3>Deployment Manifest</H3>
+            <Table
+              headers={['Field', 'Required', 'Detail']}
+              rows={[
+                ['Name',          '✅ Yes', 'Lowercase DNS-label — used for deployment name, selector, and pod labels'],
+                ['Image',         '✅ Yes', 'Docker image tag — e.g. my-app:v1.0 or nginx:latest'],
+                ['Replicas',      '❌ Optional', 'Number of pod replicas — defaults to 1'],
+                ['Namespace',     '❌ Optional', 'Target namespace — defaults to default'],
+                ['Container Port','❌ Optional', 'Port the container listens on — defaults to 3000'],
+                ['Env Vars',      '❌ Optional', 'Key-value pairs — injected as plain env or secretKeyRef entries'],
+              ]}
+            />
+            <CodeBlock lang="yaml" code={`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  namespace: production
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+        - name: my-app
+          image: my-app:v1.0
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: devopsease-managed-production
+                  key: DATABASE_PASSWORD`} />
+
+            <H3>Service Manifest</H3>
+            <ul className="mb-4">
+              <Li>Type selector: <strong className="text-white">ClusterIP</strong> (internal only), <strong className="text-white">NodePort</strong> (host port exposure), or <strong className="text-white">LoadBalancer</strong> (cloud LB provisioning)</Li>
+              <Li>Port and targetPort fields map host traffic to the container port defined in the Deployment</Li>
+              <Li>Selector automatically uses <code className="text-indigo-300">app: {'<name>'}</code> to match pods from the generated Deployment</Li>
+            </ul>
+
+            <H3>Ingress Manifest</H3>
+            <ul className="mb-4">
+              <Li>Hostname field — e.g. <code className="text-indigo-300">api.myapp.com</code> — routed to the generated Service</Li>
+              <Li>Path prefix — defaults to <code className="text-indigo-300">/</code>, can be scoped to a subpath</Li>
+              <Li>TLS toggle — adds a <code className="text-indigo-300">tls:</code> block with a secret name for your certificate</Li>
+            </ul>
+
+            <H3>Secret Injection</H3>
+            <P>If you have secrets stored in the Secrets page for the selected environment, the generator automatically adds <strong className="text-white">secretKeyRef</strong> entries to the deployment's env block — pointing to a Kubernetes Secret named <code className="text-indigo-300">devopsease-managed-{'<environment>'}</code>. Plaintext values never appear in any generated YAML.</P>
+            <Note type="tip">Copy the generated YAML and apply it with <code className="text-emerald-300">kubectl apply -f manifest.yaml</code> — or pipe it directly: <code className="text-emerald-300">echo "$YAML" | kubectl apply -f -</code>.</Note>
+            <Note type="warn">Generated YAML is for reference and manual apply only — DevOpsEase does not automatically apply it to the cluster. Review all manifests before running kubectl apply in production.</Note>
+
             {/* ── footer ── */}
             <div className="mt-20 pt-8 border-t border-gray-800 flex items-center justify-between text-sm text-gray-500">
               <span>DevOpsEase Docs — updated April 2026</span>
