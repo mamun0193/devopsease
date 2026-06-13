@@ -415,7 +415,7 @@ export interface Build {
   _id: string;
   userId: string;
   tag: string;
-  status: 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'TIMEOUT';
+  status: 'pending' | 'running' | 'success' | 'failed' | 'cancelled' | 'timeout';
   dockerfileContent?: string;
   logSummary?: string;
   dockerImageId?: string;

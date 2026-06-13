@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const BUILD_STATUSES = ['PENDING', 'RUNNING', 'SUCCESS', 'FAILED', 'TIMEOUT', 'pending', 'running', 'success', 'failed'];
+const BUILD_STATUSES = ['pending', 'running', 'success', 'failed', 'cancelled', 'timeout'];
 
 const buildSchema = new mongoose.Schema({
     repoId: {
@@ -23,12 +23,24 @@ const buildSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: BUILD_STATUSES,
-        default: 'PENDING',
+        default: 'pending',
         index: true
     },
     logs: {
         type: [String],
         default: []
+    },
+    logPath: {
+        type: String,
+        default: null
+    },
+    logSize: {
+        type: Number,
+        default: 0
+    },
+    lastLogAt: {
+        type: Date,
+        default: null
     },
     imageTag: {
         type: String,

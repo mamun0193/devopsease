@@ -7,7 +7,7 @@ import { runBuildPipeline } from './build.service.js';
 import { deployFromBuild } from './deployment.service.js';
 import logger from '../utils/logger.js';
 
-const SUCCESS_BUILD_STATUSES = ['success', 'SUCCESS'];
+const SUCCESS_BUILD_STATUSES = ['success'];
 const MAX_EXECUTION_LOGS = 500;
 
 // Create a single execution log entry.

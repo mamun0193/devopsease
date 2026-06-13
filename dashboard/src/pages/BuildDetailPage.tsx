@@ -21,15 +21,15 @@ import { useBuildSocket } from '../hooks/useBuildSocket';
 import BuildFailurePanel from '../components/BuildFailurePanel';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; icon: React.ReactNode; label: string }> = {
-    PENDING: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', icon: <Clock size={16} />, label: 'Pending' },
-    RUNNING: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30', icon: <Loader2 size={16} className="animate-spin" />, label: 'Building…' },
-    SUCCESS: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: <CheckCircle2 size={16} />, label: 'Success' },
-    FAILED: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', icon: <XCircle size={16} />, label: 'Failed' },
-    TIMEOUT: { color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/30', icon: <Timer size={16} />, label: 'Timeout' },
+    pending: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', icon: <Clock size={16} />, label: 'Pending' },
+    running: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30', icon: <Loader2 size={16} className="animate-spin" />, label: 'Building…' },
+    success: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: <CheckCircle2 size={16} />, label: 'Success' },
+    failed: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', icon: <XCircle size={16} />, label: 'Failed' },
+    timeout: { color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/30', icon: <Timer size={16} />, label: 'Timeout' },
 };
 
 function StatusBadge({ status }: { status: string }) {
-    const config = STATUS_CONFIG[status] || STATUS_CONFIG.PENDING;
+    const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
     return (
         <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-medium ${config.color} ${config.bg} border ${config.border}`}>
             {config.icon}
@@ -62,7 +62,7 @@ const BuildDetailPage: React.FC = () => {
     const { data: build, isLoading, error } = useBuild(buildId || '');
     const logEndRef = useRef<HTMLDivElement>(null);
 
-    const isActive = build?.status === 'PENDING' || build?.status === 'RUNNING';
+    const isActive = build?.status === 'pending' || build?.status === 'running';
 
     const { logs: wsLogs, isConnected, isReconnecting, finalStatus } = useBuildSocket({
         buildId: buildId || '',
@@ -97,7 +97,7 @@ const BuildDetailPage: React.FC = () => {
         return [];
     }, [wsLogs, build?.logSummary]);
 
-    const displayStatus = finalStatus || build?.status || 'PENDING';
+    const displayStatus = finalStatus || build?.status || 'pending';
 
     if (isLoading) {
         return (
@@ -146,24 +146,24 @@ const BuildDetailPage: React.FC = () => {
                                 initial={{ opacity: 0, y: -12 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0 }}
-                                className={`rounded-xl border p-4 flex items-center gap-3 ${finalStatus === 'SUCCESS'
+                                className={`rounded-xl border p-4 flex items-center gap-3 ${finalStatus === 'success'
                                     ? 'bg-emerald-500/10 border-emerald-500/30'
-                                    : finalStatus === 'TIMEOUT'
+                                    : finalStatus === 'timeout'
                                         ? 'bg-orange-500/10 border-orange-500/30'
                                         : 'bg-red-500/10 border-red-500/30'
                                     }`}
                             >
-                                {finalStatus === 'SUCCESS' ? (
+                                {finalStatus === 'success' ? (
                                     <CheckCircle2 size={20} className="text-emerald-400" />
-                                ) : finalStatus === 'TIMEOUT' ? (
+                                ) : finalStatus === 'timeout' ? (
                                     <Timer size={20} className="text-orange-400" />
                                 ) : (
                                     <XCircle size={20} className="text-red-400" />
                                 )}
-                                <span className={`text-sm font-medium ${finalStatus === 'SUCCESS' ? 'text-emerald-400' : finalStatus === 'TIMEOUT' ? 'text-orange-400' : 'text-red-400'
+                                <span className={`text-sm font-medium ${finalStatus === 'success' ? 'text-emerald-400' : finalStatus === 'timeout' ? 'text-orange-400' : 'text-red-400'
                                     }`}>
-                                    {finalStatus === 'SUCCESS' ? 'Build completed successfully!' :
-                                        finalStatus === 'TIMEOUT' ? 'Build timed out after 15 minutes' :
+                                    {finalStatus === 'success' ? 'Build completed successfully!' :
+                                        finalStatus === 'timeout' ? 'Build timed out after 15 minutes' :
                                             'Build failed'}
                                 </span>
                             </motion.div>
@@ -218,7 +218,7 @@ const BuildDetailPage: React.FC = () => {
                     )}
 
                     {/* Failure Intelligence */}
-                    {(displayStatus === 'FAILED' || displayStatus === 'TIMEOUT') && build.failureAnalysis && (
+                    {(displayStatus === 'failed' || displayStatus === 'timeout') && build.failureAnalysis && (
                         <BuildFailurePanel analysis={build.failureAnalysis} />
                     )}
 

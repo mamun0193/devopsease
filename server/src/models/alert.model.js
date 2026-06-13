@@ -73,6 +73,12 @@ alertSchema.index(
   { expireAfterSeconds: 7 * 24 * 60 * 60, partialFilterExpression: { resolved: true } }
 );
 
+// TTL: auto-delete ALL alerts after 90 days regardless of resolved status
+alertSchema.index(
+  { createdAt: 1 },
+  { expireAfterSeconds: 90 * 24 * 60 * 60 }
+);
+
 const Alert = mongoose.model("Alert", alertSchema);
 
 export default Alert;

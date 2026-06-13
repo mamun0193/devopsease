@@ -19,6 +19,10 @@ import { detectProjectType, PROJECT_TYPES } from './projectDetector.service.js';
 import { getWorkspacePath, validateSafePath } from '../utils/workspace.js';
 import { runDockerCommand } from '../docker/cliExec.js';
 import { deployFromBuild } from './deployment.service.js';
+import {
+    initLogFile, appendLogLine, closeAppendStream,
+    readLogFile, getLogSize,
+} from './buildLog.service.js';
 
 const MAX_DOCKERFILE_SIZE = 200 * 1024; // 200KB
 const MAX_CONCURRENT_BUILDS = 2;
@@ -92,9 +96,10 @@ async function ensureGeneratedDockerfile(projectType, workspacePath) {
 export async function runBuildPipeline(repo, payload = {}) {
     const imageTag = buildImageTag(repo?.repoName);
     const commitHash = payload?.after || null;
-    const logs = [];
+    const logLines = [];  // in-memory buffer for logSummary generation
 
     let build = null;
+    let logPath = null;
 
     try {
         build = await Build.create({
@@ -105,20 +110,29 @@ export async function runBuildPipeline(repo, payload = {}) {
             commitHash,
             dockerfileContent: 'AUTO_GENERATED_PIPELINE',
             status: 'running',
-            logs,
             startedAt: new Date(),
         });
 
-        pushBuildLog(logs, `[pipeline] starting build for ${repo.repoName}`);
+        // Initialize filesystem log
+        logPath = await initLogFile(build._id.toString());
+        build.logPath = logPath;
+        await build.save();
+
+        const pushLine = (line) => {
+            pushBuildLog(logLines, line);
+            appendLogLine(logPath, line);
+        };
+
+        pushLine(`[pipeline] starting build for ${repo.repoName}`);
 
         await pullLatest(repo);
-        pushBuildLog(logs, `[git] pulled latest branch ${repo.defaultBranch || 'main'}`);
+        pushLine(`[git] pulled latest branch ${repo.defaultBranch || 'main'}`);
 
         const workspacePath = getWorkspacePath(repo.userId, repo._id);
         validateSafePath(workspacePath);
 
         const detection = await detectProjectType(workspacePath);
-        pushBuildLog(logs, `[detector] type=${detection.type} files=${detection.detectedFiles.join(',') || 'none'}`);
+        pushLine(`[detector] type=${detection.type} files=${detection.detectedFiles.join(',') || 'none'}`);
 
         if (detection.type === PROJECT_TYPES.UNKNOWN) {
             throw new Error('Unsupported project type: unknown');
@@ -127,27 +141,32 @@ export async function runBuildPipeline(repo, payload = {}) {
         if (detection.type === PROJECT_TYPES.COMPOSE) {
             await runDockerCommand('docker-compose', ['build'], {
                 cwd: workspacePath,
-                onStdout: (line) => pushBuildLog(logs, line),
-                onStderr: (line) => pushBuildLog(logs, line),
+                onStdout: (line) => pushLine(line),
+                onStderr: (line) => pushLine(line),
             });
         } else {
             if (detection.type === PROJECT_TYPES.NODE || detection.type === PROJECT_TYPES.PYTHON) {
                 await ensureGeneratedDockerfile(detection.type, workspacePath);
-                pushBuildLog(logs, `[dockerfile] generated default Dockerfile for ${detection.type} (if missing)`);
+                pushLine(`[dockerfile] generated default Dockerfile for ${detection.type} (if missing)`);
             }
 
             await runDockerCommand('docker', ['build', '-t', imageTag, '.'], {
                 cwd: workspacePath,
-                onStdout: (line) => pushBuildLog(logs, line),
-                onStderr: (line) => pushBuildLog(logs, line),
+                onStdout: (line) => pushLine(line),
+                onStderr: (line) => pushLine(line),
             });
         }
 
+        // Close the append stream and update metadata
+        closeAppendStream(logPath);
+        const fileSizeBytes = await getLogSize(logPath);
+
         build.status = 'success';
-        build.logs = logs;
         build.finishedAt = new Date();
         build.completedAt = build.finishedAt;
-        build.logSummary = logs.slice(-MAX_LOG_SUMMARY_LINES).join('\n');
+        build.logSummary = logLines.slice(-MAX_LOG_SUMMARY_LINES).join('\n');
+        build.logSize = fileSizeBytes;
+        build.lastLogAt = new Date();
         build.error = null;
         await build.save();
 
@@ -169,15 +188,21 @@ export async function runBuildPipeline(repo, payload = {}) {
 
         return build;
     } catch (error) {
-        pushBuildLog(logs, `[error] ${error.message}`);
+        if (logPath) {
+            appendLogLine(logPath, `[error] ${error.message}`);
+            closeAppendStream(logPath);
+        }
+        pushBuildLog(logLines, `[error] ${error.message}`);
 
         if (build) {
+            const fileSizeBytes = logPath ? await getLogSize(logPath) : 0;
             build.status = 'failed';
-            build.logs = logs;
             build.error = error.message;
             build.finishedAt = new Date();
             build.completedAt = build.finishedAt;
-            build.logSummary = logs.slice(-MAX_LOG_SUMMARY_LINES).join('\n');
+            build.logSummary = logLines.slice(-MAX_LOG_SUMMARY_LINES).join('\n');
+            build.logSize = fileSizeBytes;
+            build.lastLogAt = new Date();
             await build.save().catch((saveError) => {
                 logger.error('Failed to persist failed pipeline build', {
                     repoId: String(repo?._id || ''),
@@ -214,7 +239,7 @@ class BuildService {
         // 3. Check concurrent build limit
         const activeBuildCount = await Build.countDocuments({
             userId,
-            status: { $in: ['PENDING', 'RUNNING'] }
+            status: { $in: ['pending', 'running'] }
         });
         if (activeBuildCount >= MAX_CONCURRENT_BUILDS) {
             throw Object.assign(new Error(`Max ${MAX_CONCURRENT_BUILDS} concurrent builds allowed`), { statusCode: 429 });
@@ -229,12 +254,12 @@ class BuildService {
             throw Object.assign(new Error(`Storage quota exceeded (${MAX_STORAGE_MB}MB limit)`), { statusCode: 429 });
         }
 
-        // 5. Create Build record as PENDING
+        // 5. Create Build record as pending
         const build = await Build.create({
             userId,
             tag,
             dockerfileContent,
-            status: 'PENDING'
+            status: 'pending'
         });
 
         logBuildEvent({
@@ -259,13 +284,24 @@ class BuildService {
         let tempDir = null;
         let timeoutHandle = null;
         let buildStream = null;
-        const logLines = [];
+        const logLines = [];   // in-memory buffer for logSummary
+        let logPath = null;
 
         try {
-            // Move to RUNNING
-            build.status = 'RUNNING';
+            // Move to running
+            build.status = 'running';
             build.startedAt = new Date();
+
+            // Initialize filesystem log
+            logPath = await initLogFile(build._id.toString());
+            build.logPath = logPath;
             await build.save();
+
+            // Helper to push logs to both memory buffer and filesystem
+            const pushLine = (line) => {
+                logLines.push(line);
+                appendLogLine(logPath, line);
+            };
 
             // Create temp dir and write Dockerfile
             tempDir = createTempBuildDir(build._id.toString());
@@ -304,7 +340,7 @@ class BuildService {
                         // Build step output (e.g. "Step 1/3 : FROM postgres:16")
                         if (event.stream?.trim()) {
                             const line = event.stream.trim();
-                            logLines.push(line);
+                            pushLine(line);
                             broadcastBuildLog(build._id.toString(), line);
                         }
                         // Pull / status events (e.g. "Pulling from library/postgres")
@@ -314,12 +350,12 @@ class BuildService {
                             const noisy = /^(Downloading|Extracting|Waiting|Verifying Checksum|Download complete)$/i.test(event.status);
                             if (!noisy) {
                                 const line = event.id ? `${event.id}: ${event.status}` : event.status;
-                                logLines.push(line);
+                                pushLine(line);
                                 broadcastBuildLog(build._id.toString(), line);
                             }
                         }
                         if (event.error) {
-                            logLines.push(`ERROR: ${event.error}`);
+                            pushLine(`ERROR: ${event.error}`);
                             broadcastBuildLog(build._id.toString(), `ERROR: ${event.error}`);
                         }
                     }
@@ -330,6 +366,9 @@ class BuildService {
             await Promise.race([buildPromise, timeoutPromise]);
             clearTimeout(timeoutHandle);
             timeoutHandle = null;
+
+            // Close the append stream
+            closeAppendStream(logPath);
 
             // Build succeeded — inspect image
             const imageInspect = await docker.getImage(build.tag).inspect();
@@ -366,16 +405,19 @@ class BuildService {
                 resourceId: build._id.toString(),
                 type: RESOURCE_TYPES.BUILD,
                 ownerId: build.userId,
-                metadata: { tag: build.tag, status: 'SUCCESS' }
+                metadata: { tag: build.tag, status: 'success' }
             });
 
-            // Update Build record
+            // Update Build record — logSummary stays in Mongo, full logs on disk
             const summaryLines = logLines.slice(-MAX_LOG_SUMMARY_LINES);
-            build.status = 'SUCCESS';
+            const fileSizeBytes = await getLogSize(logPath);
+            build.status = 'success';
             build.dockerImageId = dockerImageId;
             build.imageSizeBytes = imageSizeBytes;
             build.layerCount = layerCount;
             build.logSummary = summaryLines.join('\n');
+            build.logSize = fileSizeBytes;
+            build.lastLogAt = new Date();
             build.completedAt = new Date();
             await build.save();
 
@@ -387,13 +429,14 @@ class BuildService {
                 metadata: { sizeMB, layerCount, dockerImageId }
             });
 
-            broadcastBuildComplete(build._id.toString(), 'SUCCESS');
+            broadcastBuildComplete(build._id.toString(), 'success');
 
         } catch (error) {
             if (timeoutHandle) clearTimeout(timeoutHandle);
+            if (logPath) closeAppendStream(logPath);
 
             const isTimeout = error.message === 'BUILD_TIMEOUT';
-            const status = isTimeout ? 'TIMEOUT' : 'FAILED';
+            const status = isTimeout ? 'timeout' : 'failed';
 
             build.status = status;
             build.error = isTimeout ? 'Build exceeded 15 minute timeout' : error.message;
@@ -401,6 +444,8 @@ class BuildService {
 
             const summaryLines = logLines.slice(-MAX_LOG_SUMMARY_LINES);
             build.logSummary = summaryLines.join('\n');
+            build.logSize = logPath ? await getLogSize(logPath) : 0;
+            build.lastLogAt = new Date();
             build.failureAnalysis = analyzeBuildFailure(summaryLines, status);
 
             await build.save().catch((saveErr) => {
@@ -436,12 +481,23 @@ class BuildService {
     }
 
     async getBuildById(buildId, userId) {
-        return Build.findOne({ _id: buildId, userId }).lean();
+        const build = await Build.findOne({ _id: buildId, userId }).lean();
+        if (!build) return null;
+
+        // If filesystem logs exist, read them; otherwise fall back to legacy logSummary/logs
+        if (build.logPath) {
+            const fileContent = await readLogFile(build.logPath);
+            if (fileContent) {
+                build.logs = fileContent.split('\n').filter(Boolean);
+            }
+        }
+
+        return build;
     }
 
     async recoverStaleBuilds() {
         const staleBuilds = await Build.find({
-            status: { $in: ['PENDING', 'RUNNING'] }
+            status: { $in: ['pending', 'running'] }
         });
 
         if (staleBuilds.length === 0) return;
@@ -474,23 +530,23 @@ class BuildService {
                         });
                     }
 
-                    build.status = 'SUCCESS';
+                    build.status = 'success';
                     build.dockerImageId = imageInfo.Id;
                     build.imageSizeBytes = imageInfo.Size;
                     build.layerCount = layerCount;
                     build.completedAt = new Date();
                     await build.save();
 
-                    logger.info(`Recovered build as SUCCESS`, { buildId: build._id.toString(), tag: build.tag });
+                    logger.info(`Recovered build as success`, { buildId: build._id.toString(), tag: build.tag });
                 }
             } catch (_) {
                 // Image doesn't exist — mark as FAILED
-                build.status = 'FAILED';
+                build.status = 'failed';
                 build.error = 'Server restarted during build';
                 build.completedAt = new Date();
                 await build.save();
 
-                logger.info(`Recovered build as FAILED`, { buildId: build._id.toString(), tag: build.tag });
+                logger.info(`Recovered build as failed`, { buildId: build._id.toString(), tag: build.tag });
             }
         }
     }

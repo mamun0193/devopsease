@@ -39,8 +39,8 @@ const containerMetricSchema = new mongoose.Schema(
     }
 );
 
-// TTL safety net: auto-delete after 7 days (maximum retention tier)
-containerMetricSchema.index({ timestamp: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
+// TTL: auto-delete metrics older than 30 days
+containerMetricSchema.index({ timestamp: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 
 // Primary query index: container + resolution + time range
 containerMetricSchema.index({ containerId: 1, resolution: 1, timestamp: -1 });

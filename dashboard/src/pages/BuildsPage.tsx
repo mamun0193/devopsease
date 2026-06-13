@@ -21,15 +21,15 @@ import { useBuilds, useTriggerBuild } from '../hooks/useBuilds';
 import type { Build } from '../api';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; icon: React.ReactNode; label: string }> = {
-    PENDING: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', icon: <Clock size={14} />, label: 'Pending' },
-    RUNNING: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30', icon: <Loader2 size={14} className="animate-spin" />, label: 'Building' },
-    SUCCESS: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: <CheckCircle2 size={14} />, label: 'Success' },
-    FAILED: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', icon: <XCircle size={14} />, label: 'Failed' },
-    TIMEOUT: { color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/30', icon: <Timer size={14} />, label: 'Timeout' },
+    pending: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', icon: <Clock size={14} />, label: 'Pending' },
+    running: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30', icon: <Loader2 size={14} className="animate-spin" />, label: 'Building' },
+    success: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: <CheckCircle2 size={14} />, label: 'Success' },
+    failed: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', icon: <XCircle size={14} />, label: 'Failed' },
+    timeout: { color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/30', icon: <Timer size={14} />, label: 'Timeout' },
 };
 
 function StatusBadge({ status }: { status: string }) {
-    const config = STATUS_CONFIG[status] || STATUS_CONFIG.PENDING;
+    const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
     return (
         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${config.color} ${config.bg} border ${config.border}`}>
             {config.icon}
@@ -115,20 +115,20 @@ const BuildsPage: React.FC = () => {
     const [tag, setTag] = useState('');
     const [dockerfile, setDockerfile] = useState('FROM alpine:latest\nRUN echo "Hello from DevOpsEase"');
     const [formError, setFormError] = useState('');
-    const [activeFilter, setActiveFilter] = useState<'all' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'TIMEOUT'>('all');
+    const [activeFilter, setActiveFilter] = useState<'all' | 'running' | 'success' | 'failed' | 'timeout'>('all');
 
     const filteredBuilds = useMemo(() => {
         if (activeFilter === 'all') return builds;
-        if (activeFilter === 'RUNNING') return builds.filter(b => b.status === 'RUNNING' || b.status === 'PENDING');
+        if (activeFilter === 'running') return builds.filter(b => b.status === 'running' || b.status === 'pending');
         return builds.filter(b => b.status === activeFilter);
     }, [builds, activeFilter]);
 
     const filterCounts = useMemo(() => ({
         all: builds.length,
-        RUNNING: builds.filter(b => b.status === 'RUNNING' || b.status === 'PENDING').length,
-        SUCCESS: builds.filter(b => b.status === 'SUCCESS').length,
-        FAILED: builds.filter(b => b.status === 'FAILED').length,
-        TIMEOUT: builds.filter(b => b.status === 'TIMEOUT').length,
+        running: builds.filter(b => b.status === 'running' || b.status === 'pending').length,
+        success: builds.filter(b => b.status === 'success').length,
+        failed: builds.filter(b => b.status === 'failed').length,
+        timeout: builds.filter(b => b.status === 'timeout').length,
     }), [builds]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -151,10 +151,10 @@ const BuildsPage: React.FC = () => {
 
     const buildFilterItems: FilterItem[] = useMemo(() => [
         { key: 'all', label: 'All', count: filterCounts.all, color: 'text-slate-100', activeBg: 'bg-slate-700', activeBorder: 'border-slate-600', icon: <Hammer size={16} className="text-slate-400" /> },
-        { key: 'RUNNING', label: 'Running', count: filterCounts.RUNNING, color: 'text-blue-400', activeBg: 'bg-blue-500/20', activeBorder: 'border-blue-500/50', dot: 'bg-blue-500 animate-pulse' },
-        { key: 'SUCCESS', label: 'Success', count: filterCounts.SUCCESS, color: 'text-emerald-400', activeBg: 'bg-emerald-500/20', activeBorder: 'border-emerald-500/50', icon: <CheckCircle2 size={16} className="text-emerald-400" /> },
-        { key: 'FAILED', label: 'Failed', count: filterCounts.FAILED, color: 'text-red-400', activeBg: 'bg-red-500/20', activeBorder: 'border-red-500/50', icon: <XCircle size={16} className="text-red-400" /> },
-        { key: 'TIMEOUT', label: 'Timeout', count: filterCounts.TIMEOUT, color: 'text-orange-400', activeBg: 'bg-orange-500/20', activeBorder: 'border-orange-500/50', icon: <Timer size={16} className="text-orange-400" /> },
+        { key: 'running', label: 'Running', count: filterCounts.running, color: 'text-blue-400', activeBg: 'bg-blue-500/20', activeBorder: 'border-blue-500/50', dot: 'bg-blue-500 animate-pulse' },
+        { key: 'success', label: 'Success', count: filterCounts.success, color: 'text-emerald-400', activeBg: 'bg-emerald-500/20', activeBorder: 'border-emerald-500/50', icon: <CheckCircle2 size={16} className="text-emerald-400" /> },
+        { key: 'failed', label: 'Failed', count: filterCounts.failed, color: 'text-red-400', activeBg: 'bg-red-500/20', activeBorder: 'border-red-500/50', icon: <XCircle size={16} className="text-red-400" /> },
+        { key: 'timeout', label: 'Timeout', count: filterCounts.timeout, color: 'text-orange-400', activeBg: 'bg-orange-500/20', activeBorder: 'border-orange-500/50', icon: <Timer size={16} className="text-orange-400" /> },
     ], [filterCounts]);
 
     return (

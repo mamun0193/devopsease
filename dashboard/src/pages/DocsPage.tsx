@@ -570,11 +570,11 @@ my-org/my-private-image:v2.1`} />
               <Li>Each result shows: image name, description, star count, pull count, and an <strong className="text-white">Official</strong> badge for Docker-verified images</Li>
               <Li>Click <strong className="text-white">Pull</strong> on any result to pull it instantly</Li>
               <Li>The <strong className="text-white">Popular Images</strong> grid (nginx, redis, postgres, mongo, node, python…) is shown when the search is empty — click any tile to pull</Li>
+            </ul>
             <H3>Pushing Images</H3>
             <P>From the <strong className="text-white">Images</strong> page, hit <strong className="text-white">Push</strong> on any image row to open the Push modal. Enter the target repository tag (e.g. <code className="text-indigo-300">my-org/my-app:v1.0</code>) and confirm. The push runs server-side and reports the final pushed tag on success.</P>
             <Note type="tip">Use Docker Hub <strong>access tokens</strong> instead of your account password — they are revocable and can be scoped to read-only or read/write as needed.</Note>
             <Note type="warn">Pushing to a repository you don't own will fail with a 403. Make sure the repository name matches your Docker Hub username or organisation namespace.</Note>
-
             {/* ─── 21. LINKING REPOSITORIES ─── */}
             <H2 id="repositories">Linking Repositories</H2>
             <P>The <strong className="text-white">Repositories</strong> page connects your GitHub repositories to DevOpsEase so that every <code className="text-indigo-300">git push</code> automatically triggers your full CI/CD pipeline — build, test, and deploy — with zero manual intervention.</P>
@@ -1107,7 +1107,7 @@ docker run -e DATABASE_PASSWORD=<decrypted> -e API_KEY=<decrypted> my-image`} />
             <Note type="warn">Data is live — a failing deployment turns red immediately on the next 10-second refresh. If the cluster becomes unreachable, an error banner replaces the tables.</Note>
 
             {/* ─── 34. YAML GENERATOR ─── */}
-            <H2 id="yaml-gen">YAML Generator</H2>
+            <H2 id="k8s-yaml">YAML Generator</H2>
             <P>The <strong className="text-white">YAML Generator</strong> produces production-ready Kubernetes manifests — Deployment, Service, and Ingress — from a guided form. No manual YAML editing or kubectl knowledge required to generate a valid manifest.</P>
 
             <H3>Deployment Manifest</H3>

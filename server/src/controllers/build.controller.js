@@ -1,5 +1,7 @@
 import buildService from '../services/build.service.js';
 import Image from '../models/image.js';
+import Build from '../models/build.model.js';
+import { createLogReadStream } from '../services/buildLog.service.js';
 import logger from '../utils/logger.js';
 
 export const triggerBuild = async (req, res, next) => {
@@ -57,6 +59,47 @@ export const getBuild = async (req, res, next) => {
         }
 
         res.json({ build });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Stream build logs from the filesystem.
+ 
+export const streamBuildLogs = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+
+        const build = await Build.findOne({ _id: id, userId })
+            .select('logPath logSummary logs')
+            .lean();
+
+        if (!build) {
+            return res.status(404).json({ message: 'Build not found' });
+        }
+
+        // Prefer filesystem logs (new builds)
+        if (build.logPath) {
+            const stream = createLogReadStream(build.logPath);
+            if (stream) {
+                res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+                res.setHeader('Cache-Control', 'no-cache');
+                stream.pipe(res);
+                stream.on('error', (err) => {
+                    logger.error('Error streaming build logs', { buildId: id, error: err.message });
+                    if (!res.headersSent) {
+                        res.status(500).json({ message: 'Failed to read build logs' });
+                    }
+                });
+                return;
+            }
+        }
+
+        // Legacy fallback: logSummary or in-document logs array
+        const content = build.logSummary || (build.logs || []).join('\n');
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.send(content);
     } catch (error) {
         next(error);
     }
