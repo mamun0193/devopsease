@@ -2,10 +2,7 @@ import Repository from "../models/repository.model.js";
 import logger from "../utils/logger.js";
 import { verifyGitHubSignature } from "../helpers/githubSignature.helper.js";
 import pipelineService from "../services/pipeline.service.js";
-
-const processedDeliveries = new Set();
-const deliveryOrder = [];
-const MAX_TRACKED_DELIVERIES = 10000;
+import { isDuplicate, markProcessed } from "../services/webhookDedup.service.js";
 
 const webhookSecret = process.env.WEBHOOK_SECRET || "";
 
@@ -16,23 +13,6 @@ if (!webhookSecret) {
 function normalizeBranch(ref) {
   if (!ref || typeof ref !== "string") return "unknown";
   return ref.startsWith("refs/heads/") ? ref.replace("refs/heads/", "") : ref;
-}
-
-function markDeliveryProcessed(deliveryId) {
-  if (!deliveryId || processedDeliveries.has(deliveryId)) return;
-
-  processedDeliveries.add(deliveryId);
-  deliveryOrder.push(deliveryId);
-
-  if (deliveryOrder.length > MAX_TRACKED_DELIVERIES) {
-    const oldest = deliveryOrder.shift();
-    if (oldest) processedDeliveries.delete(oldest);
-  }
-}
-
-function isDuplicateDelivery(deliveryId) {
-  if (!deliveryId) return false;
-  return processedDeliveries.has(deliveryId);
 }
 
 export async function triggerPipeline(repo, payload) {
@@ -57,10 +37,21 @@ export async function triggerPipeline(repo, payload) {
     return;
   }
 
+  const branch = normalizeBranch(payload?.ref);
+  const commitId = payload?.after || "unknown";
+  const commitMessage = payload?.head_commit?.message || "unknown";
+  const author = payload?.head_commit?.author?.name || payload?.pusher?.name || "unknown";
+
   // Execute each pipeline sequentially for this webhook event.
   for (const pipeline of pipelines) {
     try {
-      await pipelineService.executePipeline(pipeline._id);
+      await pipelineService.executePipeline(pipeline._id, {
+          triggerSource: 'webhook',
+          commitHash: commitId,
+          commitMessage,
+          author,
+          branch
+      });
     } catch (error) {
       logger.error("Pipeline execution failed during webhook trigger", {
         pipelineId: String(pipeline._id),
@@ -99,7 +90,7 @@ export async function handleGitHubWebhook(req, res) {
     return res.status(401).json({ success: false, message: "Unauthorized" });
   }
 
-  if (isDuplicateDelivery(deliveryId)) {
+  if (await isDuplicate(deliveryId)) {
     logger.info("Duplicate GitHub delivery ignored", {
       event: eventType,
       deliveryId,
@@ -109,7 +100,7 @@ export async function handleGitHubWebhook(req, res) {
   }
 
   if (eventType !== "push") {
-    markDeliveryProcessed(deliveryId);
+    await markProcessed(deliveryId);
     logger.info("GitHub webhook event ignored", {
       event: eventType,
       deliveryId,
@@ -140,7 +131,7 @@ export async function handleGitHubWebhook(req, res) {
   const repo = await Repository.findOne({ owner, repoName, provider: "github" }).lean();
 
   if (!repo) {
-    markDeliveryProcessed(deliveryId);
+    await markProcessed(deliveryId);
     logger.warn("Webhook repository not found", {
       event: eventType,
       deliveryId,
@@ -182,6 +173,6 @@ export async function handleGitHubWebhook(req, res) {
     });
   });
 
-  markDeliveryProcessed(deliveryId);
+  await markProcessed(deliveryId);
   return res.status(200).json({ success: true, status: "processed" });
 }

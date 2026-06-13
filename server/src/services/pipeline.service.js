@@ -1,31 +1,33 @@
 import yaml from 'js-yaml';
+import { spawn } from 'child_process';
+import path from 'path';
 import Pipeline, { ALLOWED_STEPS } from '../models/pipeline.model.js';
+import PipelineRun from '../models/pipelineRun.model.js';
 import Repository from '../models/repository.model.js';
 import Build from '../models/build.model.js';
 import { cloneRepository } from './git.service.js';
 import { runBuildPipeline } from './build.service.js';
 import { deployFromBuild } from './deployment.service.js';
+import { initLogFile, appendLogLine, closeAppendStream, getLogSize } from './pipelineLog.service.js';
+import { detectProjectType, PROJECT_TYPES } from './projectDetector.service.js';
+import { getWorkspacePath, validateSafePath } from '../utils/workspace.js';
 import logger from '../utils/logger.js';
 
 const SUCCESS_BUILD_STATUSES = ['success'];
 const MAX_EXECUTION_LOGS = 500;
+const TEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_TEST_OUTPUT_BYTES = 10 * 1024 * 1024; // 10MB
 
-// Create a single execution log entry.
-function createExecutionLog(step, message) {
-    return {
-        step,
-        message,
-        timestamp: new Date()
-    };
-}
-
-// Append execution logs with max-size trimming.
-async function appendExecutionLog(pipeline, step, message) {
-    pipeline.executionLogs.push(createExecutionLog(step, message));
-    if (pipeline.executionLogs.length > MAX_EXECUTION_LOGS) {
-        pipeline.executionLogs = pipeline.executionLogs.slice(-MAX_EXECUTION_LOGS);
+// Helper to push logs to both in-memory summary and filesystem log
+function pushPipelineLog(memoryBuffer, logPath, message) {
+    const timestampedMsg = `[${new Date().toISOString()}] ${message}`;
+    memoryBuffer.push(timestampedMsg);
+    if (memoryBuffer.length > MAX_EXECUTION_LOGS) {
+        memoryBuffer.shift(); // Keep size bounded
     }
-    await pipeline.save();
+    if (logPath) {
+        appendLogLine(logPath, timestampedMsg);
+    }
 }
 
 // Run build step: clone repository and execute build pipeline.
@@ -39,25 +41,98 @@ async function runBuildStep(repoId) {
     const build = await runBuildPipeline(repo, {});
 
     if (!build || !SUCCESS_BUILD_STATUSES.includes(build.status)) {
-        throw new Error('Build step failed');
+        throw new Error(`Build step failed${build?.error ? ': ' + build.error : ''}`);
     }
 
     return build;
 }
 
-// Run test step placeholder for now.
-async function runTestStep(repoId) {
+// Run test step with real execution
+async function runTestStep(repoId, logPath, memoryBuffer) {
     const repo = await Repository.findById(repoId).lean();
     if (!repo) {
         throw Object.assign(new Error('Repository not found for test step'), { statusCode: 404 });
     }
 
-    logger.info('Pipeline test step passed', {
-        repoId: String(repo._id),
-        repoName: repo.repoName
-    });
+    const workspacePath = getWorkspacePath(repo.userId, repo._id);
+    validateSafePath(workspacePath);
 
-    return { passed: true };
+    const detection = await detectProjectType(workspacePath);
+    let command = '';
+    let args = [];
+
+    if (detection.type === PROJECT_TYPES.NODE) {
+        if (!detection.node?.name) {
+             pushPipelineLog(memoryBuffer, logPath, '[test] no package.json found, skipping test step');
+             return { passed: true, exitCode: 0 };
+        }
+        command = 'npm';
+        args = ['test'];
+    } else if (detection.type === PROJECT_TYPES.PYTHON) {
+        command = 'pytest';
+        args = [];
+    } else {
+        pushPipelineLog(memoryBuffer, logPath, `[test] skipped — no test runner detected for type: ${detection.type}`);
+        return { passed: true, exitCode: 0 };
+    }
+
+    pushPipelineLog(memoryBuffer, logPath, `[test] running ${command} ${args.join(' ')}`);
+
+    return new Promise((resolve, reject) => {
+        const testProcess = spawn(command, args, {
+            cwd: workspacePath,
+            shell: true,
+            env: { ...process.env, CI: 'true' }
+        });
+
+        let outputSize = 0;
+        let timeoutHandle;
+
+        const cleanup = () => {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+        };
+
+        const handleData = (data) => {
+            outputSize += data.length;
+            if (outputSize > MAX_TEST_OUTPUT_BYTES) {
+                pushPipelineLog(memoryBuffer, logPath, `[test] ERROR: Test output exceeded maximum size of 10MB`);
+                testProcess.kill('SIGKILL');
+                return;
+            }
+            
+            // Split into lines to prevent massive single-line blocks
+            const lines = data.toString('utf8').split('\n');
+            for (const line of lines) {
+                if (line.trim()) pushPipelineLog(memoryBuffer, logPath, `[test output] ${line}`);
+            }
+        };
+
+        testProcess.stdout.on('data', handleData);
+        testProcess.stderr.on('data', handleData);
+
+        timeoutHandle = setTimeout(() => {
+            pushPipelineLog(memoryBuffer, logPath, `[test] ERROR: Test step exceeded 5 minute timeout`);
+            testProcess.kill('SIGKILL');
+            reject(new Error('Test step timeout'));
+        }, TEST_TIMEOUT_MS);
+
+        testProcess.on('error', (err) => {
+            cleanup();
+            reject(new Error(`Failed to spawn test process: ${err.message}`));
+        });
+
+        testProcess.on('close', (code) => {
+            cleanup();
+            if (code === 0) {
+                pushPipelineLog(memoryBuffer, logPath, `[test] completed successfully`);
+                resolve({ passed: true, exitCode: code });
+            } else if (code === null) {
+                reject(new Error('Test process was killed'));
+            } else {
+                reject(new Error(`Test step failed with exit code ${code}`));
+            }
+        });
+    });
 }
 
 // Run deploy step using latest successful build.
@@ -81,7 +156,6 @@ async function runDeployStep(repoId) {
 
 // Parse a YAML string into a pipeline config object.
 // Throws descriptive errors for invalid input.
- 
 function parsePipelineYaml(yamlString) {
     if (!yamlString || typeof yamlString !== 'string') {
         const error = new Error('Pipeline YAML is required and must be a string');
@@ -109,7 +183,6 @@ function parsePipelineYaml(yamlString) {
 
 // Validate the parsed pipeline config.
 //Ensures `steps` is a non-empty array of allowed step names.
- 
 function validatePipelineConfig(config) {
     const { steps } = config;
 
@@ -153,7 +226,6 @@ function validatePipelineConfig(config) {
 
 // Create a new pipeline from YAML input.
 // Parses → validates → verifies repo ownership → stores.
- 
 async function createPipeline({ userId, repoId, yamlString, name }) {
     // 1. Verify repository exists and belongs to user
     const repo = await Repository.findOne({ _id: repoId, userId }).lean();
@@ -187,7 +259,6 @@ async function createPipeline({ userId, repoId, yamlString, name }) {
                 version,
                 status: 'active',
                 executionStatus: 'pending',
-                executionLogs: [],
                 startedAt: null,
                 completedAt: null
             },
@@ -203,7 +274,6 @@ async function createPipeline({ userId, repoId, yamlString, name }) {
             rawYaml: yamlString,
             version,
             executionStatus: 'pending',
-            executionLogs: [],
             startedAt: null,
             completedAt: null
         });
@@ -214,7 +284,6 @@ async function createPipeline({ userId, repoId, yamlString, name }) {
 }
 
 // Get all pipelines for a user, newest first.
- 
 async function getUserPipelines(userId) {
     return Pipeline.find({ userId })
         .populate('repoId', 'repoName owner provider')
@@ -223,7 +292,6 @@ async function getUserPipelines(userId) {
 }
 
 // Get a single pipeline by ID, scoped to user.
- 
 async function getPipelineById(id, userId) {
     return Pipeline.findOne({ _id: id, userId })
         .populate('repoId', 'repoName owner provider')
@@ -231,7 +299,6 @@ async function getPipelineById(id, userId) {
 }
 
 // Delete a pipeline by ID, scoped to user.
- 
 async function deletePipeline(id, userId) {
     const deleted = await Pipeline.findOneAndDelete({ _id: id, userId });
     if (!deleted) {
@@ -239,12 +306,16 @@ async function deletePipeline(id, userId) {
         error.statusCode = 404;
         throw error;
     }
+    
+    // Also cleanup pipeline runs
+    await PipelineRun.deleteMany({ pipelineId: id });
+    
     logger.info('Pipeline deleted', { pipelineId: id });
     return deleted;
 }
 
 // Execute configured pipeline steps sequentially.
-async function executePipeline(pipelineId) {
+async function executePipeline(pipelineId, options = {}) {
     const pipeline = await Pipeline.findById(pipelineId);
     if (!pipeline) {
         const error = new Error('Pipeline not found');
@@ -252,57 +323,135 @@ async function executePipeline(pipelineId) {
         throw error;
     }
 
-    const steps = pipeline.config?.steps || [];
+    const { triggerSource = 'manual', commitHash = null, branch = null, commitMessage = null, author = null } = options;
+    const stepsConfig = pipeline.config?.steps || [];
+    
+    const runSteps = stepsConfig.map(name => ({
+        name,
+        status: 'pending',
+        startedAt: null,
+        completedAt: null,
+        duration: null
+    }));
+
+    // Create PipelineRun document
+    const run = await PipelineRun.create({
+        pipelineId: pipeline._id,
+        repositoryId: pipeline.repoId,
+        userId: pipeline.userId,
+        commitHash,
+        commitMessage,
+        author,
+        branch,
+        triggerSource,
+        status: 'running',
+        startedAt: new Date(),
+        steps: runSteps
+    });
+
+    const logPath = await initLogFile(run._id.toString());
+    run.logPath = logPath;
+    await run.save();
+
+    const memoryLogBuffer = [];
+
     pipeline.executionStatus = 'running';
-    pipeline.executionLogs = [];
-    pipeline.startedAt = new Date();
+    pipeline.startedAt = run.startedAt;
     pipeline.completedAt = null;
     await pipeline.save();
 
-    for (const step of steps) {
-        try {
-            await appendExecutionLog(pipeline, step, `${step} started`);
+    for (let i = 0; i < stepsConfig.length; i++) {
+        const stepName = stepsConfig[i];
+        const stepIndex = i;
+        
+        run.steps[stepIndex].status = 'running';
+        run.steps[stepIndex].startedAt = new Date();
+        await run.save();
+        
+        const stepStartTime = Date.now();
 
-            if (step === 'build') {
-                await runBuildStep(pipeline.repoId);
-            } else if (step === 'test') {
-                await runTestStep(pipeline.repoId);
-            } else if (step === 'deploy') {
-                await runDeployStep(pipeline.repoId);
+        try {
+            pushPipelineLog(memoryLogBuffer, logPath, `[step:${stepName}] started`);
+
+            if (stepName === 'build') {
+                const build = await runBuildStep(pipeline.repoId);
+                run.buildId = build._id;
+            } else if (stepName === 'test') {
+                await runTestStep(pipeline.repoId, logPath, memoryLogBuffer);
+            } else if (stepName === 'deploy') {
+                const deploy = await runDeployStep(pipeline.repoId);
+                run.deploymentId = deploy._id;
             }
 
-            await appendExecutionLog(pipeline, step, `${step} success`);
+            pushPipelineLog(memoryLogBuffer, logPath, `[step:${stepName}] success`);
+            
+            run.steps[stepIndex].status = 'success';
+            run.steps[stepIndex].completedAt = new Date();
+            run.steps[stepIndex].duration = Date.now() - stepStartTime;
+            await run.save();
+            
         } catch (stepError) {
-            await appendExecutionLog(pipeline, step, `${step} failed: ${stepError.message}`);
+            pushPipelineLog(memoryLogBuffer, logPath, `[step:${stepName}] failed: ${stepError.message}`);
+            
+            run.steps[stepIndex].status = 'failed';
+            run.steps[stepIndex].completedAt = new Date();
+            run.steps[stepIndex].duration = Date.now() - stepStartTime;
+            
+            // Mark remaining steps as skipped
+            for (let j = i + 1; j < stepsConfig.length; j++) {
+                run.steps[j].status = 'skipped';
+            }
+            
+            run.status = 'failed';
+            run.error = `Pipeline failed at step "${stepName}": ${stepError.message}`;
+            run.completedAt = new Date();
+            run.duration = Date.now() - run.startedAt.getTime();
+            
+            closeAppendStream(logPath);
+            run.logSize = await getLogSize(logPath);
+            run.logSummary = memoryLogBuffer.join('\n');
+            run.lastLogAt = new Date();
+            await run.save();
+
             pipeline.executionStatus = 'failed';
-            pipeline.completedAt = new Date();
+            pipeline.completedAt = run.completedAt;
             await pipeline.save();
 
             logger.error('Pipeline execution failed', {
                 pipelineId: String(pipeline._id),
-                step,
+                runId: String(run._id),
+                step: stepName,
                 error: stepError.message
             });
 
-            const error = new Error(`Pipeline failed at step "${step}": ${stepError.message}`);
-            error.statusCode = 500;
-            throw error;
+            // Don't throw here, just return the failure state so controllers can respond properly
+            return { pipeline, run };
         }
     }
 
+    run.status = 'success';
+    run.completedAt = new Date();
+    run.duration = Date.now() - run.startedAt.getTime();
+    
+    closeAppendStream(logPath);
+    run.logSize = await getLogSize(logPath);
+    run.logSummary = memoryLogBuffer.join('\n');
+    run.lastLogAt = new Date();
+    await run.save();
+
     pipeline.executionStatus = 'success';
-    pipeline.completedAt = new Date();
+    pipeline.completedAt = run.completedAt;
     await pipeline.save();
 
     logger.info('Pipeline execution completed', {
         pipelineId: String(pipeline._id),
-        steps
+        runId: String(run._id)
     });
 
-    return pipeline;
+    return { pipeline, run };
 }
 
-// Get execution status details for one pipeline.
+// Get execution status details for one pipeline (legacy fallback)
 async function getPipelineExecutionStatus(pipelineId, userId) {
     const pipeline = await Pipeline.findOne({ _id: pipelineId, userId }).lean();
     if (!pipeline) {
@@ -310,15 +459,17 @@ async function getPipelineExecutionStatus(pipelineId, userId) {
         error.statusCode = 404;
         throw error;
     }
+    
+    const latestRun = await PipelineRun.findOne({ pipelineId }).sort({ createdAt: -1 }).lean();
 
     return {
         id: pipeline._id,
         name: pipeline.name,
         status: pipeline.executionStatus,
-        logs: pipeline.executionLogs || [],
         startedAt: pipeline.startedAt,
         completedAt: pipeline.completedAt,
-        steps: pipeline.config?.steps || []
+        steps: pipeline.config?.steps || [],
+        latestRunId: latestRun?._id || null
     };
 }
 
@@ -327,6 +478,75 @@ async function getActivePipelinesByRepo(repoId) {
     return Pipeline.find({ repoId, status: 'active' })
         .sort({ createdAt: -1 })
         .lean();
+}
+
+async function getPipelineRuns(pipelineId, userId, { limit = 50, skip = 0 }) {
+    // Verify ownership
+    const pipeline = await Pipeline.findOne({ _id: pipelineId, userId }).lean();
+    if (!pipeline) {
+        const error = new Error('Pipeline not found');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    return PipelineRun.find({ pipelineId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+}
+
+async function getPipelineRunById(runId, userId) {
+    return PipelineRun.findOne({ _id: runId, userId }).lean();
+}
+
+async function getPipelineMetrics(pipelineId, userId) {
+    // Verify ownership
+    const pipeline = await Pipeline.findOne({ _id: pipelineId, userId }).lean();
+    if (!pipeline) {
+        const error = new Error('Pipeline not found');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    const metrics = await PipelineRun.aggregate([
+        { $match: { pipelineId: pipeline._id } },
+        { 
+            $group: {
+                _id: null,
+                totalRuns: { $sum: 1 },
+                successfulRuns: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
+                failedRuns: { $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] } },
+                avgDurationMs: { $avg: '$duration' },
+                lastRunAt: { $max: '$startedAt' }
+            }
+        }
+    ]);
+
+    if (metrics.length === 0) {
+        return {
+            totalRuns: 0,
+            successfulRuns: 0,
+            failedRuns: 0,
+            avgDurationMs: 0,
+            lastRunAt: null,
+            lastRunStatus: null
+        };
+    }
+
+    const latestRun = await PipelineRun.findOne({ pipelineId: pipeline._id })
+        .sort({ startedAt: -1 })
+        .select('status')
+        .lean();
+
+    return {
+        totalRuns: metrics[0].totalRuns,
+        successfulRuns: metrics[0].successfulRuns,
+        failedRuns: metrics[0].failedRuns,
+        avgDurationMs: Math.round(metrics[0].avgDurationMs || 0),
+        lastRunAt: metrics[0].lastRunAt,
+        lastRunStatus: latestRun ? latestRun.status : null
+    };
 }
 
 export default {
@@ -338,5 +558,8 @@ export default {
     deletePipeline,
     executePipeline,
     getPipelineExecutionStatus,
-    getActivePipelinesByRepo
+    getActivePipelinesByRepo,
+    getPipelineRuns,
+    getPipelineRunById,
+    getPipelineMetrics
 };

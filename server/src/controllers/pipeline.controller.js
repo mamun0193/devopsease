@@ -1,4 +1,7 @@
 import pipelineService from '../services/pipeline.service.js';
+import PipelineRun from '../models/pipelineRun.model.js';
+import { createLogReadStream } from '../services/pipelineLog.service.js';
+import logger from '../utils/logger.js';
 
 export const createPipeline = async (req, res, next) => {
     try {
@@ -104,21 +107,29 @@ export const runPipeline = async (req, res, next) => {
     try {
         const userId = req.user._id;
         const { id } = req.params;
+        const { triggerSource, commitHash, branch } = req.body;
 
         const pipeline = await pipelineService.getPipelineById(id, userId);
         if (!pipeline) {
             return res.status(404).json({ message: 'Pipeline not found' });
         }
 
-        const executed = await pipelineService.executePipeline(id);
+        const executed = await pipelineService.executePipeline(id, {
+            triggerSource: triggerSource || 'manual',
+            commitHash,
+            branch
+        });
+
+        // executed contains { pipeline, run } from updated service
+        const run = executed.run || executed;
 
         res.json({
-            id: executed._id,
-            name: executed.name,
-            status: executed.executionStatus,
-            startedAt: executed.startedAt,
-            completedAt: executed.completedAt,
-            logs: executed.executionLogs
+            id: pipeline._id,
+            runId: run._id,
+            name: pipeline.name,
+            status: run.status,
+            startedAt: run.startedAt,
+            completedAt: run.completedAt
         });
     } catch (error) {
         if (error.statusCode) {
@@ -139,6 +150,88 @@ export const getPipelineStatus = async (req, res, next) => {
         if (error.statusCode) {
             return res.status(error.statusCode).json({ message: error.message });
         }
+        next(error);
+    }
+};
+
+export const listPipelineRuns = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+        const { limit = 50, skip = 0 } = req.query;
+
+        const runs = await pipelineService.getPipelineRuns(id, userId, {
+            limit: parseInt(limit, 10),
+            skip: parseInt(skip, 10)
+        });
+
+        res.json({ runs });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getPipelineRun = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params; // this is the run ID
+
+        const run = await pipelineService.getPipelineRunById(id, userId);
+        if (!run) {
+            return res.status(404).json({ message: 'Pipeline run not found' });
+        }
+
+        res.json({ run });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const streamPipelineLogs = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params; // this is the run ID
+
+        const run = await PipelineRun.findOne({ _id: id, userId })
+            .select('logPath logSummary')
+            .lean();
+
+        if (!run) {
+            return res.status(404).json({ message: 'Pipeline run not found' });
+        }
+
+        if (run.logPath) {
+            const stream = createLogReadStream(run.logPath);
+            if (stream) {
+                res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+                res.setHeader('Cache-Control', 'no-cache');
+                stream.pipe(res);
+                stream.on('error', (err) => {
+                    logger.error('Error streaming pipeline logs', { runId: id, error: err.message });
+                    if (!res.headersSent) {
+                        res.status(500).json({ message: 'Failed to read pipeline logs' });
+                    }
+                });
+                return;
+            }
+        }
+
+        // Fallback to log summary
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.send(run.logSummary || '');
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getPipelineMetrics = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+
+        const metrics = await pipelineService.getPipelineMetrics(id, userId);
+        res.json({ metrics });
+    } catch (error) {
         next(error);
     }
 };
