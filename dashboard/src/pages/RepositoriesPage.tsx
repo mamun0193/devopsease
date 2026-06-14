@@ -67,31 +67,22 @@ const RepositoriesPage: React.FC = () => {
       icon: <GitBranch size={14} className="text-slate-400" />,
     },
     {
-      key: 'connected',
+      key: 'active',
       label: 'Connected',
-      count: repos.filter(r => r.status === 'CONNECTED').length,
+      count: repos.filter(r => r.status === 'active').length,
       color: 'text-emerald-400',
       activeBg: 'bg-emerald-500/20',
       activeBorder: 'border-emerald-500/50',
       dot: 'bg-emerald-400',
     },
     {
-      key: 'syncing',
-      label: 'Syncing',
-      count: repos.filter(r => r.status === 'SYNCING').length,
-      color: 'text-blue-400',
-      activeBg: 'bg-blue-500/20',
-      activeBorder: 'border-blue-500/50',
-      dot: 'bg-blue-400',
-    },
-    {
-      key: 'error',
-      label: 'Error',
-      count: repos.filter(r => r.status === 'ERROR').length,
-      color: 'text-red-400',
-      activeBg: 'bg-red-500/20',
-      activeBorder: 'border-red-500/50',
-      dot: 'bg-red-400',
+      key: 'disconnected',
+      label: 'Disconnected',
+      count: repos.filter(r => r.status === 'disconnected').length,
+      color: 'text-slate-400',
+      activeBg: 'bg-slate-500/20',
+      activeBorder: 'border-slate-500/50',
+      dot: 'bg-slate-400',
     },
   ], [repos]);
 
@@ -194,9 +185,8 @@ const RepositoriesPage: React.FC = () => {
             <div className="flex items-center gap-6 px-6 py-3.5 border-b border-slate-800 bg-slate-900/40">
               {[
                 { label: 'Total', value: repos.length, color: 'text-slate-200' },
-                { label: 'Connected', value: repos.filter((r) => r.status === 'CONNECTED').length, color: 'text-emerald-400' },
-                { label: 'Syncing', value: repos.filter((r) => r.status === 'SYNCING').length, color: 'text-blue-400' },
-                { label: 'Error', value: repos.filter((r) => r.status === 'ERROR').length, color: 'text-red-400' },
+                { label: 'Connected', value: repos.filter((r) => r.status === 'active').length, color: 'text-emerald-400' },
+                { label: 'Disconnected', value: repos.filter((r) => r.status === 'disconnected').length, color: 'text-slate-400' },
               ].map((s) => (
                 <div key={s.label} className="flex items-center gap-1.5 text-xs">
                   <span className="text-slate-500">{s.label}</span>

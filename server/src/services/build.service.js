@@ -179,12 +179,15 @@ export async function runBuildPipeline(repo, payload = {}) {
             status: build.status,
         });
 
-        deployFromBuild(build).catch((err) => {
-            logger.error('Auto-deploy after build failed', {
-                buildId: String(build._id),
-                error: err.message,
+        // Only auto-deploy if not called from a pipeline (pipeline handles its own deploy step)
+        if (!payload?.skipAutoDeploy) {
+            deployFromBuild(build).catch((err) => {
+                logger.error('Auto-deploy after build failed', {
+                    buildId: String(build._id),
+                    error: err.message,
+                });
             });
-        });
+        }
 
         return build;
     } catch (error) {

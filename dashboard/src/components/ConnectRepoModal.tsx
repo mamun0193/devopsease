@@ -32,8 +32,9 @@ const ConnectRepoModal: React.FC<ConnectRepoModalProps> = ({ isOpen, onClose, on
     if (!form.owner.trim()) newErrors.owner = 'Owner is required.';
     if (!form.cloneUrl.trim()) {
       newErrors.cloneUrl = 'Clone URL is required.';
-    } else if (!/^(https?:\/\/|git@)/.test(form.cloneUrl.trim())) {
-      newErrors.cloneUrl = 'Must be a valid HTTP(S) or SSH clone URL.';
+    } else if (!/^https?:\/\/[a-zA-Z0-9._-]+\.[a-zA-Z]{2,}\/.+/.test(form.cloneUrl.trim()) &&
+               !/^git@[a-zA-Z0-9._-]+\.[a-zA-Z]{2,}:.+/.test(form.cloneUrl.trim())) {
+      newErrors.cloneUrl = 'Enter a valid Git URL (e.g. https://github.com/owner/repo.git).';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;

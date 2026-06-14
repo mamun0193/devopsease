@@ -783,7 +783,7 @@ export const quotaApi = {
   },
 };
 
-export interface PipelineMetrics {
+export interface SystemPipelineMetrics {
   containersTracked: number;
   metricsCacheSize: number;
   collectorCycleMs: number;
@@ -796,9 +796,143 @@ export interface PipelineMetrics {
 }
 
 export const systemApi = {
-  getMetrics: async (): Promise<PipelineMetrics> => {
-    const response = await api.get<ApiResponse<PipelineMetrics>>('/system/metrics');
+  getMetrics: async (): Promise<SystemPipelineMetrics> => {
+    const response = await api.get<ApiResponse<SystemPipelineMetrics>>('/system/metrics');
     return response.data.data;
+  },
+};
+
+// CI/CD Pipelines 
+
+export interface PipelineStep {
+  name: string;
+  status: 'pending' | 'running' | 'success' | 'failed' | 'skipped';
+  startedAt: string | null;
+  completedAt: string | null;
+  duration: number | null;
+  exitCode?: number | null;
+}
+
+export interface PipelineRepo {
+  _id: string;
+  repoName: string;
+  owner: string;
+  provider: string;
+}
+
+export interface Pipeline {
+  id: string;
+  name: string;
+  steps: string[];
+  config?: { steps: string[]; [key: string]: any };
+  rawYaml?: string;
+  version: number;
+  status: 'active' | 'inactive' | 'error';
+  repo: PipelineRepo | string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PipelineRun {
+  _id: string;
+  pipelineId: string;
+  repositoryId: string;
+  userId: string;
+  commitHash: string | null;
+  branch: string | null;
+  commitMessage: string | null;
+  author: string | null;
+  status: 'pending' | 'running' | 'success' | 'failed';
+  triggerSource: 'webhook' | 'manual';
+  buildId: string | null;
+  deploymentId: string | null;
+  steps: PipelineStep[];
+  startedAt: string | null;
+  completedAt: string | null;
+  duration: number | null;
+  logPath: string | null;
+  logSize: number;
+  logSummary: string;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CIPipelineMetrics {
+  totalRuns: number;
+  successfulRuns: number;
+  failedRuns: number;
+  avgDurationMs: number;
+  lastRunAt: string | null;
+  lastRunStatus: string | null;
+}
+
+export interface RunPipelineResponse {
+  id: string;
+  runId: string;
+  name: string;
+  status: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface CreatePipelinePayload {
+  repoId: string;
+  yaml: string;
+  name?: string;
+}
+
+export const pipelineApi = {
+  list: async (): Promise<Pipeline[]> => {
+    const response = await api.get<{ pipelines: Pipeline[] }>('/api/pipelines');
+    return response.data.pipelines;
+  },
+
+  get: async (id: string): Promise<Pipeline> => {
+    const response = await api.get<Pipeline>(`/api/pipelines/${id}`);
+    return response.data;
+  },
+
+  create: async (payload: CreatePipelinePayload): Promise<Pipeline> => {
+    const response = await api.post<Pipeline>('/api/pipelines', payload);
+    return response.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/api/pipelines/${id}`);
+  },
+
+  run: async (id: string, body?: { triggerSource?: string; commitHash?: string; branch?: string }): Promise<RunPipelineResponse> => {
+    const response = await api.post<RunPipelineResponse>(`/api/pipelines/${id}/run`, body || {});
+    return response.data;
+  },
+
+  getStatus: async (id: string): Promise<any> => {
+    const response = await api.get(`/api/pipelines/${id}/status`);
+    return response.data;
+  },
+
+  getRuns: async (id: string, opts?: { limit?: number; skip?: number }): Promise<PipelineRun[]> => {
+    const params = new URLSearchParams();
+    if (opts?.limit) params.append('limit', String(opts.limit));
+    if (opts?.skip) params.append('skip', String(opts.skip));
+    const qs = params.toString();
+    const response = await api.get<{ runs: PipelineRun[] }>(`/api/pipelines/${id}/runs${qs ? `?${qs}` : ''}`);
+    return response.data.runs;
+  },
+
+  getMetrics: async (id: string): Promise<CIPipelineMetrics> => {
+    const response = await api.get<{ metrics: CIPipelineMetrics }>(`/api/pipelines/${id}/metrics`);
+    return response.data.metrics;
+  },
+
+  getRun: async (runId: string): Promise<PipelineRun> => {
+    const response = await api.get<{ run: PipelineRun }>(`/api/pipeline-runs/${runId}`);
+    return response.data.run;
+  },
+
+  getRunLogsUrl: (runId: string): string => {
+    return `${API_BASE_URL}/api/pipeline-runs/${runId}/logs`;
   },
 };
 
@@ -853,7 +987,7 @@ export const deploymentApi = {
   },
 };
 
-// ── Kubernetes Clusters ───────────────────────────────────────────────────────
+//  Kubernetes Clusters 
 
 export interface K8sCluster {
   _id: string;

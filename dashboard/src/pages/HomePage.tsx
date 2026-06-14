@@ -96,7 +96,7 @@ const HomePage: React.FC = () => {
   const stoppedProjects = projects.filter(p => p.status === 'STOPPED' || p.status === 'CREATED').length;
 
   // Repo-derived values for the Projects card
-  const connectedRepos = repos.filter(r => r.status === 'CONNECTED' || r.status === 'SYNCING').length;
+  const connectedRepos = repos.filter(r => r.status === 'active').length;
   const lastRepo = repos.length > 0
     ? [...repos].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
     : null;

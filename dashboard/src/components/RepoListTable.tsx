@@ -17,7 +17,7 @@ const statusConfig: Record<
   RepoStatus,
   { label: string; textColor: string; badgeBg: string; badgeBorder: string; dot: string; icon: React.ReactNode }
 > = {
-  CONNECTED: {
+  active: {
     label: 'Connected',
     textColor: 'text-emerald-400',
     badgeBg: 'bg-emerald-500/10',
@@ -25,24 +25,8 @@ const statusConfig: Record<
     dot: 'bg-emerald-400',
     icon: <CheckCircle2 size={11} />,
   },
-  SYNCING: {
-    label: 'Syncing',
-    textColor: 'text-blue-400',
-    badgeBg: 'bg-blue-500/10',
-    badgeBorder: 'border-blue-500/30',
-    dot: 'bg-blue-400',
-    icon: <RefreshCw size={11} className="animate-spin" />,
-  },
-  ERROR: {
-    label: 'Error',
-    textColor: 'text-red-400',
-    badgeBg: 'bg-red-500/10',
-    badgeBorder: 'border-red-500/30',
-    dot: 'bg-red-400',
-    icon: <AlertCircle size={11} />,
-  },
-  INACTIVE: {
-    label: 'Inactive',
+  disconnected: {
+    label: 'Disconnected',
     textColor: 'text-slate-400',
     badgeBg: 'bg-slate-500/10',
     badgeBorder: 'border-slate-500/30',
@@ -119,7 +103,7 @@ interface RepoCardProps {
 }
 
 const RepoCard: React.FC<RepoCardProps> = ({ repo, isDeleting, onDeleteClick }) => {
-  const status = statusConfig[repo.status] ?? statusConfig.INACTIVE;
+  const status = statusConfig[repo.status] ?? statusConfig.disconnected;
 
   return (
     <div
@@ -140,8 +124,8 @@ const RepoCard: React.FC<RepoCardProps> = ({ repo, isDeleting, onDeleteClick }) 
             ${status.textColor} ${status.badgeBg} ${status.badgeBorder}
           `}
         >
-          {/* Animated dot for CONNECTED */}
-          {repo.status === 'CONNECTED' ? (
+          {/* Animated dot for active repos */}
+          {repo.status === 'active' ? (
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
               <span className={`relative inline-flex rounded-full h-2 w-2 ${status.dot}`} />

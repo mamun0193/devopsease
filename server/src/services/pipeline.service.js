@@ -31,6 +31,8 @@ function pushPipelineLog(memoryBuffer, logPath, message) {
 }
 
 // Run build step: clone repository and execute build pipeline.
+// skipAutoDeploy prevents the build service from auto-deploying,
+// since the pipeline manages its own deploy step.
 async function runBuildStep(repoId) {
     const repo = await Repository.findById(repoId).lean();
     if (!repo) {
@@ -38,7 +40,7 @@ async function runBuildStep(repoId) {
     }
 
     await cloneRepository(repo);
-    const build = await runBuildPipeline(repo, {});
+    const build = await runBuildPipeline(repo, { skipAutoDeploy: true });
 
     if (!build || !SUCCESS_BUILD_STATUSES.includes(build.status)) {
         throw new Error(`Build step failed${build?.error ? ': ' + build.error : ''}`);
@@ -353,12 +355,22 @@ async function executePipeline(pipelineId, options = {}) {
     run.logPath = logPath;
     await run.save();
 
-    const memoryLogBuffer = [];
-
     pipeline.executionStatus = 'running';
     pipeline.startedAt = run.startedAt;
     pipeline.completedAt = null;
     await pipeline.save();
+
+    // Execute the steps asynchronously in the background
+    _runPipelineStepsInBackground(pipeline, run, stepsConfig, logPath).catch(err => {
+        logger.error('Pipeline background execution failed', { error: err.message, pipelineId: String(pipeline._id) });
+    });
+
+    return { pipeline, run };
+}
+
+// Background task to run steps
+async function _runPipelineStepsInBackground(pipeline, run, stepsConfig, logPath) {
+    const memoryLogBuffer = [];
 
     for (let i = 0; i < stepsConfig.length; i++) {
         const stepName = stepsConfig[i];
@@ -424,8 +436,7 @@ async function executePipeline(pipelineId, options = {}) {
                 error: stepError.message
             });
 
-            // Don't throw here, just return the failure state so controllers can respond properly
-            return { pipeline, run };
+            return;
         }
     }
 
@@ -447,8 +458,6 @@ async function executePipeline(pipelineId, options = {}) {
         pipelineId: String(pipeline._id),
         runId: String(run._id)
     });
-
-    return { pipeline, run };
 }
 
 // Get execution status details for one pipeline (legacy fallback)

@@ -47,6 +47,9 @@ import VolumesPage from './pages/VolumesPage';
 import RegistryPage from './pages/RegistryPage';
 import AlertsPage from './pages/AlertsPage';
 import RepositoriesPage from './pages/RepositoriesPage';
+import PipelinesPage from './pages/PipelinesPage';
+import PipelineDetailPage from './pages/PipelineDetailPage';
+import PipelineRunDetailPage from './pages/PipelineRunDetailPage';
 import DeploymentsPage from './pages/DeploymentsPage';
 import ClustersPage from './pages/ClustersPage';
 import PodsPage from './pages/PodsPage';
@@ -224,6 +227,30 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RepositoriesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/pipelines"
+                  element={
+                    <ProtectedRoute>
+                      <PipelinesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/pipelines/:id"
+                  element={
+                    <ProtectedRoute>
+                      <PipelineDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/pipeline-runs/:id"
+                  element={
+                    <ProtectedRoute>
+                      <PipelineRunDetailPage />
                     </ProtectedRoute>
                   }
                 />

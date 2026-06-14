@@ -12,7 +12,7 @@ const api = axios.create({
 });
 
 
-export type RepoStatus = 'CONNECTED' | 'SYNCING' | 'ERROR' | 'INACTIVE';
+export type RepoStatus = 'active' | 'disconnected';
 
 export interface Repository {
   _id: string;
@@ -37,14 +37,14 @@ export const repoApi = {
   // Fetch all connected repositories for the authenticated user.
    
   getAll: async (): Promise<Repository[]> => {
-    const response = await api.get<{ success: boolean; data: Repository[] }>('/api/repos');
-    return response.data?.data ?? [];
+    const response = await api.get<{ repositories: Repository[] }>('/api/repos');
+    return response.data?.repositories ?? [];
   },
 
   // Connect a new Git repository.
   connect: async (payload: ConnectRepoPayload): Promise<Repository> => {
-    const response = await api.post<{ success: boolean; data: Repository }>('/api/repos/connect', payload);
-    return response.data.data;
+    const response = await api.post<{ repository: Repository }>('/api/repos/connect', payload);
+    return response.data.repository;
   },
 
   // Delete a connected repository by ID.
