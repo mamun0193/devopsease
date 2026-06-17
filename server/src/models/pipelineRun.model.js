@@ -128,4 +128,11 @@ const pipelineRunSchema = new mongoose.Schema({
 pipelineRunSchema.index({ pipelineId: 1, createdAt: -1 });
 pipelineRunSchema.index({ userId: 1, createdAt: -1 });
 
+// T1: Enforce at most one active (pending/running) run per pipeline.
+// This unique partial index prevents TOCTOU race conditions from concurrent requests.
+pipelineRunSchema.index(
+    { pipelineId: 1 },
+    { unique: true, partialFilterExpression: { status: { $in: ['pending', 'running'] } } }
+);
+
 export default mongoose.model('PipelineRun', pipelineRunSchema);

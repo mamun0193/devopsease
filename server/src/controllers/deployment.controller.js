@@ -96,7 +96,7 @@ export const getDeploymentLogs = async (req, res, next) => {
     }
 };
 
-// Ownership helper 
+// Ownership helper — T3: prefer direct userId match, fallback to repo-based lookup for pre-migration docs
 
 async function assertDeploymentOwnership(userId, deploymentId) {
     const deployment = await Deployment.findById(deploymentId).lean();
@@ -106,6 +106,17 @@ async function assertDeploymentOwnership(userId, deploymentId) {
         throw err;
     }
 
+    // Fast path: direct userId comparison (post-migration deployments)
+    if (deployment.userId) {
+        if (deployment.userId.toString() !== userId.toString()) {
+            const err = new Error('Not authorized to manage this deployment');
+            err.statusCode = 403;
+            throw err;
+        }
+        return deployment;
+    }
+
+    // Fallback: legacy deployments without userId — check via Repository
     const repo = await Repository.findOne({ _id: deployment.repoId, userId }).lean();
     if (!repo) {
         const err = new Error('Not authorized to manage this deployment');

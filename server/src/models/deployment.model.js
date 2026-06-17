@@ -5,6 +5,12 @@ const DEPLOYMENT_STATUSES = ['pending', 'deploying', 'running', 'failed', 'stopp
 const DEPLOYMENT_ENVIRONMENT_REGEX = /^[a-z][a-z0-9_-]{1,31}$/;
 
 const deploymentSchema = new mongoose.Schema({
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null,
+        index: true
+    },
     repoId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Repository',

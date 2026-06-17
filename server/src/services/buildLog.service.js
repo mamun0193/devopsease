@@ -1,6 +1,6 @@
 import { createWriteStream, createReadStream as fsCreateReadStream, existsSync } from 'fs';
 import { mkdir, stat, readFile } from 'fs/promises';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import logger from '../utils/logger.js';
 
@@ -9,6 +9,9 @@ const __dirname = dirname(__filename);
 
 // Resolve storage directory relative to the server root (two levels up from services/)
 const STORAGE_DIR = join(__dirname, '..', '..', 'storage', 'build-logs');
+const RESOLVED_STORAGE_DIR = resolve(STORAGE_DIR);
+
+export { STORAGE_DIR };
 
 // Ensure the storage directory exists (called once on first use).
  
@@ -99,6 +102,12 @@ export async function readLogFile(logPath) {
         return '';
     }
 
+    // T6: Block path traversal — only allow reads within STORAGE_DIR
+    if (!resolve(logPath).startsWith(RESOLVED_STORAGE_DIR)) {
+        logger.warn('Blocked log path traversal attempt (readLogFile)', { logPath });
+        return '';
+    }
+
     try {
         return await readFile(logPath, 'utf8');
     } catch (err) {
@@ -111,6 +120,12 @@ export async function readLogFile(logPath) {
 
 export function createLogReadStream(logPath, options = {}) {
     if (!logPath || !existsSync(logPath)) {
+        return null;
+    }
+
+    // T6: Block path traversal — only allow reads within STORAGE_DIR
+    if (!resolve(logPath).startsWith(RESOLVED_STORAGE_DIR)) {
+        logger.warn('Blocked log path traversal attempt (createLogReadStream)', { logPath });
         return null;
     }
 

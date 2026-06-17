@@ -71,40 +71,61 @@ export async function allocateContainerName(repoName) {
 // Container lifecycle 
 
 const DOCKER_RUN_MAX_RETRIES = 1;
+const PORT_COLLISION_MAX_RETRIES = 3;
 
 export async function createReplica(imageTag, repoName, envVars = {}, resourceLimits = {}) {
-    const containerName = await allocateContainerName(repoName);
-    const port = await allocatePort();
-
     let lastError = null;
-    for (let attempt = 0; attempt <= DOCKER_RUN_MAX_RETRIES; attempt++) {
-        try {
-            const containerId = await runContainer(imageTag, containerName, port, envVars, {
-                cpuLimit: resourceLimits.cpuLimit,
-                memoryLimit: resourceLimits.memoryLimit,
-            });
 
-            logger.info('Created container replica', {
-                containerId,
-                containerName,
-                port,
-                imageTag,
-                cpuLimit: resourceLimits.cpuLimit || 'none',
-                memoryLimit: resourceLimits.memoryLimit || 'none',
-            });
+    // T10: Outer retry loop handles port collisions by re-allocating a fresh port
+    for (let portAttempt = 0; portAttempt < PORT_COLLISION_MAX_RETRIES; portAttempt++) {
+        const containerName = await allocateContainerName(repoName);
+        const port = await allocatePort();
 
-            return { containerId, containerName, port };
-        } catch (error) {
-            lastError = error;
-            const isTransient = /timeout|connection refused|temporary/i.test(error.message);
-            if (!isTransient || attempt >= DOCKER_RUN_MAX_RETRIES) break;
+        // Inner retry loop handles transient Docker errors (timeout, connection refused)
+        for (let attempt = 0; attempt <= DOCKER_RUN_MAX_RETRIES; attempt++) {
+            try {
+                const containerId = await runContainer(imageTag, containerName, port, envVars, {
+                    cpuLimit: resourceLimits.cpuLimit,
+                    memoryLimit: resourceLimits.memoryLimit,
+                });
 
-            logger.warn('Transient docker run failure, retrying', {
-                attempt: attempt + 1,
-                containerName,
-                error: error.message,
-            });
-            await new Promise(r => setTimeout(r, 1000));
+                logger.info('Created container replica', {
+                    containerId,
+                    containerName,
+                    port,
+                    imageTag,
+                    cpuLimit: resourceLimits.cpuLimit || 'none',
+                    memoryLimit: resourceLimits.memoryLimit || 'none',
+                });
+
+                return { containerId, containerName, port };
+            } catch (error) {
+                lastError = error;
+
+                // T10: Port collision — break inner loop, outer loop will retry with a new port
+                if (/port is already allocated|address already in use|bind/i.test(error.message)) {
+                    logger.warn('Port collision detected, retrying with new port', {
+                        port,
+                        portAttempt: portAttempt + 1,
+                        containerName,
+                        error: error.message,
+                    });
+                    break;
+                }
+
+                const isTransient = /timeout|connection refused|temporary/i.test(error.message);
+                if (!isTransient || attempt >= DOCKER_RUN_MAX_RETRIES) {
+                    // Non-retryable error — bail out completely
+                    throw lastError;
+                }
+
+                logger.warn('Transient docker run failure, retrying', {
+                    attempt: attempt + 1,
+                    containerName,
+                    error: error.message,
+                });
+                await new Promise(r => setTimeout(r, 1000));
+            }
         }
     }
 

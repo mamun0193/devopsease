@@ -200,6 +200,13 @@ export async function deployFromBuild(build, { replicas = 1 } = {}) {
         build.environment || 'development'
     );
 
+    // T3: Resolve userId for the deployment
+    let deployUserId = build.userId || null;
+    if (!deployUserId) {
+        const repo = await Repository.findById(build.repoId).select('userId').lean();
+        deployUserId = repo?.userId || null;
+    }
+
     let deployment = null;
 
     try {
@@ -207,6 +214,7 @@ export async function deployFromBuild(build, { replicas = 1 } = {}) {
         const port = await allocatePort();
 
         deployment = await Deployment.create({
+            userId: deployUserId,
             repoId: build.repoId,
             buildId: build._id,
             imageTag,
@@ -401,10 +409,12 @@ export async function rollbackDeployment(deploymentId, options = {}) {
         reason: rollbackReason,
     });
 
+    // T9: Include 'stopped' deployments as rollback candidates — their images may still exist.
+    // 'failed' and 'removed' are excluded.
     const previousCandidates = await Deployment.find({
         repoId: current.repoId,
         _id: { $ne: current._id },
-        status: 'running',
+        status: { $in: ['running', 'stopped'] },
     })
         .sort({ createdAt: -1 })
         .limit(ROLLBACK_LOOKBACK_LIMIT)
@@ -445,6 +455,7 @@ export async function rollbackDeployment(deploymentId, options = {}) {
         const port = await allocatePort();
 
         rollbackDeploymentRecord = await Deployment.create({
+            userId: current.userId,
             repoId: previous.repoId,
             buildId: previous.buildId,
             imageTag: previous.imageTag,

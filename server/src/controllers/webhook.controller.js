@@ -15,6 +15,28 @@ function normalizeBranch(ref) {
   return ref.startsWith("refs/heads/") ? ref.replace("refs/heads/", "") : ref;
 }
 
+// Match a branch name against a pattern that may contain wildcards (*).
+// Examples: "main" matches "main", "feature/login" matches "feature/*"
+function branchMatches(branchName, pattern) {
+  const normalizedBranch = normalizeBranch(branchName);
+  const normalizedPattern = normalizeBranch(pattern);
+
+  // Exact match (fast path)
+  if (normalizedPattern === normalizedBranch) return true;
+
+  // Wildcard match: convert glob pattern to regex
+  // Escape regex special chars except *, then replace * with .*
+  if (normalizedPattern.includes('*')) {
+    const escaped = normalizedPattern
+      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*/g, '.*');
+    const regex = new RegExp(`^${escaped}$`);
+    return regex.test(normalizedBranch);
+  }
+
+  return false;
+}
+
 export async function triggerPipeline(repo, payload) {
   // Find all active pipelines configured for this repository.
   const pipelines = await pipelineService.getActivePipelinesByRepo(repo._id);
@@ -44,6 +66,19 @@ export async function triggerPipeline(repo, payload) {
 
   // Execute each pipeline sequentially for this webhook event.
   for (const pipeline of pipelines) {
+    // T7: Skip pipelines configured for a different branch (supports wildcards)
+    const targetBranch = pipeline.config?.branch || pipeline.config?.targetBranch;
+    if (targetBranch && !branchMatches(branch, targetBranch)) {
+      logger.info("Skipping pipeline — branch mismatch", {
+        pipelineId: String(pipeline._id),
+        expected: normalizeBranch(targetBranch),
+        actual: branch,
+        deliveryId: payload?.deliveryId,
+        status: "skipped",
+      });
+      continue;
+    }
+
     try {
       await pipelineService.executePipeline(pipeline._id, {
           triggerSource: 'webhook',

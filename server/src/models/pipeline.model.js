@@ -29,7 +29,8 @@ const pipelineSchema = new mongoose.Schema({
     },
     rawYaml: {
         type: String,
-        required: true
+        required: true,
+        maxlength: 10000
     },
     status: {
         type: String,

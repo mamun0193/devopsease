@@ -17,6 +17,8 @@ const SUCCESS_BUILD_STATUSES = ['success'];
 const MAX_EXECUTION_LOGS = 500;
 const TEST_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_TEST_OUTPUT_BYTES = 10 * 1024 * 1024; // 10MB
+const MAX_YAML_SIZE = 10000; // 10KB max pipeline YAML size
+const MAX_PIPELINE_DURATION_MS = 30 * 60 * 1000; // 30 minutes — stale run threshold
 
 // Helper to push logs to both in-memory summary and filesystem log
 function pushPipelineLog(memoryBuffer, logPath, message) {
@@ -81,10 +83,23 @@ async function runTestStep(repoId, logPath, memoryBuffer) {
     pushPipelineLog(memoryBuffer, logPath, `[test] running ${command} ${args.join(' ')}`);
 
     return new Promise((resolve, reject) => {
+        // T8: Minimal environment — prevent leaking JWT_SECRET, DB creds, etc.
+        const testEnv = {
+            PATH: process.env.PATH,
+            HOME: process.env.HOME,
+            CI: 'true',
+            NODE_ENV: 'test',
+            // Windows requires SYSTEMROOT and COMSPEC for shell: true to work
+            ...(process.platform === 'win32' ? {
+                SYSTEMROOT: process.env.SYSTEMROOT,
+                COMSPEC: process.env.COMSPEC,
+            } : {})
+        };
+
         const testProcess = spawn(command, args, {
             cwd: workspacePath,
             shell: true,
-            env: { ...process.env, CI: 'true' }
+            env: testEnv
         });
 
         let outputSize = 0;
@@ -137,18 +152,23 @@ async function runTestStep(repoId, logPath, memoryBuffer) {
     });
 }
 
-// Run deploy step using latest successful build.
-async function runDeployStep(repoId) {
-    const latestSuccessfulBuild = await Build.findOne({
-        repoId,
-        status: { $in: SUCCESS_BUILD_STATUSES }
-    }).sort({ createdAt: -1 });
-
-    if (!latestSuccessfulBuild) {
-        throw new Error('No successful build found for deploy step');
+// Run deploy step using the build produced by this pipeline run.
+// Accepts an explicit buildId to ensure the correct artifact is deployed.
+async function runDeployStep(buildId) {
+    if (!buildId) {
+        throw new Error('Deploy step requires a buildId from a preceding build step');
     }
 
-    const deployment = await deployFromBuild(latestSuccessfulBuild);
+    const build = await Build.findById(buildId);
+    if (!build) {
+        throw new Error(`Build ${buildId} not found for deploy step`);
+    }
+
+    if (!SUCCESS_BUILD_STATUSES.includes(build.status)) {
+        throw new Error(`Build ${buildId} has status "${build.status}" — cannot deploy a non-successful build`);
+    }
+
+    const deployment = await deployFromBuild(build);
     if (!deployment || deployment.status === 'failed') {
         throw new Error('Deploy step failed');
     }
@@ -161,6 +181,13 @@ async function runDeployStep(repoId) {
 function parsePipelineYaml(yamlString) {
     if (!yamlString || typeof yamlString !== 'string') {
         const error = new Error('Pipeline YAML is required and must be a string');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    // T4: Reject oversized YAML before parsing
+    if (yamlString.length > MAX_YAML_SIZE) {
+        const error = new Error(`Pipeline YAML exceeds maximum size of ${MAX_YAML_SIZE} characters`);
         error.statusCode = 400;
         throw error;
     }
@@ -180,11 +207,17 @@ function parsePipelineYaml(yamlString) {
         throw error;
     }
 
+    // T4: Sanitize against prototype pollution — strip __proto__ and constructor overrides
+    parsed = JSON.parse(JSON.stringify(parsed));
+
     return parsed;
 }
 
 // Validate the parsed pipeline config.
-//Ensures `steps` is a non-empty array of allowed step names.
+// Ensures `steps` is a non-empty array of allowed step names with correct ordering.
+const MAX_PIPELINE_STEPS = 20;
+const MAX_STEP_NAME_LENGTH = 64;
+
 function validatePipelineConfig(config) {
     const { steps } = config;
 
@@ -206,6 +239,28 @@ function validatePipelineConfig(config) {
         throw error;
     }
 
+    // Max steps limit
+    if (steps.length > MAX_PIPELINE_STEPS) {
+        const error = new Error(`Pipeline cannot have more than ${MAX_PIPELINE_STEPS} steps`);
+        error.statusCode = 400;
+        throw error;
+    }
+
+    // Validate each step is a non-empty string with bounded length
+    for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
+        if (typeof step !== 'string' || !step.trim()) {
+            const error = new Error(`Step at index ${i} must be a non-empty string`);
+            error.statusCode = 400;
+            throw error;
+        }
+        if (step.length > MAX_STEP_NAME_LENGTH) {
+            const error = new Error(`Step name "${step.slice(0, 30)}..." exceeds maximum length of ${MAX_STEP_NAME_LENGTH}`);
+            error.statusCode = 400;
+            throw error;
+        }
+    }
+
     const invalidSteps = steps.filter(step => !ALLOWED_STEPS.includes(step));
     if (invalidSteps.length > 0) {
         const error = new Error(
@@ -219,6 +274,28 @@ function validatePipelineConfig(config) {
     const uniqueSteps = new Set(steps);
     if (uniqueSteps.size !== steps.length) {
         const error = new Error('Duplicate steps are not allowed');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    // Validate execution order: deploy must not come before build
+    const buildIndex = steps.indexOf('build');
+    const deployIndex = steps.indexOf('deploy');
+    if (deployIndex !== -1 && buildIndex === -1) {
+        const error = new Error('Pipeline with a "deploy" step must also include a "build" step');
+        error.statusCode = 400;
+        throw error;
+    }
+    if (deployIndex !== -1 && buildIndex !== -1 && deployIndex < buildIndex) {
+        const error = new Error('"deploy" step cannot come before "build" step');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    // Validate execution order: test should not come before build (if both present)
+    const testIndex = steps.indexOf('test');
+    if (testIndex !== -1 && buildIndex !== -1 && testIndex < buildIndex) {
+        const error = new Error('"test" step cannot come before "build" step');
         error.statusCode = 400;
         throw error;
     }
@@ -243,8 +320,18 @@ async function createPipeline({ userId, repoId, yamlString, name }) {
     // 3. Validate structure
     validatePipelineConfig(config);
 
-    // 4. Determine pipeline name
-    const pipelineName = name || config.name || `${repo.repoName}-pipeline`;
+    // 4. Determine and sanitize pipeline name (T5)
+    const pipelineName = (name || config.name || `${repo.repoName}-pipeline`)
+        .trim()
+        .replace(/[<>"'&\x00-\x1F\x7F]/g, '')
+        .trim()
+        .slice(0, 128);
+
+    if (!pipelineName) {
+        const error = new Error('Pipeline name cannot be empty after sanitization');
+        error.statusCode = 400;
+        throw error;
+    }
 
     // 5. Check for existing pipeline with same name for this repo
     const existing = await Pipeline.findOne({ userId, repoId, name: pipelineName }).lean();
@@ -325,6 +412,27 @@ async function executePipeline(pipelineId, options = {}) {
         throw error;
     }
 
+    // T1: Recover stale runs that have been active for too long (server crash, etc.)
+    await PipelineRun.updateMany(
+        {
+            pipelineId: pipeline._id,
+            status: { $in: ['pending', 'running'] },
+            startedAt: { $lt: new Date(Date.now() - MAX_PIPELINE_DURATION_MS) }
+        },
+        { $set: { status: 'failed', error: 'Pipeline execution timed out (stale run recovered)', completedAt: new Date() } }
+    );
+
+    // T1: Pre-check for user-friendly error message
+    const activeRun = await PipelineRun.findOne({
+        pipelineId: pipeline._id,
+        status: { $in: ['pending', 'running'] }
+    }).lean();
+    if (activeRun) {
+        const error = new Error('Pipeline already has an active execution.');
+        error.statusCode = 409;
+        throw error;
+    }
+
     const { triggerSource = 'manual', commitHash = null, branch = null, commitMessage = null, author = null } = options;
     const stepsConfig = pipeline.config?.steps || [];
     
@@ -337,19 +445,32 @@ async function executePipeline(pipelineId, options = {}) {
     }));
 
     // Create PipelineRun document
-    const run = await PipelineRun.create({
-        pipelineId: pipeline._id,
-        repositoryId: pipeline.repoId,
-        userId: pipeline.userId,
-        commitHash,
-        commitMessage,
-        author,
-        branch,
-        triggerSource,
-        status: 'running',
-        startedAt: new Date(),
-        steps: runSteps
-    });
+    // The unique partial index on (pipelineId) where status in [pending, running]
+    // acts as the true guard against TOCTOU race conditions.
+    let run;
+    try {
+        run = await PipelineRun.create({
+            pipelineId: pipeline._id,
+            repositoryId: pipeline.repoId,
+            userId: pipeline.userId,
+            commitHash,
+            commitMessage,
+            author,
+            branch,
+            triggerSource,
+            status: 'running',
+            startedAt: new Date(),
+            steps: runSteps
+        });
+    } catch (err) {
+        // MongoDB duplicate key error from the unique partial index
+        if (err.code === 11000) {
+            const error = new Error('Pipeline already has an active execution.');
+            error.statusCode = 409;
+            throw error;
+        }
+        throw err;
+    }
 
     const logPath = await initLogFile(run._id.toString());
     run.logPath = logPath;
@@ -391,7 +512,9 @@ async function _runPipelineStepsInBackground(pipeline, run, stepsConfig, logPath
             } else if (stepName === 'test') {
                 await runTestStep(pipeline.repoId, logPath, memoryLogBuffer);
             } else if (stepName === 'deploy') {
-                const deploy = await runDeployStep(pipeline.repoId);
+                // Deploy the exact build produced by THIS pipeline run,
+                // not the "latest successful build" — prevents cross-pipeline artifact deployment.
+                const deploy = await runDeployStep(run.buildId);
                 run.deploymentId = deploy._id;
             }
 
