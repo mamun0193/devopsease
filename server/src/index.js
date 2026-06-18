@@ -87,13 +87,45 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(readinessMiddleware);
 
+// ─── Primary API routes (canonical /api/ prefix) ─────────────────────────────
+app.use("/api/auth", authRoutes);
+app.use("/api/containers", containersRoutes);
+app.use("/api/containers", failureAnalysisRoutes);
+app.use("/api/containers", containerHealthRoutes);
+app.use("/api/containers", analysisRoutes);
+app.use("/api/health", healthRoutes);
+app.use("/api/metrics", metricsRoutes);
+app.use("/api/alerts", alertRoutes);
+app.use("/api/actions", actionsRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/builds", buildRoutes);
+app.use("/api/images", imageRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/networks", networkRoutes);
+app.use("/api/volumes", volumeRoutes);
+app.use("/api/dockerhub", dockerHubRoutes);
+app.use("/api/tunnels", tunnelRoutes);
+app.use("/api/quota", quotaRoutes);
+app.use("/api/system", systemRoutes);
+app.use("/api/repos", repositoryRoutes);
+app.use("/api/git", gitRoutes);
+app.use("/api/deployments", deploymentRoutes);
+app.use("/api/clusters", clusterRoutes);
+app.use("/api/k8s", k8sRoutes);
+app.use("/api/pipelines", pipelineRoutes);
+app.use("/api/pipeline-runs", pipelineRunRoutes);
+app.use("/api/secrets", secretRoutes);
+
+// ─── Backward-compat aliases (old bare paths → same routers) ─────────────────
+// These keep existing frontend and CLI working without changes.
+// TODO: Migrate frontend to /api/... and remove these aliases.
 app.use("/auth", authRoutes);
-app.use(analysisRoutes);
-app.use("/health", healthRoutes);
-app.use("/metrics", metricsRoutes);
 app.use("/containers", containersRoutes);
 app.use("/containers", failureAnalysisRoutes);
 app.use("/containers", containerHealthRoutes);
+app.use(analysisRoutes);
+app.use("/health", healthRoutes);
+app.use("/metrics", metricsRoutes);
 app.use("/alerts", alertRoutes);
 app.use("/actions", actionsRoutes);
 app.use("/admin", adminRoutes);
@@ -106,14 +138,6 @@ app.use("/dockerhub", dockerHubRoutes);
 app.use("/tunnels", tunnelRoutes);
 app.use("/quota", quotaRoutes);
 app.use("/system", systemRoutes);
-app.use("/api/repos", repositoryRoutes);
-app.use("/api/git", gitRoutes);
-app.use("/api/deployments", deploymentRoutes);
-app.use("/api/clusters", clusterRoutes);
-app.use("/api/k8s", k8sRoutes);
-app.use("/api/pipelines", pipelineRoutes);
-app.use("/api/pipeline-runs", pipelineRunRoutes);
-app.use("/api/secrets", secretRoutes);
 
 app.use(errorHandler);
 
