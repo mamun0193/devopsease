@@ -103,6 +103,38 @@ export const deletePipeline = async (req, res, next) => {
     }
 };
 
+export const togglePipelineStatus = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!status || !['active', 'inactive'].includes(status)) {
+            return res.status(400).json({ message: 'status must be "active" or "inactive"' });
+        }
+
+        const pipeline = await pipelineService.getPipelineById(id, userId);
+        if (!pipeline) {
+            return res.status(404).json({ message: 'Pipeline not found' });
+        }
+
+        pipeline.status = status;
+        await pipeline.save();
+
+        res.json({
+            id: pipeline._id,
+            name: pipeline.name,
+            status: pipeline.status,
+            message: `Pipeline ${status === 'active' ? 'resumed' : 'paused'} successfully`
+        });
+    } catch (error) {
+        if (error.statusCode) {
+            return res.status(error.statusCode).json({ message: error.message });
+        }
+        next(error);
+    }
+};
+
 export const runPipeline = async (req, res, next) => {
     try {
         const userId = req.user._id;

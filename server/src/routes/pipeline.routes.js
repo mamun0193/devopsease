@@ -6,6 +6,7 @@ import {
     listPipelines,
     getPipeline,
     deletePipeline,
+    togglePipelineStatus,
     runPipeline,
     getPipelineStatus,
     listPipelineRuns,
@@ -17,6 +18,7 @@ const router = Router();
 router.post('/', authMiddleware, rateLimiter('create'), createPipeline);
 router.get('/', authMiddleware, listPipelines);
 router.post('/:id/run', authMiddleware, rateLimiter('exec'), runPipeline);
+router.patch('/:id/status', authMiddleware, togglePipelineStatus);
 router.get('/:id/status', authMiddleware, getPipelineStatus);
 router.get('/:id/runs', authMiddleware, listPipelineRuns);
 router.get('/:id/metrics', authMiddleware, getPipelineMetrics);

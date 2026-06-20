@@ -902,6 +902,10 @@ export const pipelineApi = {
     await api.delete(`/api/pipelines/${id}`);
   },
 
+  toggle: async (id: string, status: 'active' | 'inactive'): Promise<void> => {
+    await api.patch(`/api/pipelines/${id}/status`, { status });
+  },
+
   run: async (id: string, body?: { triggerSource?: string; commitHash?: string; branch?: string }): Promise<RunPipelineResponse> => {
     const response = await api.post<RunPipelineResponse>(`/api/pipelines/${id}/run`, body || {});
     return response.data;

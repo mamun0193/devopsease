@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactDOM from 'react-dom';
 import {
     GitMerge,
     Plus,
@@ -16,6 +17,8 @@ import {
     Eye,
     Trash2,
     Filter,
+    PauseCircle,
+    PlayCircle,
 } from 'lucide-react';
 import Header from '../components/Header';
 import type { FilterItem } from '../components/Header';
@@ -23,7 +26,7 @@ import ResourceNav from '../components/ResourceNav';
 import RefreshButton from '../components/RefreshButton';
 import ConfirmModal from '../components/ConfirmModal';
 import CreatePipelineModal from '../components/CreatePipelineModal';
-import { usePipelines, useRunPipeline, useDeletePipeline } from '../hooks/usePipelines';
+import { usePipelines, useRunPipeline, useDeletePipeline, useTogglePipeline } from '../hooks/usePipelines';
 import { useAppDispatch } from '../store/hooks';
 import { addToast } from '../store/toastSlice';
 import type { Pipeline, PipelineRepo } from '../api';
@@ -78,74 +81,112 @@ function StatusBadge({ status }: { status: string }) {
     );
 }
 
-//  Action Menu 
+//  Action Menu (renders via portal to escape overflow-hidden)
 
 function ActionMenu({
     onView,
     onRun,
     onDelete,
+    onToggle,
     isRunning,
+    isActive,
 }: {
     onView: () => void;
     onRun: () => void;
     onDelete: () => void;
+    onToggle: () => void;
     isRunning: boolean;
+    isActive: boolean;
 }) {
     const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos] = useState({ top: 0, left: 0 });
+
+    // Calculate position when opening
+    const handleOpen = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (btnRef.current) {
+            const rect = btnRef.current.getBoundingClientRect();
+            setPos({
+                top: rect.bottom + 4,
+                left: rect.right - 176, // w-44 = 176px, align right edge
+            });
+        }
+        setOpen(prev => !prev);
+    }, []);
 
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) {
+            if (
+                btnRef.current && !btnRef.current.contains(e.target as Node) &&
+                menuRef.current && !menuRef.current.contains(e.target as Node)
+            ) {
                 setOpen(false);
             }
         };
-        if (open) document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        const handleScroll = () => setOpen(false);
+        if (open) {
+            document.addEventListener('mousedown', handleClickOutside);
+            window.addEventListener('scroll', handleScroll, true);
+        }
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            window.removeEventListener('scroll', handleScroll, true);
+        };
     }, [open]);
 
     return (
-        <div className="relative" ref={ref}>
+        <>
             <button
-                onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
+                ref={btnRef}
+                onClick={handleOpen}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
             >
                 <MoreVertical size={16} />
             </button>
-            <AnimatePresence>
-                {open && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                        transition={{ duration: 0.1 }}
-                        className="absolute right-0 top-full mt-1 w-40 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden"
+            {open && ReactDOM.createPortal(
+                <motion.div
+                    ref={menuRef}
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    transition={{ duration: 0.1 }}
+                    style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
+                    className="w-44 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl shadow-black/50 overflow-hidden"
+                >
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setOpen(false); onView(); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors"
                     >
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setOpen(false); onView(); }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors"
-                        >
-                            <Eye size={14} /> View
-                        </button>
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setOpen(false); onRun(); }}
-                            disabled={isRunning}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                            {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-                            Run
-                        </button>
-                        <div className="border-t border-slate-700" />
-                        <button
-                            onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
-                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
-                        >
-                            <Trash2 size={14} /> Delete
-                        </button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+                        <Eye size={14} /> View
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setOpen(false); onRun(); }}
+                        disabled={isRunning || !isActive}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                        Run
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setOpen(false); onToggle(); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors"
+                    >
+                        {isActive ? <PauseCircle size={14} className="text-amber-400" /> : <PlayCircle size={14} className="text-emerald-400" />}
+                        {isActive ? 'Pause' : 'Resume'}
+                    </button>
+                    <div className="border-t border-slate-700" />
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                    >
+                        <Trash2 size={14} /> Delete
+                    </button>
+                </motion.div>,
+                document.body
+            )}
+        </>
     );
 }
 
@@ -177,6 +218,7 @@ const PipelinesPage: React.FC = () => {
     const { data: pipelines = [], isLoading, isFetching, refetch, error } = usePipelines();
     const runPipeline = useRunPipeline();
     const deletePipeline = useDeletePipeline();
+    const togglePipeline = useTogglePipeline();
 
     const [search, setSearch] = useState('');
     const [repoFilter, setRepoFilter] = useState<string>('all');
@@ -232,6 +274,24 @@ const PipelinesPage: React.FC = () => {
         } catch (err: any) {
             dispatch(addToast({
                 message: err?.response?.data?.message ?? 'Failed to delete pipeline',
+                type: 'error',
+                duration: 5000,
+            }));
+        }
+    };
+
+    const handleToggle = async (pipeline: Pipeline) => {
+        const newStatus = pipeline.status === 'active' ? 'inactive' : 'active';
+        try {
+            await togglePipeline.mutateAsync({ id: pipeline.id, status: newStatus });
+            dispatch(addToast({
+                message: `Pipeline "${pipeline.name}" ${newStatus === 'active' ? 'resumed' : 'paused'}`,
+                type: 'success',
+                duration: 3500,
+            }));
+        } catch (err: any) {
+            dispatch(addToast({
+                message: err?.response?.data?.message ?? 'Failed to update pipeline',
                 type: 'error',
                 duration: 5000,
             }));
@@ -435,7 +495,9 @@ const PipelinesPage: React.FC = () => {
                                             onView={() => navigate(`/pipelines/${pipeline.id}`)}
                                             onRun={() => setRunConfirm({ open: true, pipeline })}
                                             onDelete={() => setDeleteConfirm({ open: true, pipeline })}
+                                            onToggle={() => handleToggle(pipeline)}
                                             isRunning={runPipeline.isPending}
+                                            isActive={pipeline.status === 'active'}
                                         />
                                     </div>
                                 ))}

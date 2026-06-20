@@ -90,3 +90,15 @@ export function useDeletePipeline() {
         },
     });
 }
+
+// Toggle pipeline status (pause/resume) 
+export function useTogglePipeline() {
+    const queryClient = useQueryClient();
+    return useMutation<void, Error, { id: string; status: 'active' | 'inactive' }>({
+        mutationFn: ({ id, status }) => pipelineApi.toggle(id, status),
+        onSuccess: (_data, { id }) => {
+            queryClient.invalidateQueries({ queryKey: ['pipelines'] });
+            queryClient.invalidateQueries({ queryKey: ['pipeline', id] });
+        },
+    });
+}
