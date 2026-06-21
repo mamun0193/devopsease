@@ -1,10 +1,10 @@
 import { mkdirSync, existsSync, rmSync } from 'fs';
 import path from 'path';
-
-const BASE_WORKSPACE = path.join(process.cwd(), 'workspace');
+import { storageService } from '../storage/storage.service.js';
 
 export function getWorkspacePath(userId, repoId) {
-    return path.join(BASE_WORKSPACE, userId.toString(), repoId.toString());
+    const key = storageService.keys.workspace(`${userId}/${repoId}`);
+    return storageService.getAbsolutePath(key);
 }
 
 export function ensureDirectoryExists(dirPath) {
@@ -12,7 +12,9 @@ export function ensureDirectoryExists(dirPath) {
 }
 
 export function validateSafePath(targetPath) {
-    const resolvedBase = path.resolve(BASE_WORKSPACE);
+    // Only valid if using a local provider that returns absolute paths
+    const baseKey = storageService.keys.workspace('');
+    const resolvedBase = path.resolve(storageService.getAbsolutePath(baseKey));
     const resolvedTarget = path.resolve(targetPath);
 
     if (!resolvedTarget.startsWith(resolvedBase)) {
@@ -31,5 +33,3 @@ export function cleanWorkspace(dirPath) {
 export function isClonedRepo(dirPath) {
     return existsSync(path.join(dirPath, '.git'));
 }
-
-export { BASE_WORKSPACE };

@@ -499,7 +499,7 @@ async function executePipeline(pipelineId, options = {}) {
     }
 
     const logPath = await initLogFile(run._id.toString());
-    run.logPath = logPath;
+    run.storage = logPath;
     await run.save();
 
     pipeline.executionStatus = 'running';

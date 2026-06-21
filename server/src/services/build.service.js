@@ -145,7 +145,7 @@ export async function runBuildPipeline(repo, payload = {}) {
 
         // Initialize filesystem log
         logPath = await initLogFile(build._id.toString());
-        build.logPath = logPath;
+        build.storage = logPath;
         await build.save();
 
         const pushLine = (line) => {
@@ -382,7 +382,7 @@ class BuildService {
 
             // Initialize filesystem log
             logPath = await initLogFile(build._id.toString());
-            build.logPath = logPath;
+            build.storage = logPath;
             await build.save();
 
             // Helper to push logs to both memory buffer and filesystem

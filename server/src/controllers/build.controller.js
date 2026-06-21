@@ -72,7 +72,7 @@ export const streamBuildLogs = async (req, res, next) => {
         const { id } = req.params;
 
         const build = await Build.findOne({ _id: id, userId })
-            .select('logPath logSummary logs')
+            .select('storage logSummary logs')
             .lean();
 
         if (!build) {
@@ -80,8 +80,8 @@ export const streamBuildLogs = async (req, res, next) => {
         }
 
         // Prefer filesystem logs (new builds)
-        if (build.logPath) {
-            const stream = createLogReadStream(build.logPath);
+        if (build.storage) {
+            const stream = createLogReadStream(build.storage);
             if (stream) {
                 res.setHeader('Content-Type', 'text/plain; charset=utf-8');
                 res.setHeader('Cache-Control', 'no-cache');

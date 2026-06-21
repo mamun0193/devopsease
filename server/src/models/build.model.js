@@ -30,9 +30,9 @@ const buildSchema = new mongoose.Schema({
         type: [String],
         default: []
     },
-    logPath: {
-        type: String,
-        default: null
+    storage: {
+        driver: { type: String, enum: ['local', 's3'], default: 'local' },
+        key: { type: String, default: null }
     },
     logSize: {
         type: Number,

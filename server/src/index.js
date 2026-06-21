@@ -40,6 +40,7 @@ import actionHistoryService from "./services/actionHistory.service.js";
 import docker from "./docker/client.js";
 import { initializeWebSocketServer } from "./websocket/ws.js";
 import { connectDB } from "./config/db.js";
+import { storageService } from "./storage/storage.service.js";
 import "./config/passport.js";
 import passport from "passport";
 import { validateEnv } from "./config/envValidator.js";
@@ -143,6 +144,9 @@ app.use(errorHandler);
 
 async function startServer() {
   try {
+    // 3. Initialize Storage Provider (Fail Fast)
+    await storageService.init();
+
     // Connect services
     await connectDB();
     logger.info("MongoDB connected");

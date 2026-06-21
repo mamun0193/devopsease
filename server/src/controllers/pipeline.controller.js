@@ -234,15 +234,15 @@ export const streamPipelineLogs = async (req, res, next) => {
         const { id } = req.params; // this is the run ID
 
         const run = await PipelineRun.findOne({ _id: id, userId })
-            .select('logPath logSummary')
+            .select('storage logSummary')
             .lean();
 
         if (!run) {
             return res.status(404).json({ message: 'Pipeline run not found' });
         }
 
-        if (run.logPath) {
-            const stream = createLogReadStream(run.logPath);
+        if (run.storage) {
+            const stream = createLogReadStream(run.storage);
             if (stream) {
                 res.setHeader('Content-Type', 'text/plain; charset=utf-8');
                 res.setHeader('Cache-Control', 'no-cache');
