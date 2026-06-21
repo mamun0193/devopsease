@@ -3,6 +3,8 @@ import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { pack } from 'tar-fs';
 import docker from '../docker/client.js';
+import crypto from 'crypto';
+
 import Build from '../models/build.model.js';
 import Repository from '../models/repository.model.js';
 import Image from '../models/image.js';
@@ -40,7 +42,8 @@ function sanitizeRepoName(repoName = 'repo') {
 }
 
 function buildImageTag(repoName) {
-    return `${sanitizeRepoName(repoName)}:${Date.now()}`;
+    const shortId = crypto.randomBytes(3).toString('hex');
+    return `${sanitizeRepoName(repoName)}:${shortId}`;
 }
 
 function pushBuildLog(logs, line) {
@@ -92,17 +95,40 @@ async function ensureGeneratedDockerfile(projectType, workspacePath) {
             }
         } catch (err) {}
 
-        const content = [
-            'FROM node:20-alpine',
-            'WORKDIR /app',
-            'COPY package*.json ./',
-            // Install all dependencies (including devDependencies) so the build step succeeds
-            'RUN npm install',
-            'COPY . .',
-            hasBuildScript ? 'RUN npm run build' : '',
-            'EXPOSE 3000',
-            'CMD ["npm", "start"]'
-        ].filter(Boolean).join('\n');
+        let content = '';
+
+        if (hasBuildScript) {
+            content = [
+                'FROM node:20-alpine AS builder',
+                'WORKDIR /app',
+                'COPY package*.json ./',
+                'RUN npm install',
+                'COPY . .',
+                'RUN npm run build',
+                'RUN npm prune --production && npm cache clean --force',
+                '',
+                'FROM node:20-alpine',
+                'WORKDIR /app',
+                'COPY --from=builder /app ./',
+                'EXPOSE 3000',
+                'CMD ["npm", "start"]'
+            ].join('\n');
+        } else {
+            content = [
+                'FROM node:20-alpine AS builder',
+                'WORKDIR /app',
+                'COPY package*.json ./',
+                'RUN npm install',
+                'COPY . .',
+                'RUN npm prune --production && npm cache clean --force',
+                '',
+                'FROM node:20-alpine',
+                'WORKDIR /app',
+                'COPY --from=builder /app ./',
+                'EXPOSE 3000',
+                'CMD ["npm", "start"]'
+            ].join('\n');
+        }
 
         await writeFile(dockerfilePath, `${content}\n`, 'utf8');
         return;
