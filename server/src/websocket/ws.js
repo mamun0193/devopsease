@@ -5,6 +5,7 @@ import logger from "../utils/logger.js";
 import { handleExecSession } from "./execHandler.js";
 import execSessionRegistry from "./execSessionRegistry.js";
 import { subscribeToBuild } from "./build.socket.js";
+import pipelineBroadcaster from "./pipelineBroadcaster.js";
 import { subscribeToMetrics, stopAllStreams } from "./metricsStreamer.js";
 import alertBroadcaster from "./alertBroadcaster.js";
 import eventBroadcaster from "./eventBroadcaster.js";
@@ -136,6 +137,35 @@ export function initializeWebSocketServer(server) {
 
             request._user = user;
             request._buildPath = true;
+
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                if (lifecycle.isShuttingDown) {
+                    ws.close(1001, "Server shutting down");
+                    return;
+                }
+                wss.emit("connection", ws, request);
+            });
+        } else if (pathname.startsWith("/ws/pipeline/")) {
+            const cookieHeader = request.headers.cookie;
+            const token = cookieHeader && cookieHeader.split(';').find(c => c.trim().startsWith('access_token='))?.split('=')[1];
+
+            if (!token) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            let user;
+            try {
+                user = jwt.verify(token, process.env.JWT_SECRET);
+            } catch (err) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            request._user = user;
+            request._pipelinePath = true;
 
             wss.handleUpgrade(request, socket, head, (ws) => {
                 if (lifecycle.isShuttingDown) {
@@ -435,6 +465,16 @@ export function initializeWebSocketServer(server) {
             const userId = request._user?._id || request._user?.userId || "unknown";
             logger.info("WebSocket build log subscription", { buildId, userId });
             subscribeToBuild(buildId, ws);
+            return;
+        }
+
+        // Handle pipeline log subscriptions
+        const pipelineMatch = pathname.match(/^\/ws\/pipeline\/(.+)$/);
+        if (pipelineMatch && request._pipelinePath) {
+            const runId = pipelineMatch[1];
+            const userId = request._user?._id || request._user?.userId || "unknown";
+            logger.info("WebSocket pipeline log subscription", { runId, userId });
+            pipelineBroadcaster.subscribeToPipeline(runId, ws);
             return;
         }
 

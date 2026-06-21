@@ -1,5 +1,6 @@
 import pipelineService from '../services/pipeline.service.js';
 import PipelineRun from '../models/pipelineRun.model.js';
+import Pipeline from '../models/pipeline.model.js';
 import { createLogReadStream } from '../services/pipelineLog.service.js';
 import logger from '../utils/logger.js';
 
@@ -53,7 +54,13 @@ export const listPipelines = async (req, res, next) => {
                 status: p.status,
                 repo: p.repoId,
                 createdAt: p.createdAt,
-                updatedAt: p.updatedAt
+                updatedAt: p.updatedAt,
+                lastRun: p.lastRun ? {
+                    id: p.lastRun._id,
+                    status: p.lastRun.status,
+                    startedAt: p.lastRun.startedAt,
+                    completedAt: p.lastRun.completedAt
+                } : null
             }))
         });
     } catch (error) {
@@ -113,13 +120,15 @@ export const togglePipelineStatus = async (req, res, next) => {
             return res.status(400).json({ message: 'status must be "active" or "inactive"' });
         }
 
-        const pipeline = await pipelineService.getPipelineById(id, userId);
+        const pipeline = await Pipeline.findOneAndUpdate(
+            { _id: id, userId },
+            { status },
+            { new: true }
+        );
+
         if (!pipeline) {
             return res.status(404).json({ message: 'Pipeline not found' });
         }
-
-        pipeline.status = status;
-        await pipeline.save();
 
         res.json({
             id: pipeline._id,

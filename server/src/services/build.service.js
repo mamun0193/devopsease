@@ -61,18 +61,48 @@ function pushBuildLog(logs, line) {
 
 async function ensureGeneratedDockerfile(projectType, workspacePath) {
     const dockerfilePath = join(workspacePath, 'Dockerfile');
+    const dockerignorePath = join(workspacePath, '.dockerignore');
+
+    if (!existsSync(dockerignorePath)) {
+        const ignoreContent = [
+            'node_modules',
+            'npm-debug.log',
+            '.git',
+            '.env',
+            'workspace',
+            'storage',
+            'dist',
+            'build'
+        ].join('\n');
+        await writeFile(dockerignorePath, `${ignoreContent}\n`, 'utf8');
+    }
+
     if (existsSync(dockerfilePath)) return;
 
     if (projectType === PROJECT_TYPES.NODE) {
+        let hasBuildScript = false;
+        try {
+            const pkgPath = join(workspacePath, 'package.json');
+            if (existsSync(pkgPath)) {
+                const fsPromises = await import('fs/promises');
+                const pkg = JSON.parse(await fsPromises.readFile(pkgPath, 'utf8'));
+                if (pkg.scripts && pkg.scripts.build) {
+                    hasBuildScript = true;
+                }
+            }
+        } catch (err) {}
+
         const content = [
             'FROM node:20-alpine',
             'WORKDIR /app',
             'COPY package*.json ./',
-            'RUN npm ci --omit=dev || npm install --omit=dev',
+            // Install all dependencies (including devDependencies) so the build step succeeds
+            'RUN npm install',
             'COPY . .',
+            hasBuildScript ? 'RUN npm run build' : '',
             'EXPOSE 3000',
             'CMD ["npm", "start"]'
-        ].join('\n');
+        ].filter(Boolean).join('\n');
 
         await writeFile(dockerfilePath, `${content}\n`, 'utf8');
         return;
@@ -120,7 +150,8 @@ export async function runBuildPipeline(repo, payload = {}) {
 
         const pushLine = (line) => {
             pushBuildLog(logLines, line);
-            appendLogLine(logPath, line);
+            if (logPath) appendLogLine(logPath, line);
+            if (payload?.onLog) payload.onLog(line);
         };
 
         pushLine(`[pipeline] starting build for ${repo.repoName}`);
@@ -161,6 +192,48 @@ export async function runBuildPipeline(repo, payload = {}) {
         closeAppendStream(logPath);
         const fileSizeBytes = await getLogSize(logPath);
 
+        let dockerImageId = null;
+        let imageSizeBytes = 0;
+        let layerCount = 0;
+        let sizeMB = 0;
+
+        try {
+            const imageInspect = await docker.getImage(imageTag).inspect();
+            imageSizeBytes = imageInspect.Size || 0;
+            layerCount = imageInspect.RootFS?.Layers?.length || 0;
+            dockerImageId = imageInspect.Id;
+            sizeMB = Math.round((imageSizeBytes / (1024 * 1024)) * 100) / 100;
+
+            // Create Image record
+            const image = await Image.create({
+                userId: repo.userId,
+                tag: imageTag,
+                dockerImageId,
+                sizeMB,
+                layerCount,
+                buildId: build._id
+            });
+
+            // Update User storage
+            await User.findByIdAndUpdate(repo.userId, {
+                $inc: { storageUsedMB: sizeMB }
+            });
+
+            // Register as Resources
+            await resourceService.registerResource({
+                resourceId: image._id.toString(),
+                type: RESOURCE_TYPES.IMAGE,
+                ownerId: repo.userId,
+                metadata: { tag: imageTag, sizeMB, dockerImageId },
+                quotaImpact: { storageMB: sizeMB }
+            });
+        } catch (inspectError) {
+            logger.error('Failed to register image after pipeline build', {
+                buildId: String(build._id),
+                error: inspectError.message
+            });
+        }
+
         build.status = 'success';
         build.finishedAt = new Date();
         build.completedAt = build.finishedAt;
@@ -168,7 +241,19 @@ export async function runBuildPipeline(repo, payload = {}) {
         build.logSize = fileSizeBytes;
         build.lastLogAt = new Date();
         build.error = null;
+        if (dockerImageId) {
+            build.dockerImageId = dockerImageId;
+            build.imageSizeBytes = imageSizeBytes;
+            build.layerCount = layerCount;
+        }
         await build.save();
+
+        await resourceService.registerResource({
+            resourceId: build._id.toString(),
+            type: RESOURCE_TYPES.BUILD,
+            ownerId: repo.userId,
+            metadata: { tag: imageTag, status: 'success' }
+        }).catch(() => null);
 
         await Repository.findByIdAndUpdate(repo._id, { lastBuildId: build._id }).catch(() => null);
 

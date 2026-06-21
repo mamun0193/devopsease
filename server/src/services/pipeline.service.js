@@ -12,6 +12,7 @@ import { initLogFile, appendLogLine, closeAppendStream, getLogSize } from './pip
 import { detectProjectType, PROJECT_TYPES } from './projectDetector.service.js';
 import { getWorkspacePath, validateSafePath } from '../utils/workspace.js';
 import logger from '../utils/logger.js';
+import pipelineBroadcaster from '../websocket/pipelineBroadcaster.js';
 
 const SUCCESS_BUILD_STATUSES = ['success'];
 const MAX_EXECUTION_LOGS = 500;
@@ -21,7 +22,7 @@ const MAX_YAML_SIZE = 10000; // 10KB max pipeline YAML size
 const MAX_PIPELINE_DURATION_MS = 30 * 60 * 1000; // 30 minutes — stale run threshold
 
 // Helper to push logs to both in-memory summary and filesystem log
-function pushPipelineLog(memoryBuffer, logPath, message) {
+function pushPipelineLog(memoryBuffer, logPath, message, runId = null) {
     const timestampedMsg = `[${new Date().toISOString()}] ${message}`;
     memoryBuffer.push(timestampedMsg);
     if (memoryBuffer.length > MAX_EXECUTION_LOGS) {
@@ -30,19 +31,28 @@ function pushPipelineLog(memoryBuffer, logPath, message) {
     if (logPath) {
         appendLogLine(logPath, timestampedMsg);
     }
+    if (runId) {
+        pipelineBroadcaster.broadcastLog(runId, timestampedMsg);
+    }
 }
 
 // Run build step: clone repository and execute build pipeline.
 // skipAutoDeploy prevents the build service from auto-deploying,
 // since the pipeline manages its own deploy step.
-async function runBuildStep(repoId) {
+async function runBuildStep(repoId, logPath, memoryBuffer, runId) {
     const repo = await Repository.findById(repoId).lean();
     if (!repo) {
         throw Object.assign(new Error('Repository not found for build step'), { statusCode: 404 });
     }
 
+    pushPipelineLog(memoryBuffer, logPath, `[step:build] cloning repository...`, runId);
     await cloneRepository(repo);
-    const build = await runBuildPipeline(repo, { skipAutoDeploy: true });
+    pushPipelineLog(memoryBuffer, logPath, `[step:build] repository cloned. Starting build process...`, runId);
+    
+    const build = await runBuildPipeline(repo, { 
+        skipAutoDeploy: true,
+        onLog: (line) => pushPipelineLog(memoryBuffer, logPath, line, runId)
+    });
 
     if (!build || !SUCCESS_BUILD_STATUSES.includes(build.status)) {
         throw new Error(`Build step failed${build?.error ? ': ' + build.error : ''}`);
@@ -52,7 +62,7 @@ async function runBuildStep(repoId) {
 }
 
 // Run test step with real execution
-async function runTestStep(repoId, logPath, memoryBuffer) {
+async function runTestStep(repoId, logPath, memoryBuffer, runId) {
     const repo = await Repository.findById(repoId).lean();
     if (!repo) {
         throw Object.assign(new Error('Repository not found for test step'), { statusCode: 404 });
@@ -112,7 +122,7 @@ async function runTestStep(repoId, logPath, memoryBuffer) {
         const handleData = (data) => {
             outputSize += data.length;
             if (outputSize > MAX_TEST_OUTPUT_BYTES) {
-                pushPipelineLog(memoryBuffer, logPath, `[test] ERROR: Test output exceeded maximum size of 10MB`);
+                pushPipelineLog(memoryBuffer, logPath, `[test] ERROR: Test output exceeded maximum size of 10MB`, runId);
                 testProcess.kill('SIGKILL');
                 return;
             }
@@ -120,7 +130,7 @@ async function runTestStep(repoId, logPath, memoryBuffer) {
             // Split into lines to prevent massive single-line blocks
             const lines = data.toString('utf8').split('\n');
             for (const line of lines) {
-                if (line.trim()) pushPipelineLog(memoryBuffer, logPath, `[test output] ${line}`);
+                if (line.trim()) pushPipelineLog(memoryBuffer, logPath, `[test output] ${line}`, runId);
             }
         };
 
@@ -128,7 +138,7 @@ async function runTestStep(repoId, logPath, memoryBuffer) {
         testProcess.stderr.on('data', handleData);
 
         timeoutHandle = setTimeout(() => {
-            pushPipelineLog(memoryBuffer, logPath, `[test] ERROR: Test step exceeded 5 minute timeout`);
+            pushPipelineLog(memoryBuffer, logPath, `[test] ERROR: Test step exceeded 5 minute timeout`, runId);
             testProcess.kill('SIGKILL');
             reject(new Error('Test step timeout'));
         }, TEST_TIMEOUT_MS);
@@ -141,7 +151,7 @@ async function runTestStep(repoId, logPath, memoryBuffer) {
         testProcess.on('close', (code) => {
             cleanup();
             if (code === 0) {
-                pushPipelineLog(memoryBuffer, logPath, `[test] completed successfully`);
+                pushPipelineLog(memoryBuffer, logPath, `[test] completed successfully`, runId);
                 resolve({ passed: true, exitCode: code });
             } else if (code === null) {
                 reject(new Error('Test process was killed'));
@@ -154,7 +164,7 @@ async function runTestStep(repoId, logPath, memoryBuffer) {
 
 // Run deploy step using the build produced by this pipeline run.
 // Accepts an explicit buildId to ensure the correct artifact is deployed.
-async function runDeployStep(buildId) {
+async function runDeployStep(buildId, logPath, memoryBuffer, runId) {
     if (!buildId) {
         throw new Error('Deploy step requires a buildId from a preceding build step');
     }
@@ -168,7 +178,10 @@ async function runDeployStep(buildId) {
         throw new Error(`Build ${buildId} has status "${build.status}" — cannot deploy a non-successful build`);
     }
 
-    const deployment = await deployFromBuild(build);
+    pushPipelineLog(memoryBuffer, logPath, `[step:deploy] starting deployment for build ${buildId}...`, runId);
+    const deployment = await deployFromBuild(build, {
+        onLog: (line) => pushPipelineLog(memoryBuffer, logPath, line, runId)
+    });
     if (!deployment || deployment.status === 'failed') {
         throw new Error('Deploy step failed');
     }
@@ -372,12 +385,25 @@ async function createPipeline({ userId, repoId, yamlString, name }) {
     return pipeline;
 }
 
-// Get all pipelines for a user, newest first.
 async function getUserPipelines(userId) {
-    return Pipeline.find({ userId })
+    const pipelines = await Pipeline.find({ userId })
         .populate('repoId', 'repoName owner provider')
         .sort({ createdAt: -1 })
         .lean();
+
+    const pipelineIds = pipelines.map(p => p._id);
+    const latestRuns = await PipelineRun.aggregate([
+        { $match: { pipelineId: { $in: pipelineIds } } },
+        { $sort: { createdAt: -1 } },
+        { $group: { _id: "$pipelineId", latestRun: { $first: "$$ROOT" } } }
+    ]);
+    
+    const runMap = Object.fromEntries(latestRuns.map(r => [r._id.toString(), r.latestRun]));
+    
+    return pipelines.map(p => ({
+        ...p,
+        lastRun: runMap[p._id.toString()] || null
+    }));
 }
 
 // Get a single pipeline by ID, scoped to user.
@@ -493,94 +519,149 @@ async function executePipeline(pipelineId, options = {}) {
 async function _runPipelineStepsInBackground(pipeline, run, stepsConfig, logPath) {
     const memoryLogBuffer = [];
 
-    for (let i = 0; i < stepsConfig.length; i++) {
-        const stepName = stepsConfig[i];
-        const stepIndex = i;
+    try {
+        for (let i = 0; i < stepsConfig.length; i++) {
+            const stepName = stepsConfig[i];
+            const stepIndex = i;
+            
+            run.steps[stepIndex].status = 'running';
+            run.steps[stepIndex].startedAt = new Date();
+            await run.save();
+            pipelineBroadcaster.broadcastStatus(run);
+            
+            const stepStartTime = Date.now();
+
+            try {
+                pushPipelineLog(memoryLogBuffer, logPath, `[step:${stepName}] started`, run._id);
+
+                if (stepName === 'build') {
+                    const build = await runBuildStep(pipeline.repoId, logPath, memoryLogBuffer, run._id);
+                    run.buildId = build._id;
+
+                    // Fetch commit metadata if triggered manually
+                    if (run.triggerSource === 'manual') {
+                        const { getLatestCommit } = await import('./git.service.js');
+                        const repo = await Repository.findById(pipeline.repoId).lean();
+                        const commitInfo = await getLatestCommit(repo);
+                        if (commitInfo) {
+                            run.commitHash = commitInfo.commitHash;
+                            run.commitMessage = commitInfo.commitMessage;
+                            run.author = commitInfo.author;
+                        }
+                    }
+                } else if (stepName === 'test') {
+                    await runTestStep(pipeline.repoId, logPath, memoryLogBuffer, run._id);
+                } else if (stepName === 'deploy') {
+                    // Deploy the exact build produced by THIS pipeline run,
+                    // not the "latest successful build" — prevents cross-pipeline artifact deployment.
+                    const deploy = await runDeployStep(run.buildId, logPath, memoryLogBuffer, run._id);
+                    run.deploymentId = deploy._id;
+                }
+
+                pushPipelineLog(memoryLogBuffer, logPath, `[step:${stepName}] success`, run._id);
+                
+                run.steps[stepIndex].status = 'success';
+                run.steps[stepIndex].completedAt = new Date();
+                run.steps[stepIndex].duration = Date.now() - stepStartTime;
+                await run.save();
+                pipelineBroadcaster.broadcastStatus(run);
+                
+            } catch (stepError) {
+                pushPipelineLog(memoryLogBuffer, logPath, `[step:${stepName}] failed: ${stepError.message}`, run._id);
+                
+                run.steps[stepIndex].status = 'failed';
+                run.steps[stepIndex].completedAt = new Date();
+                run.steps[stepIndex].duration = Date.now() - stepStartTime;
+                
+                // Mark remaining steps as skipped
+                for (let j = i + 1; j < stepsConfig.length; j++) {
+                    run.steps[j].status = 'skipped';
+                }
+                
+                run.status = 'failed';
+                run.error = `Pipeline failed at step "${stepName}": ${stepError.message}`;
+                run.completedAt = new Date();
+                run.duration = Date.now() - run.startedAt.getTime();
+                
+                closeAppendStream(logPath);
+                run.logSize = await getLogSize(logPath);
+                run.logSummary = memoryLogBuffer.join('\n');
+                run.lastLogAt = new Date();
+                await run.save();
+                pipelineBroadcaster.broadcastStatus(run);
+
+                pipeline.executionStatus = 'failed';
+                pipeline.completedAt = run.completedAt;
+                await pipeline.save();
+
+                logger.error('Pipeline execution failed', {
+                    pipelineId: String(pipeline._id),
+                    runId: String(run._id),
+                    step: stepName,
+                    error: stepError.message
+                });
+
+                return;
+            }
+        }
+
+        run.status = 'success';
+        run.completedAt = new Date();
+        run.duration = Date.now() - run.startedAt.getTime();
         
-        run.steps[stepIndex].status = 'running';
-        run.steps[stepIndex].startedAt = new Date();
+        closeAppendStream(logPath);
+        run.logSize = await getLogSize(logPath);
+        run.logSummary = memoryLogBuffer.join('\n');
+        run.lastLogAt = new Date();
         await run.save();
-        
-        const stepStartTime = Date.now();
+        pipelineBroadcaster.broadcastStatus(run);
 
+        pipeline.executionStatus = 'success';
+        pipeline.completedAt = run.completedAt;
+        await pipeline.save();
+
+        logger.info('Pipeline execution completed', {
+            pipelineId: String(pipeline._id),
+            runId: String(run._id)
+        });
+    } catch (criticalError) {
+        // Catastrophic failure (e.g. run.save() threw an unhandled exception)
+        pushPipelineLog(memoryLogBuffer, logPath, `[pipeline] CRITICAL ERROR: ${criticalError.message}`, run._id);
+        logger.error('Pipeline background execution catastrophic failure', {
+            pipelineId: String(pipeline._id),
+            runId: String(run._id),
+            error: criticalError.message,
+            stack: criticalError.stack
+        });
+
+        // Forcefully update state to failed
         try {
-            pushPipelineLog(memoryLogBuffer, logPath, `[step:${stepName}] started`);
-
-            if (stepName === 'build') {
-                const build = await runBuildStep(pipeline.repoId);
-                run.buildId = build._id;
-            } else if (stepName === 'test') {
-                await runTestStep(pipeline.repoId, logPath, memoryLogBuffer);
-            } else if (stepName === 'deploy') {
-                // Deploy the exact build produced by THIS pipeline run,
-                // not the "latest successful build" — prevents cross-pipeline artifact deployment.
-                const deploy = await runDeployStep(run.buildId);
-                run.deploymentId = deploy._id;
-            }
-
-            pushPipelineLog(memoryLogBuffer, logPath, `[step:${stepName}] success`);
-            
-            run.steps[stepIndex].status = 'success';
-            run.steps[stepIndex].completedAt = new Date();
-            run.steps[stepIndex].duration = Date.now() - stepStartTime;
-            await run.save();
-            
-        } catch (stepError) {
-            pushPipelineLog(memoryLogBuffer, logPath, `[step:${stepName}] failed: ${stepError.message}`);
-            
-            run.steps[stepIndex].status = 'failed';
-            run.steps[stepIndex].completedAt = new Date();
-            run.steps[stepIndex].duration = Date.now() - stepStartTime;
-            
-            // Mark remaining steps as skipped
-            for (let j = i + 1; j < stepsConfig.length; j++) {
-                run.steps[j].status = 'skipped';
-            }
-            
-            run.status = 'failed';
-            run.error = `Pipeline failed at step "${stepName}": ${stepError.message}`;
-            run.completedAt = new Date();
-            run.duration = Date.now() - run.startedAt.getTime();
-            
             closeAppendStream(logPath);
-            run.logSize = await getLogSize(logPath);
-            run.logSummary = memoryLogBuffer.join('\n');
-            run.lastLogAt = new Date();
-            await run.save();
-
-            pipeline.executionStatus = 'failed';
-            pipeline.completedAt = run.completedAt;
-            await pipeline.save();
-
-            logger.error('Pipeline execution failed', {
-                pipelineId: String(pipeline._id),
+            await PipelineRun.updateOne(
+                { _id: run._id },
+                {
+                    $set: {
+                        status: 'failed',
+                        error: `System error during execution: ${criticalError.message}`,
+                        completedAt: new Date(),
+                        logSummary: memoryLogBuffer.join('\n')
+                    }
+                }
+            );
+            await Pipeline.updateOne(
+                { _id: pipeline._id },
+                { $set: { executionStatus: 'failed', completedAt: new Date() } }
+            );
+            // Re-fetch to broadcast accurate state
+            const updatedRun = await PipelineRun.findById(run._id).lean();
+            if (updatedRun) pipelineBroadcaster.broadcastStatus(updatedRun);
+        } catch (recoveryError) {
+            logger.error('Failed to recover pipeline state after catastrophic error', {
                 runId: String(run._id),
-                step: stepName,
-                error: stepError.message
+                error: recoveryError.message
             });
-
-            return;
         }
     }
-
-    run.status = 'success';
-    run.completedAt = new Date();
-    run.duration = Date.now() - run.startedAt.getTime();
-    
-    closeAppendStream(logPath);
-    run.logSize = await getLogSize(logPath);
-    run.logSummary = memoryLogBuffer.join('\n');
-    run.lastLogAt = new Date();
-    await run.save();
-
-    pipeline.executionStatus = 'success';
-    pipeline.completedAt = run.completedAt;
-    await pipeline.save();
-
-    logger.info('Pipeline execution completed', {
-        pipelineId: String(pipeline._id),
-        runId: String(run._id)
-    });
 }
 
 // Get execution status details for one pipeline (legacy fallback)

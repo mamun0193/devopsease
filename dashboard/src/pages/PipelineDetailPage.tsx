@@ -179,7 +179,9 @@ const PipelineDetailPage: React.FC = () => {
     // Success rate calculation
     const successRate = useMemo(() => {
         if (!metrics || metrics.totalRuns === 0) return '—';
-        return `${Math.round((metrics.successfulRuns / metrics.totalRuns) * 100)}%`;
+        const completedRuns = metrics.successfulRuns + metrics.failedRuns;
+        if (completedRuns === 0) return '—';
+        return `${Math.round((metrics.successfulRuns / completedRuns) * 100)}%`;
     }, [metrics]);
 
     // Last successful run
@@ -410,10 +412,20 @@ const PipelineDetailPage: React.FC = () => {
                                 const runStep = latestRun?.steps?.find(s => s.name === stepName);
                                 const status = runStep?.status ?? 'pending';
                                 const icon = STEP_STATUS_ICON[status] || STEP_STATUS_ICON.pending;
+                                const isClickable = (stepName === 'build' && latestRun?.buildId) || (stepName === 'deploy' && latestRun?.deploymentId);
+                                
+                                const handleStepClick = () => {
+                                    if (stepName === 'build' && latestRun?.buildId) navigate(`/builds/${latestRun.buildId}`);
+                                    if (stepName === 'deploy' && latestRun?.deploymentId) navigate(`/deployments`);
+                                };
+
                                 return (
                                     <React.Fragment key={stepName}>
                                         <motion.div
-                                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-colors ${
+                                            onClick={isClickable ? handleStepClick : undefined}
+                                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all ${
+                                                isClickable ? 'cursor-pointer hover:brightness-110' : ''
+                                            } ${
                                                 status === 'success' ? 'bg-emerald-500/10 border-emerald-500/30' :
                                                 status === 'failed' ? 'bg-red-500/10 border-red-500/30' :
                                                 status === 'running' ? 'bg-blue-500/10 border-blue-500/30' :

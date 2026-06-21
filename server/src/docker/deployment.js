@@ -47,9 +47,27 @@ function execDocker(args, { timeoutMs = DOCKER_CMD_TIMEOUT_MS } = {}) {
 }
 
 export async function runContainer(imageTag, containerName, port, envVars = {}, { cpuLimit, memoryLimit } = {}) {
+    // Determine internal port from image config
+    let internalPort = '3000'; // Default
+    try {
+        const { stdout } = await execDocker(['inspect', '--format', '{{json .Config.ExposedPorts}}', imageTag], { timeoutMs: 10_000 });
+        if (stdout && stdout.trim() !== 'null') {
+            const portsObj = JSON.parse(stdout.trim());
+            const ports = Object.keys(portsObj);
+            if (ports.length > 0) {
+                internalPort = ports[0].split('/')[0];
+            }
+        }
+    } catch (err) {
+        // Ignore and fallback to 3000
+    }
+
     const args = [
         'run', '-d',
-        '-p', `${port}:3497`,
+        '-p', `${port}:${internalPort}`,
+        '-e', `PORT=${internalPort}`,
+        '-e', `HOST=0.0.0.0`,
+        '-e', `HOSTNAME=0.0.0.0`,
         '--name', containerName,
     ];
 

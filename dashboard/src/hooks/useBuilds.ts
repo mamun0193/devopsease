@@ -18,7 +18,7 @@ export function useBuild(buildId: string) {
         enabled: !!buildId,
         refetchInterval: (query) => {
             const status = query.state.data?.status;
-            if (status === 'PENDING' || status === 'RUNNING') return 3000;
+            if (status === 'pending' || status === 'running') return 3000;
             return false;
         },
     });

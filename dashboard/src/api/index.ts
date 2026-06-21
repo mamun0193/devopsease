@@ -831,6 +831,12 @@ export interface Pipeline {
   repo: PipelineRepo | string | null;
   createdAt: string;
   updatedAt: string;
+  lastRun?: {
+    id: string;
+    status: 'pending' | 'running' | 'success' | 'failed';
+    startedAt: string | null;
+    completedAt: string | null;
+  } | null;
 }
 
 export interface PipelineRun {
@@ -945,8 +951,9 @@ export const pipelineApi = {
 export interface Deployment {
   _id: string;
   status: 'running' | 'deploying' | 'failed' | 'stopped';
-  environment: 'dev' | 'staging' | 'production';
-  imageTag?: string;
+  environment: 'development' | 'staging' | 'production';
+  imageTag: string | null;
+  port?: number | null;
   containerId?: string | null;
   containerName?: string | null;
   createdAt: string;
@@ -962,6 +969,11 @@ export const deploymentApi = {
     return Array.isArray(response.data)
       ? response.data
       : (response.data as any).deployments ?? [];
+  },
+
+  start: async (id: string): Promise<Deployment> => {
+    const response = await api.post<{ deployment: Deployment }>(`/api/deployments/${id}/start`);
+    return response.data.deployment;
   },
 
   stop: async (id: string): Promise<Deployment> => {

@@ -18,6 +18,8 @@ import {
   AlertTriangle,
   Square,
   Trash2,
+  Play,
+  ExternalLink,
 } from 'lucide-react';
 import RefreshButton from '../components/RefreshButton';
 import Header from '../components/Header';
@@ -118,6 +120,7 @@ function ActionButton({
 function DeploymentRow({
   deployment,
   onViewLogs,
+  onStart,
   onStop,
   onRemove,
   onRollback,
@@ -125,6 +128,7 @@ function DeploymentRow({
 }: {
   deployment: Deployment;
   onViewLogs: (id: string) => void;
+  onStart: (id: string) => void;
   onStop: (id: string) => void;
   onRemove: (id: string) => void;
   onRollback: (id: string) => void;
@@ -185,6 +189,18 @@ function DeploymentRow({
           Logs
         </button>
 
+        {deployment.port && deployment.status === 'running' && (
+          <a
+            href={`http://localhost:${deployment.port}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 hover:text-blue-300 border border-blue-500/20 hover:border-blue-500/40 transition-all"
+          >
+            <ExternalLink size={12} />
+            Open
+          </a>
+        )}
+
         {deployment.status === 'running' && (
           <ActionButton
             icon={Square}
@@ -192,6 +208,16 @@ function DeploymentRow({
             onClick={() => onStop(deployment._id)}
             disabled={isThisLoading('stop')}
             variant="warning"
+          />
+        )}
+
+        {['stopped', 'failed'].includes(deployment.status) && (
+          <ActionButton
+            icon={Play}
+            label="Start"
+            onClick={() => onStart(deployment._id)}
+            disabled={isThisLoading('start')}
+            variant="success"
           />
         )}
 
@@ -248,7 +274,20 @@ const DeploymentsPage: React.FC = () => {
   // Real-time updates via WebSocket
   useDeploymentSocket();
 
-    const stopMutation = useMutation({
+  const startMutation = useMutation({
+    mutationFn: deploymentApi.start,
+    onMutate: (id) => setLoadingAction(`start:${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deployments'] });
+      dispatch(addToast({ message: 'Deployment starting', type: 'info', duration: 3000 }));
+    },
+    onError: (err: any) => {
+      dispatch(addToast({ message: err?.response?.data?.message ?? 'Failed to start deployment', type: 'error', duration: 5000 }));
+    },
+    onSettled: () => setLoadingAction(null),
+  });
+
+  const stopMutation = useMutation({
     mutationFn: deploymentApi.stop,
     onMutate: (id) => setLoadingAction(`stop:${id}`),
     onSuccess: () => {
@@ -445,7 +484,11 @@ const DeploymentsPage: React.FC = () => {
                       <DeploymentRow
                         key={deployment._id}
                         deployment={deployment}
-                        onViewLogs={handleViewLogs}
+                        onViewLogs={(id) => {
+                          const d = deployments.find(x => x._id === id);
+                          if (d) setSelectedDeployment(d);
+                        }}
+                        onStart={(id) => startMutation.mutate(id)}
                         onStop={(id) => stopMutation.mutate(id)}
                         onRemove={(id) => removeMutation.mutate(id)}
                         onRollback={handleRollback}

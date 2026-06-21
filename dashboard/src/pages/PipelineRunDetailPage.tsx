@@ -56,10 +56,27 @@ const STEP_STATUS_CONFIG: Record<string, { color: string; bg: string; border: st
 
 const RUN_STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; dot: string; label: string }> = {
     pending: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', dot: 'bg-yellow-400', label: 'Pending' },
-    running: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30', dot: 'bg-blue-400 animate-pulse', label: 'Running' },
+    running: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30', dot: 'bg-blue-400 animate-pulse ring-2 ring-blue-500/30 ring-offset-2 ring-offset-slate-900', label: 'Running' },
     success: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', dot: 'bg-emerald-400', label: 'Success' },
     failed: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', dot: 'bg-red-400', label: 'Failed' },
 };
+
+function LiveDuration({ startedAt }: { startedAt: string | null }) {
+    const [elapsed, setElapsed] = useState<number>(0);
+
+    useEffect(() => {
+        if (!startedAt) return;
+        const start = new Date(startedAt).getTime();
+        
+        const update = () => setElapsed(Date.now() - start);
+        update(); // initial
+        
+        const interval = setInterval(update, 1000);
+        return () => clearInterval(interval);
+    }, [startedAt]);
+
+    return <span>{formatDuration(elapsed)}</span>;
+}
 
 // Step Timeline
 
@@ -91,7 +108,12 @@ function StepTimeline({ steps }: { steps: PipelineStep[] }) {
                                     {formatDuration(step.duration)}
                                 </span>
                             ) : step.status === 'running' ? (
-                                <span className="text-xs text-blue-400">In progress…</span>
+                                <span className="text-xs text-blue-400 flex items-center gap-1 font-medium">
+                                    <Timer size={12} />
+                                    <LiveDuration startedAt={step.startedAt!} />
+                                </span>
+                            ) : step.status === 'skipped' ? (
+                                <span className="text-xs text-slate-500 italic">—</span>
                             ) : null}
                         </div>
                     </motion.div>
@@ -103,7 +125,7 @@ function StepTimeline({ steps }: { steps: PipelineStep[] }) {
 
 //  Log Viewer
 
-function LogPanel({ runId, wsLogs, isActive }: { runId: string; wsLogs: string[]; isActive: boolean }) {
+function LogPanel({ runId, wsLogs, isActive, wsUnavailable }: { runId: string; wsLogs: string[]; isActive: boolean; wsUnavailable?: boolean }) {
     const [logs, setLogs] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -190,7 +212,15 @@ function LogPanel({ runId, wsLogs, isActive }: { runId: string; wsLogs: string[]
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                     <ScrollText size={14} />
                     <span>{allLogs.length} line{allLogs.length !== 1 ? 's' : ''}</span>
-                    {isActive && <span className="flex items-center gap-1 text-blue-400"><Loader2 size={10} className="animate-spin" /> Live</span>}
+                    {isActive && (
+                        <span className={`flex items-center gap-1 ml-2 font-medium ${wsUnavailable ? 'text-amber-400' : 'text-emerald-400'}`}>
+                            <span className="relative flex h-2 w-2 mr-1">
+                                {!wsUnavailable && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
+                                <span className={`relative inline-flex rounded-full h-2 w-2 ${wsUnavailable ? 'bg-amber-400' : 'bg-emerald-500'}`}></span>
+                            </span>
+                            {wsUnavailable ? 'Polling' : 'Live'}
+                        </span>
+                    )}
                 </div>
                 <div className="flex items-center gap-1.5">
                     <button
@@ -386,7 +416,15 @@ const PipelineRunDetailPage: React.FC = () => {
                                     <p className="text-xs text-slate-500 uppercase tracking-wide mb-1.5 flex items-center gap-1">
                                         <Timer size={10} /> Duration
                                     </p>
-                                    <p className="text-sm font-semibold text-slate-100">{formatDuration(run.duration)}</p>
+                                    <p className="text-sm font-semibold text-slate-100">
+                                        {run.status === 'running' ? (
+                                            <span className="text-blue-400 font-medium">
+                                                <LiveDuration startedAt={run.startedAt} />
+                                            </span>
+                                        ) : (
+                                            formatDuration(run.duration)
+                                        )}
+                                    </p>
                                 </div>
 
                                 {/* Commit */}
@@ -511,7 +549,7 @@ const PipelineRunDetailPage: React.FC = () => {
                             <ScrollText size={14} />
                             Logs
                         </h2>
-                        <LogPanel runId={runId!} wsLogs={wsLogs} isActive={!!isActive} />
+                        <LogPanel runId={runId!} wsLogs={wsLogs} isActive={!!isActive} wsUnavailable={wsUnavailable} />
                     </div>
                 </div>
             </main>

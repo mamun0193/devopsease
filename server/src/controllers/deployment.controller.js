@@ -3,6 +3,7 @@ import Repository from '../models/repository.model.js';
 import Build from '../models/build.model.js';
 import docker from '../docker/client.js';
 import {
+    startDeployment,
     stopDeployment,
     removeDeployment,
     rollbackDeployment,
@@ -19,7 +20,10 @@ export const getDeployments = async (req, res, next) => {
         const repoIds = userRepos.map(r => r._id);
         const repoMap = Object.fromEntries(userRepos.map(r => [r._id.toString(), r.defaultBranch]));
 
-        const deployments = await Deployment.find({ repoId: { $in: repoIds } })
+        const deployments = await Deployment.find({ 
+            repoId: { $in: repoIds },
+            status: { $ne: 'removed' }
+        })
             .sort({ createdAt: -1 })
             .limit(100)
             .lean();
@@ -42,6 +46,7 @@ export const getDeployments = async (req, res, next) => {
                 status,
                 environment,
                 imageTag: d.imageTag ?? build.tag ?? null,
+                port: d.port,
                 createdAt: d.createdAt,
                 build: {
                     commitHash: build.commitHash ?? '0000000',
@@ -128,6 +133,16 @@ async function assertDeploymentOwnership(userId, deploymentId) {
 }
 
 //  Deployment Actions 
+
+export const startDeploymentAction = async (req, res, next) => {
+    try {
+        await assertDeploymentOwnership(req.user._id, req.params.id);
+        const deployment = await startDeployment(req.params.id);
+        res.json({ deployment });
+    } catch (error) {
+        next(error);
+    }
+};
 
 export const stopDeploymentAction = async (req, res, next) => {
     try {

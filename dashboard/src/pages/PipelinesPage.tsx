@@ -475,8 +475,25 @@ const PipelinesPage: React.FC = () => {
                                         </div>
 
                                         {/* Last Run — status + time */}
-                                        <div className="flex items-center gap-2">
-                                            <StatusBadge status={pipeline.status === 'active' ? 'success' : pipeline.status} />
+                                        <div className="flex flex-col gap-1 items-start">
+                                            {pipeline.status === 'inactive' ? (
+                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-400 bg-slate-500/10 border border-slate-500/30">
+                                                    <PauseCircle size={12} />
+                                                    Paused
+                                                </span>
+                                            ) : pipeline.lastRun ? (
+                                                <>
+                                                    <StatusBadge status={pipeline.lastRun.status} />
+                                                    {pipeline.lastRun.startedAt && (
+                                                        <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                                                            <Clock size={10} />
+                                                            {formatRelativeTime(pipeline.lastRun.startedAt)}
+                                                        </span>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <span className="text-xs text-slate-500 italic">No runs yet</span>
+                                            )}
                                         </div>
 
                                         {/* Updated */}

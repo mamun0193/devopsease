@@ -15,6 +15,10 @@ import logger from '../utils/logger.js';
 import deploymentBroadcaster from '../websocket/deploymentBroadcaster.js';
 import { PLANS, DEFAULT_PLAN } from '../config/plans.js';
 import User from '../models/User.js';
+import ownershipService from './ownership.service.js';
+import resourceService from '../resources/resource.service.js';
+import { RESOURCE_TYPES } from '../resources/resourceTypes.js';
+import quotaService from './quota.service.js';
 
 const MAX_REPLICAS = 10;
 const MAX_ERROR_LOG_LENGTH = 5000;
@@ -88,6 +92,11 @@ export async function reconcileDeployment(deploymentId) {
     const deadIds = recordedIds.filter(id => !actualRunning.includes(id));
     for (const deadId of deadIds) {
         await tryCleanupContainer(deadId);
+        if (deployment.userId) {
+            await ownershipService.releaseOwnership(deployment.userId, deadId).catch(() => {});
+            await quotaService.decrementContainerCount(deployment.userId).catch(() => {});
+        }
+        await resourceService.updateResourceStatus(deadId, RESOURCE_TYPES.CONTAINER, 'deleted').catch(() => {});
         logger.info('Cleaned up dead container', {
             deploymentId: String(deployment._id),
             containerId: deadId,
@@ -102,6 +111,11 @@ export async function reconcileDeployment(deploymentId) {
         const newIds = [];
 
         try {
+            if (deployment.userId) {
+                const user = await User.findById(deployment.userId).select('plan').lean();
+                await quotaService.getOrCreateQuota(deployment.userId, user?.plan);
+            }
+
             for (let i = 0; i < toCreate; i++) {
                 const { containerId } = await createReplica(
                     deployment.imageTag,
@@ -110,6 +124,23 @@ export async function reconcileDeployment(deploymentId) {
                     resourceLimits,
                 );
                 newIds.push(containerId);
+
+                if (deployment.userId) {
+                    await ownershipService.registerContainer(deployment.userId, containerId);
+                    await quotaService.incrementContainerCount(deployment.userId);
+                }
+
+                await resourceService.registerResource({
+                    resourceId: containerId,
+                    type: RESOURCE_TYPES.CONTAINER,
+                    ownerId: deployment.userId,
+                    metadata: {
+                        image: deployment.imageTag,
+                        name: `${repoName}-r${actual + i}`,
+                        createdVia: 'deployment',
+                        created: new Date()
+                    }
+                });
 
                 logger.info('Created replica', {
                     deploymentId: String(deployment._id),
@@ -122,6 +153,11 @@ export async function reconcileDeployment(deploymentId) {
             // Partial failure — clean up newly created containers
             for (const id of newIds) {
                 await tryCleanupContainer(id);
+                if (deployment.userId) {
+                    await ownershipService.releaseOwnership(deployment.userId, id).catch(() => {});
+                    await quotaService.decrementContainerCount(deployment.userId).catch(() => {});
+                }
+                await resourceService.updateResourceStatus(id, RESOURCE_TYPES.CONTAINER, 'deleted').catch(() => {});
             }
 
             logger.error('Reconciliation scale-up failed, partial cleanup done', {
@@ -154,6 +190,11 @@ export async function reconcileDeployment(deploymentId) {
 
         for (const id of idsToRemove) {
             await destroyReplica(id);
+            if (deployment.userId) {
+                await ownershipService.releaseOwnership(deployment.userId, id).catch(() => {});
+                await quotaService.decrementContainerCount(deployment.userId).catch(() => {});
+            }
+            await resourceService.updateResourceStatus(id, RESOURCE_TYPES.CONTAINER, 'deleted').catch(() => {});
             logger.info('Removed excess replica', {
                 deploymentId: String(deployment._id),
                 containerId: id,
@@ -303,6 +344,37 @@ export async function scaleDeployment(deploymentId, newReplicaCount) {
     return reconcileDeployment(deploymentId);
 }
 
+// Start deployment 
+
+export async function startDeployment(deploymentId) {
+    const deployment = await Deployment.findById(deploymentId);
+    if (!deployment) {
+        throw Object.assign(new Error('Deployment not found'), { statusCode: 404 });
+    }
+
+    if (deployment.status === 'running' || deployment.status === 'deploying') {
+        return deployment;
+    }
+
+    if (deployment.status === 'removed') {
+        throw Object.assign(new Error('Cannot start a removed deployment'), { statusCode: 400 });
+    }
+
+    deployment.status = 'deploying';
+    if (deployment.desiredReplicas < 1) {
+        deployment.desiredReplicas = 1;
+    }
+    await deployment.save();
+
+    logger.info('Deployment started, triggering reconciliation', {
+        deploymentId: String(deployment._id),
+    });
+
+    deploymentBroadcaster.broadcast(deployment);
+
+    return reconcileDeployment(deploymentId);
+}
+
 // Stop deployment 
 
 export async function stopDeployment(deploymentId) {
@@ -366,6 +438,11 @@ export async function removeDeployment(deploymentId) {
 
     for (const cId of allIds) {
         await destroyReplica(cId);
+        if (deployment.userId) {
+            await ownershipService.releaseOwnership(deployment.userId, cId).catch(() => {});
+            await quotaService.decrementContainerCount(deployment.userId).catch(() => {});
+        }
+        await resourceService.updateResourceStatus(cId, RESOURCE_TYPES.CONTAINER, 'deleted').catch(() => {});
         logger.info('Removed container', {
             deploymentId: String(deployment._id),
             containerId: cId,
@@ -473,6 +550,25 @@ export async function rollbackDeployment(deploymentId, options = {}) {
         const result = await createReplica(previous.imageTag, repoName, runtimeSecretEnv, await resolveResourceLimits(previous.repoId));
         containerId = result.containerId;
 
+        if (current.userId) {
+            const user = await User.findById(current.userId).select('plan').lean();
+            await quotaService.getOrCreateQuota(current.userId, user?.plan);
+            await ownershipService.registerContainer(current.userId, containerId);
+            await quotaService.incrementContainerCount(current.userId);
+        }
+
+        await resourceService.registerResource({
+            resourceId: containerId,
+            type: RESOURCE_TYPES.CONTAINER,
+            ownerId: current.userId,
+            metadata: {
+                image: previous.imageTag,
+                name: containerName,
+                createdVia: 'rollback',
+                created: new Date()
+            }
+        });
+
         rollbackDeploymentRecord.containerId = containerId;
         rollbackDeploymentRecord.containerIds = [containerId];
         rollbackDeploymentRecord.status = 'running';
@@ -490,7 +586,14 @@ export async function rollbackDeployment(deploymentId, options = {}) {
 
         return rollbackDeploymentRecord;
     } catch (error) {
-        await tryCleanupContainer(containerId);
+        if (containerId) {
+            await tryCleanupContainer(containerId);
+            if (current.userId) {
+                await ownershipService.releaseOwnership(current.userId, containerId).catch(() => {});
+                await quotaService.decrementContainerCount(current.userId).catch(() => {});
+            }
+            await resourceService.updateResourceStatus(containerId, RESOURCE_TYPES.CONTAINER, 'deleted').catch(() => {});
+        }
 
         if (rollbackDeploymentRecord) {
             rollbackDeploymentRecord.status = 'failed';

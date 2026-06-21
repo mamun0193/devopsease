@@ -5,6 +5,7 @@ import {
     getDeployments,
     getDeploymentById,
     getDeploymentLogs,
+    startDeploymentAction,
     stopDeploymentAction,
     removeDeploymentAction,
     rollbackDeploymentAction,
@@ -16,6 +17,7 @@ const router = Router();
 router.get('/', authMiddleware, getDeployments);
 router.get('/:id', authMiddleware, getDeploymentById);
 router.get('/:id/logs', authMiddleware, getDeploymentLogs);
+router.post('/:id/start', authMiddleware, rateLimiter('exec'), startDeploymentAction);
 router.post('/:id/stop', authMiddleware, rateLimiter('destructive'), stopDeploymentAction);
 router.post('/:id/remove', authMiddleware, rateLimiter('destructive'), removeDeploymentAction);
 router.post('/:id/rollback', authMiddleware, rateLimiter('destructive'), rollbackDeploymentAction);
