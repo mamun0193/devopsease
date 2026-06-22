@@ -800,6 +800,10 @@ export const systemApi = {
     const response = await api.get<ApiResponse<SystemPipelineMetrics>>('/system/metrics');
     return response.data.data;
   },
+  getBlueprint: async (repoId: string): Promise<any> => {
+    const response = await api.get<ApiResponse<any>>(`/system/blueprint/${repoId}`);
+    return response.data.data;
+  },
 };
 
 // CI/CD Pipelines 
@@ -824,7 +828,7 @@ export interface Pipeline {
   id: string;
   name: string;
   steps: string[];
-  config?: { steps: string[]; [key: string]: any };
+  config?: { steps: string[];[key: string]: any };
   rawYaml?: string;
   version: number;
   status: 'active' | 'inactive' | 'error';

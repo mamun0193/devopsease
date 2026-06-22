@@ -61,6 +61,7 @@ import AlertsPanel from './components/AlertsPanel';
 import { useAuth } from './context/AuthContext';
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import RepositoryBlueprintPage from './pages/RepositoryBlueprintPage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -227,6 +228,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <RepositoriesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/repositories/:repoId/blueprint"
+                  element={
+                    <ProtectedRoute>
+                      <RepositoryBlueprintPage />
                     </ProtectedRoute>
                   }
                 />

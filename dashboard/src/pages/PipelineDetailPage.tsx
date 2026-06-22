@@ -18,12 +18,14 @@ import {
     Timer,
     TrendingUp,
     SkipForward,
+    PauseCircle,
+    PlayCircle,
 } from 'lucide-react';
 import Header from '../components/Header';
 import ResourceNav from '../components/ResourceNav';
 import RefreshButton from '../components/RefreshButton';
 import ConfirmModal from '../components/ConfirmModal';
-import { usePipeline, usePipelineRuns, usePipelineMetrics, useRunPipeline } from '../hooks/usePipelines';
+import { usePipeline, usePipelineRuns, usePipelineMetrics, useRunPipeline, useTogglePipeline } from '../hooks/usePipelines';
 import { useAppDispatch } from '../store/hooks';
 import { addToast } from '../store/toastSlice';
 import type { PipelineRepo, PipelineRun } from '../api';
@@ -98,23 +100,29 @@ function MetricCard({ icon: Icon, label, value, color }: { icon: React.ElementTy
 
 //  Activity Feed Item 
 
-function ActivityItem({ run }: { run: PipelineRun }) {
+function ActivityItem({ run, isPipelinePaused = false }: { run: PipelineRun; isPipelinePaused?: boolean }) {
     const navigate = useNavigate();
+    const isPaused = isPipelinePaused && run.status === 'running';
+
     const statusIcon = run.status === 'success'
         ? <CheckCircle2 size={14} className="text-emerald-400" />
         : run.status === 'failed'
             ? <XCircle size={14} className="text-red-400" />
-            : run.status === 'running'
-                ? <Loader2 size={14} className="text-blue-400 animate-spin" />
-                : <Clock size={14} className="text-yellow-400" />;
+            : isPaused
+                ? <PauseCircle size={14} className="text-amber-400" />
+                : run.status === 'running'
+                    ? <Loader2 size={14} className="text-blue-400 animate-spin" />
+                    : <Clock size={14} className="text-yellow-400" />;
 
     const label = run.status === 'success'
         ? 'Pipeline completed'
         : run.status === 'failed'
             ? `Pipeline failed${run.error ? ` — ${run.steps.find(s => s.status === 'failed')?.name || 'unknown'} step` : ''}`
-            : run.status === 'running'
-                ? 'Pipeline running'
-                : 'Pipeline queued';
+            : isPaused
+                ? 'Pipeline paused'
+                : run.status === 'running'
+                    ? 'Pipeline running'
+                    : 'Pipeline queued';
 
     return (
         <button
@@ -155,6 +163,7 @@ const PipelineDetailPage: React.FC = () => {
     const { data: runs = [] } = usePipelineRuns(id!);
     const { data: metrics } = usePipelineMetrics(id!);
     const runPipeline = useRunPipeline();
+    const togglePipeline = useTogglePipeline();
 
     const [runConfirmOpen, setRunConfirmOpen] = React.useState(false);
 
@@ -167,6 +176,25 @@ const PipelineDetailPage: React.FC = () => {
         } catch (err: any) {
             dispatch(addToast({
                 message: err?.response?.data?.message ?? 'Failed to run pipeline',
+                type: 'error',
+                duration: 5000,
+            }));
+        }
+    };
+
+    const handleToggle = async () => {
+        if (!pipeline) return;
+        const newStatus = pipeline.status === 'active' ? 'inactive' : 'active';
+        try {
+            await togglePipeline.mutateAsync({ id: pipeline.id, status: newStatus });
+            dispatch(addToast({
+                message: `Pipeline "${pipeline.name}" ${newStatus === 'active' ? 'resumed' : 'paused'}`,
+                type: 'success',
+                duration: 3500,
+            }));
+        } catch (err: any) {
+            dispatch(addToast({
+                message: err?.response?.data?.message ?? 'Failed to update pipeline',
                 type: 'error',
                 duration: 5000,
             }));
@@ -265,11 +293,24 @@ const PipelineDetailPage: React.FC = () => {
                         <div className="flex items-center gap-2.5">
                             <RefreshButton onRefresh={() => { refetchPipeline(); }} isFetching={isFetching} size="md" />
                             <motion.button
-                                onClick={() => setRunConfirmOpen(true)}
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/20 transition-all"
+                                onClick={handleToggle}
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white text-sm font-semibold transition-all"
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
-                                disabled={runPipeline.isPending}
+                                disabled={togglePipeline.isPending}
+                            >
+                                {pipeline.status === 'active' ? (
+                                    <><PauseCircle size={15} className="text-amber-400" /> Pause</>
+                                ) : (
+                                    <><PlayCircle size={15} className="text-emerald-400" /> Resume</>
+                                )}
+                            </motion.button>
+                            <motion.button
+                                onClick={() => setRunConfirmOpen(true)}
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm font-semibold shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                disabled={runPipeline.isPending || pipeline.status === 'inactive'}
                             >
                                 {runPipeline.isPending ? (
                                     <><Loader2 size={15} className="animate-spin" /> Running…</>
@@ -284,15 +325,19 @@ const PipelineDetailPage: React.FC = () => {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
                         <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
                             <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Status</p>
-                            {latestRun ? (
-                                <div className="flex items-center gap-2">
+                            <div className="flex flex-col gap-1 items-start">
+                                {pipeline.status === 'inactive' ? (
+                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-medium text-slate-400 bg-slate-500/10 border border-slate-500/30">
+                                        Paused
+                                    </span>
+                                ) : latestRun ? (
                                     <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-medium ${STATUS_BADGE_CONFIG[latestRun.status]?.color ?? 'text-slate-400'} ${STATUS_BADGE_CONFIG[latestRun.status]?.bg ?? ''} border ${STATUS_BADGE_CONFIG[latestRun.status]?.border ?? ''}`}>
                                         {STATUS_BADGE_CONFIG[latestRun.status]?.label ?? latestRun.status}
                                     </span>
-                                </div>
-                            ) : (
-                                <p className="text-sm text-slate-400">No runs yet</p>
-                            )}
+                                ) : (
+                                    <p className="text-sm text-slate-400">No runs yet</p>
+                                )}
+                            </div>
                         </div>
                         <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
                             <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Version</p>
@@ -349,22 +394,27 @@ const PipelineDetailPage: React.FC = () => {
                                     const isFailed = status === 'failed';
                                     const isSuccess = status === 'success';
                                     const isRunning = status === 'running';
+                                    const isPaused = pipeline.status === 'inactive' && isRunning;
 
                                     const nodeColor = isFailed
                                         ? 'bg-red-500/15 border-red-500/40'
                                         : isSuccess
                                             ? 'bg-emerald-500/10 border-emerald-500/30'
-                                            : isRunning
-                                                ? 'bg-blue-500/10 border-blue-500/30'
-                                                : 'bg-slate-800/50 border-slate-700/50';
+                                            : isPaused
+                                                ? 'bg-amber-500/10 border-amber-500/30'
+                                                : isRunning
+                                                    ? 'bg-blue-500/10 border-blue-500/30'
+                                                    : 'bg-slate-800/50 border-slate-700/50';
 
                                     const textColor = isFailed
                                         ? 'text-red-300'
                                         : isSuccess
                                             ? 'text-emerald-300'
-                                            : isRunning
-                                                ? 'text-blue-300'
-                                                : 'text-slate-400';
+                                            : isPaused
+                                                ? 'text-amber-300'
+                                                : isRunning
+                                                    ? 'text-blue-300'
+                                                    : 'text-slate-400';
 
                                     const connectorColor = isFailed ? 'bg-red-500/40' : isSuccess ? 'bg-emerald-500/30' : 'bg-slate-700';
                                     const arrowColor = isFailed ? 'text-red-500/60' : isSuccess ? 'text-emerald-500/50' : 'text-slate-600';
@@ -373,9 +423,11 @@ const PipelineDetailPage: React.FC = () => {
                                         ? <XCircle size={15} className="text-red-400" />
                                         : isSuccess
                                             ? <CheckCircle2 size={15} className="text-emerald-400" />
-                                            : isRunning
-                                                ? <Loader2 size={15} className="text-blue-400 animate-spin" />
-                                                : <Clock size={15} className="text-slate-500" />;
+                                            : isPaused
+                                                ? <PauseCircle size={15} className="text-amber-400" />
+                                                : isRunning
+                                                    ? <Loader2 size={15} className="text-blue-400 animate-spin" />
+                                                    : <Clock size={15} className="text-slate-500" />;
 
                                     return (
                                         <React.Fragment key={stepName}>
@@ -411,7 +463,13 @@ const PipelineDetailPage: React.FC = () => {
                             {(pipeline.steps || []).map((stepName, i) => {
                                 const runStep = latestRun?.steps?.find(s => s.name === stepName);
                                 const status = runStep?.status ?? 'pending';
-                                const icon = STEP_STATUS_ICON[status] || STEP_STATUS_ICON.pending;
+                                const isRunning = status === 'running';
+                                const isPaused = pipeline.status === 'inactive' && isRunning;
+                                
+                                const icon = isPaused
+                                    ? <PauseCircle size={16} className="text-amber-400" />
+                                    : STEP_STATUS_ICON[status] || STEP_STATUS_ICON.pending;
+                                    
                                 const isClickable = (stepName === 'build' && latestRun?.buildId) || (stepName === 'deploy' && latestRun?.deploymentId);
                                 
                                 const handleStepClick = () => {
@@ -426,6 +484,7 @@ const PipelineDetailPage: React.FC = () => {
                                             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all ${
                                                 isClickable ? 'cursor-pointer hover:brightness-110' : ''
                                             } ${
+                                                isPaused ? 'bg-amber-500/10 border-amber-500/30' :
                                                 status === 'success' ? 'bg-emerald-500/10 border-emerald-500/30' :
                                                 status === 'failed' ? 'bg-red-500/10 border-red-500/30' :
                                                 status === 'running' ? 'bg-blue-500/10 border-blue-500/30' :
@@ -497,7 +556,7 @@ const PipelineDetailPage: React.FC = () => {
                                             animate={{ opacity: 1 }}
                                         >
                                             {runs.slice(0, 8).map((run) => (
-                                                <ActivityItem key={run._id} run={run} />
+                                                <ActivityItem key={run._id} run={run} isPipelinePaused={pipeline.status === 'inactive'} />
                                             ))}
                                         </motion.div>
                                     )}

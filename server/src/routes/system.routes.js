@@ -6,6 +6,7 @@ import { isRedisConnected } from "../redis/client.js";
 import metricsAggregator from "../services/metricsAggregator.service.js";
 import authMiddleware from "../middlewares/auth.middleware.js";
 import { requireRole, ROLES } from "../middlewares/rbac.js";
+import { getBlueprint } from "../controllers/blueprint.controller.js";
 
 const router = express.Router();
 
@@ -28,5 +29,8 @@ router.get("/metrics", authMiddleware, requireRole(ROLES.ADMIN), (req, res) => {
         },
     });
 });
+
+// GET /system/blueprint/:repoId — generate deployment blueprint
+router.get("/blueprint/:repoId", authMiddleware, getBlueprint);
 
 export default router;
