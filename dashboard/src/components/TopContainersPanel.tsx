@@ -36,9 +36,9 @@ function useTopContainers() {
 function BarIndicator({ value, max, color }: { value: number; max: number; color: string }) {
     const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
     return (
-        <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+        <div className="w-full bg-dds-bg border border-dds-border/50 rounded-full h-1.5 overflow-hidden">
             <div
-                className={`${color} h-1.5 rounded-full transition-all duration-500`}
+                className={`${color} h-full rounded-full transition-all duration-500 ease-out`}
                 style={{ width: `${pct}%` }}
             />
         </div>
@@ -50,19 +50,19 @@ function ContainerRow({ container, metric }: { container: TopContainer; metric: 
     return (
         <Link
             to={`/container/${container.containerId}`}
-            className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-slate-800/50 transition-colors group"
+            className="flex items-center gap-3 py-2 px-3 rounded-md hover:bg-dds-bg transition-colors group"
         >
-            <span className="text-sm text-slate-300 truncate flex-1 group-hover:text-blue-400 transition-colors">
+            <span className="text-[13px] text-dds-text-primary truncate flex-1 group-hover:text-dds-primary transition-colors">
                 {name}
             </span>
             <div className="w-24">
                 <BarIndicator
                     value={metric === 'cpu' ? container.cpuPercent : container.memoryUsedMB}
                     max={metric === 'cpu' ? 100 : container.memoryLimitMB || 1024}
-                    color={metric === 'cpu' ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-gradient-to-r from-blue-500 to-cyan-500'}
+                    color={metric === 'cpu' ? 'bg-dds-primary' : 'bg-dds-blue'}
                 />
             </div>
-            <span className="text-xs text-slate-400 tabular-nums w-16 text-right">
+            <span className="text-[12px] text-dds-text-secondary font-mono w-16 text-right">
                 {metric === 'cpu'
                     ? `${container.cpuPercent.toFixed(1)}%`
                     : `${container.memoryUsedMB} MB`
@@ -80,21 +80,21 @@ const TopContainersPanel: React.FC = () => {
     if (!hasData && !isLoading) return null;
 
     return (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
+        <div className="bg-dds-surface border border-dds-border rounded-xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
-                    <TrendingUp size={16} className="text-blue-400" />
-                    <h2 className="text-sm font-semibold text-slate-200 tracking-wide uppercase">
+                    <TrendingUp size={16} className="text-dds-primary" />
+                    <h2 className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider">
                         Top Containers
                     </h2>
                 </div>
-                {isLoading && <Loader2 size={13} className="animate-spin text-slate-500" />}
+                {isLoading && <Loader2 size={13} className="animate-spin text-dds-text-muted" />}
             </div>
 
             {!hasData ? (
                 <div className="space-y-3 animate-pulse">
                     {[1, 2, 3].map((i) => (
-                        <div key={i} className="h-8 bg-slate-800 rounded" />
+                        <div key={i} className="h-8 bg-dds-border rounded" />
                     ))}
                 </div>
             ) : (
@@ -102,9 +102,9 @@ const TopContainersPanel: React.FC = () => {
                     {/* Top by CPU */}
                     {data.topCPU.length > 0 && (
                         <div>
-                            <div className="flex items-center gap-1.5 mb-2">
-                                <Cpu size={12} className="text-purple-400" />
-                                <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">By CPU</span>
+                            <div className="flex items-center gap-1.5 mb-2 px-3">
+                                <Cpu size={12} className="text-dds-primary" />
+                                <span className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider">By CPU</span>
                             </div>
                             <div className="space-y-0.5">
                                 {data.topCPU.map((c) => (
@@ -117,9 +117,9 @@ const TopContainersPanel: React.FC = () => {
                     {/* Top by Memory */}
                     {data.topMemory.length > 0 && (
                         <div>
-                            <div className="flex items-center gap-1.5 mb-2">
-                                <HardDrive size={12} className="text-blue-400" />
-                                <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">By Memory</span>
+                            <div className="flex items-center gap-1.5 mb-2 px-3">
+                                <HardDrive size={12} className="text-dds-blue" />
+                                <span className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider">By Memory</span>
                             </div>
                             <div className="space-y-0.5">
                                 {data.topMemory.map((c) => (

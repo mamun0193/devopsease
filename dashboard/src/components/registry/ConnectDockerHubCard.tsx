@@ -24,7 +24,6 @@ const ConnectDockerHubCard: React.FC = () => {
                     setPassword('');
                 },
                 onSettled: () => {
-                    // Always clear password from state after request resolves
                     setPassword('');
                 },
             }
@@ -41,9 +40,9 @@ const ConnectDockerHubCard: React.FC = () => {
 
     if (statusLoading) {
         return (
-            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
+            <div className="card p-6">
                 <div className="flex items-center justify-center py-8">
-                    <Loader2 size={20} className="animate-spin text-slate-500" />
+                    <Loader2 size={20} className="animate-spin text-dds-text-muted" />
                 </div>
             </div>
         );
@@ -51,43 +50,41 @@ const ConnectDockerHubCard: React.FC = () => {
 
     return (
         <>
-            <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+            <div className="card overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-dds-border bg-dds-surface">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-blue-500/15 flex items-center justify-center border border-blue-500/20">
-                            <Link2 size={16} className="text-blue-400" />
+                        <div className="w-9 h-9 rounded-lg bg-dds-blue/15 flex items-center justify-center border border-dds-blue/20">
+                            <Link2 size={16} className="text-dds-blue" />
                         </div>
                         <div>
-                            <h3 className="text-sm font-semibold text-slate-100">Docker Hub Connection</h3>
-                            <p className="text-xs text-slate-500">Connect your Docker Hub account</p>
+                            <h3 className="text-[13px] font-semibold text-dds-text-primary">Docker Hub Connection</h3>
+                            <p className="text-[11px] font-mono text-dds-text-muted">Connect your Docker Hub account</p>
                         </div>
                     </div>
                     {isConnected && (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/30">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-mono font-medium text-dds-green bg-dds-green/10 border border-dds-green/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-dds-green animate-pulse" />
                             Connected
                         </span>
                     )}
                 </div>
 
-                {/* Body */}
                 <div className="px-6 py-5">
                     {isConnected ? (
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
-                                    <User size={18} className="text-slate-400" />
+                                <div className="w-10 h-10 rounded-full bg-dds-muted flex items-center justify-center border border-dds-border">
+                                    <User size={18} className="text-dds-text-muted" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-slate-200">{status?.username}</p>
-                                    <p className="text-xs text-slate-500">Docker Hub Account</p>
+                                    <p className="text-[13px] font-medium text-dds-text-primary">{status?.username}</p>
+                                    <p className="text-[11px] font-mono text-dds-text-secondary">Docker Hub Account</p>
                                 </div>
                             </div>
                             <button
                                 onClick={() => setShowDisconnectModal(true)}
                                 disabled={isSubmitting}
-                                className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium text-red-400 bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] font-medium text-dds-red bg-dds-red/10 border border-dds-red/25 hover:bg-dds-red/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 <Link2Off size={14} />
                                 Disconnect
@@ -96,7 +93,7 @@ const ConnectDockerHubCard: React.FC = () => {
                     ) : (
                         <form onSubmit={handleConnect} className="space-y-4">
                             <div>
-                                <label className="block text-xs font-medium text-slate-400 mb-1.5">Username</label>
+                                <label className="block text-[12px] font-medium text-dds-text-secondary mb-1.5">Username</label>
                                 <input
                                     type="text"
                                     value={username}
@@ -104,11 +101,11 @@ const ConnectDockerHubCard: React.FC = () => {
                                     placeholder="Docker Hub username"
                                     disabled={isSubmitting}
                                     autoComplete="username"
-                                    className="w-full px-3.5 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 disabled:opacity-50 transition-colors"
+                                    className="input w-full"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-medium text-slate-400 mb-1.5">Password</label>
+                                <label className="block text-[12px] font-medium text-dds-text-secondary mb-1.5">Password</label>
                                 <input
                                     type="password"
                                     value={password}
@@ -116,13 +113,13 @@ const ConnectDockerHubCard: React.FC = () => {
                                     placeholder="Docker Hub password or access token"
                                     disabled={isSubmitting}
                                     autoComplete="current-password"
-                                    className="w-full px-3.5 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 disabled:opacity-50 transition-colors"
+                                    className="input w-full"
                                 />
                             </div>
                             <button
                                 type="submit"
                                 disabled={isSubmitting || !username.trim() || !password}
-                                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="btn-primary w-full flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (
                                     <>

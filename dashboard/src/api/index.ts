@@ -960,6 +960,7 @@ export interface Deployment {
   port?: number | null;
   containerId?: string | null;
   containerName?: string | null;
+  repositoryName?: string;
   createdAt: string;
   build: {
     commitHash: string;

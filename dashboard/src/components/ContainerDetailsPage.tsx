@@ -112,10 +112,10 @@ const ContainerDetailsPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-dds-bg flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-400">Loading container details...</p>
+          <div className="w-10 h-10 border-2 border-dds-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-dds-text-muted text-sm font-medium tracking-wide">Loading container details...</p>
         </div>
       </div>
     );
@@ -125,25 +125,25 @@ const ContainerDetailsPage: React.FC = () => {
     // If we're refetching, show a loader instead of "Not Found"
     if (isFetching) {
       return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="min-h-screen bg-dds-bg flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-400">Refreshing container state...</p>
+            <div className="w-10 h-10 border-2 border-dds-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-dds-text-muted text-sm font-medium tracking-wide">Refreshing container state...</p>
           </div>
         </div>
       );
     }
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-dds-bg flex items-center justify-center">
         <div className="text-center">
-          <Box size={64} className="text-slate-600 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-slate-200 mb-2">Container Not Found</h2>
-          <p className="text-slate-400 mb-6">The container you're looking for doesn't exist or has been removed.</p>
+          <Box size={64} className="text-dds-text-muted mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-dds-text-primary mb-2">Container Not Found</h2>
+          <p className="text-dds-text-secondary mb-6">The container you're looking for doesn't exist or has been removed.</p>
           <Link
             to="/containers"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+            className="btn-primary inline-flex"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} className="mr-1" />
             Back to Containers
           </Link>
         </div>
@@ -158,51 +158,51 @@ const ContainerDetailsPage: React.FC = () => {
     {
       id: 'analysis',
       label: 'Analysis',
-      icon: <Shield size={18} />,
+      icon: <Shield size={16} />,
       hint: hasIssue ? 'See what went wrong' : 'Health check'
     },
     {
       id: 'logs',
       label: 'Logs',
-      icon: <FileText size={18} />,
+      icon: <FileText size={16} />,
       hint: 'Application output'
     },
     {
       id: 'info',
       label: 'Details',
-      icon: <Info size={18} />,
+      icon: <Info size={16} />,
       hint: 'Container configuration'
     },
     {
       id: 'history',
       label: 'History',
-      icon: <HistoryIcon size={18} />,
+      icon: <HistoryIcon size={16} />,
       hint: 'Action timeline'
     },
     {
       id: 'access',
       label: 'Public Access',
-      icon: <Globe size={18} />,
+      icon: <Globe size={16} />,
       hint: 'Expose ports temporarily'
     },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="min-h-screen bg-dds-bg">
       {/* Header - Hidden when scrolled */}
       <header
         ref={headerRef}
-        className="bg-slate-900/80 backdrop-blur-xl border-b border-slate-800"
+        className="bg-dds-surface/80 backdrop-blur-xl border-b border-dds-border"
       >
         {/* Breadcrumb */}
         <div className="max-w-7xl mx-auto px-6 pt-4 pb-2">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <Link to="/containers" className="hover:text-slate-300 transition-colors flex items-center gap-1">
+          <div className="flex items-center gap-2 text-[13px] font-mono text-dds-text-secondary">
+            <Link to="/containers" className="hover:text-dds-white transition-colors flex items-center gap-1.5">
               <ArrowLeft size={14} />
               Containers
             </Link>
-            <span>/</span>
-            <span className="text-slate-300">{name}</span>
+            <span className="text-dds-text-muted">/</span>
+            <span className="text-dds-text-primary font-medium">{name}</span>
           </div>
         </div>
 
@@ -219,18 +219,18 @@ const ContainerDetailsPage: React.FC = () => {
       </header>
 
       {/* Tabs - Sticky only for non-logs tabs */}
-      <div className={`border-b border-slate-800 bg-slate-900/95 backdrop-blur-xl z-50 ${activeTab !== 'logs' ? 'sticky top-0' : ''
-        } ${isScrolled && activeTab !== 'logs' ? 'shadow-lg shadow-slate-950/50' : ''
+      <div className={`border-b border-dds-border bg-dds-surface/95 backdrop-blur-xl z-50 ${activeTab !== 'logs' ? 'sticky top-0' : ''
+        } ${isScrolled && activeTab !== 'logs' ? 'shadow-lg shadow-black/20' : ''
         }`}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex gap-1">
+            <div className="flex gap-2">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
-                  className={`flex items-center gap-2 px-4 py-3.5 text-sm font-medium transition-all border-b-2 -mb-px ${activeTab === tab.id
-                    ? 'text-blue-400 border-blue-500 bg-blue-500/5'
-                    : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-800/30'
+                  className={`flex items-center gap-2 px-4 py-3.5 text-[13px] font-medium transition-all border-b-2 -mb-px ${activeTab === tab.id
+                    ? 'text-dds-primary border-dds-primary bg-dds-primary/5'
+                    : 'text-dds-text-secondary border-transparent hover:text-dds-white hover:bg-dds-surface/50'
                     }`}
                   onClick={() => setActiveTab(tab.id)}
                 >
@@ -257,10 +257,10 @@ const ContainerDetailsPage: React.FC = () => {
       </div>
 
       {/* Content - No animation to prevent layout shifts */}
-      <main className="max-w-7xl mx-auto px-2 py-2">
+      <main className="max-w-7xl mx-auto px-4 py-4 md:py-6">
         <div className="transition-opacity duration-150">
           {activeTab === 'analysis' && (
-            <div className="space-y-8 p-4">
+            <div className="space-y-6">
               {/* Health alert banner — dismissible per page load */}
               {healthData && !healthBannerDismissed && (
                 <HealthAlertBanner
@@ -281,10 +281,10 @@ const ContainerDetailsPage: React.FC = () => {
               {/* Health state timeline */}
               <div>
                 <div className="flex items-center gap-2 mb-4">
-                  <Heart size={20} className="text-rose-400" />
-                  <h2 className="text-lg font-semibold text-slate-100">Health State History</h2>
+                  <Heart size={18} className="text-dds-red" />
+                  <h2 className="text-sm font-semibold text-dds-text-primary uppercase tracking-wider">Health State History</h2>
                 </div>
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-5">
+                <div className="bg-dds-surface/50 border border-dds-border rounded-xl p-5 shadow-sm">
                   <HealthTimeline health={healthData} isLoading={healthLoading} />
                 </div>
               </div>
@@ -303,7 +303,7 @@ const ContainerDetailsPage: React.FC = () => {
             <ContainerInfo containerId={container.id} />
           )}
           {activeTab === 'history' && (
-            <div className="px-4 py-6">
+            <div className="py-2">
               <Timeline
                 containerId={container.id}
                 onViewLogs={handleViewLogsFromTimeline}
@@ -312,25 +312,25 @@ const ContainerDetailsPage: React.FC = () => {
             </div>
           )}
           {activeTab === 'access' && (
-            <div className="px-4 py-6 space-y-5 max-w-4xl mx-auto">
+            <div className="py-4 space-y-6 max-w-4xl mx-auto">
               {/* Header row */}
-              <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center justify-between gap-4 flex-wrap bg-dds-surface border border-dds-border rounded-xl p-5 shadow-sm">
                 <div>
-                  <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
-                    <Globe size={16} className="text-violet-400" />
+                  <h2 className="text-base font-semibold text-dds-text-primary flex items-center gap-2">
+                    <Globe size={18} className="text-dds-primary" />
                     Public Access
                   </h2>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-[13px] text-dds-text-secondary mt-1">
                     Temporary, time-limited HTTPS tunnels for your container ports.
                   </p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
                   {/* Quota display */}
-                  <span className={`text-xs font-medium px-2.5 py-1 rounded-full border ${activeTunnelCount >= 3
-                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
-                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                  <span className={`text-[11px] font-mono font-medium px-3 py-1.5 rounded-md border ${activeTunnelCount >= 3
+                    ? 'bg-dds-orange/10 border-dds-orange/30 text-dds-orange'
+                    : 'bg-dds-surface border-dds-border text-dds-text-secondary'
                     }`}>
-                    {activeTunnelCount} / 3 tunnels active
+                    {activeTunnelCount} / 3 TUNNELS
                   </span>
                   <button
                     onClick={() => setShowExposeModal(true)}
@@ -342,11 +342,9 @@ const ContainerDetailsPage: React.FC = () => {
                           ? 'Maximum 3 active tunnels reached'
                           : 'Expose a container port publicly'
                     }
-                    className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500
-                               disabled:opacity-40 disabled:cursor-not-allowed
-                               text-white text-sm font-medium rounded-lg transition-colors"
+                    className="btn-primary"
                   >
-                    <Globe size={14} />
+                    <Globe size={14} className="mr-1" />
                     Expose Port
                   </button>
                 </div>
@@ -354,17 +352,19 @@ const ContainerDetailsPage: React.FC = () => {
 
               {/* Container not running warning */}
               {container.state?.status !== 'running' && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-slate-800/60 border border-slate-700 rounded-lg text-sm text-slate-400">
-                  <Globe size={14} className="text-slate-500 shrink-0" />
-                  <span>Container must be in a <strong className="text-slate-300">running</strong> state to expose ports.</span>
+                <div className="flex items-center gap-2 px-4 py-3 bg-dds-surface/80 border border-dds-border rounded-md text-[13px] text-dds-text-secondary shadow-sm">
+                  <Globe size={14} className="text-dds-text-muted shrink-0" />
+                  <span>Container must be in a <strong className="text-dds-white font-medium">running</strong> state to expose ports.</span>
                 </div>
               )}
 
               {/* Tunnel table */}
-              <TunnelTable
-                tunnels={tunnels}
-                onRefetch={refetchTunnels}
-              />
+              <div className="bg-dds-surface border border-dds-border rounded-xl p-1 shadow-sm overflow-hidden">
+                <TunnelTable
+                  tunnels={tunnels}
+                  onRefetch={refetchTunnels}
+                />
+              </div>
             </div>
           )}
         </div>

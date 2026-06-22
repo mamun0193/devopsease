@@ -35,7 +35,6 @@ const DockerHubSearch: React.FC = () => {
     const [pullingImage, setPullingImage] = useState<string | null>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Debounce search input by 400ms
     useEffect(() => {
         const timer = setTimeout(() => setDebouncedQuery(searchInput.trim()), 400);
         return () => clearTimeout(timer);
@@ -54,49 +53,46 @@ const DockerHubSearch: React.FC = () => {
     const showingSearch = debouncedQuery.length >= 2;
 
     return (
-        <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden">
-            {/* Header with Search */}
-            <div className="px-6 py-4 border-b border-slate-800">
+        <div className="card overflow-hidden">
+            <div className="px-6 py-4 border-b border-dds-border bg-dds-surface">
                 <div className="flex items-center gap-3 mb-4">
-                    <div className="w-9 h-9 rounded-lg bg-cyan-500/15 flex items-center justify-center border border-cyan-500/20">
-                        <Search size={16} className="text-cyan-400" />
+                    <div className="w-9 h-9 rounded-lg bg-dds-primary/15 flex items-center justify-center border border-dds-primary/20">
+                        <Search size={16} className="text-dds-primary" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-100">Explore Docker Hub</h3>
-                        <p className="text-xs text-slate-500">Search and pull images from Docker Hub</p>
+                        <h3 className="text-[13px] font-semibold text-dds-text-primary">Explore Docker Hub</h3>
+                        <p className="text-[11px] font-mono text-dds-text-muted">Search and pull images from Docker Hub</p>
                     </div>
                 </div>
                 <div className="relative">
-                    <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dds-text-muted" />
                     <input
                         ref={inputRef}
                         type="text"
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
                         placeholder="Search images... (e.g. nginx, redis, postgres)"
-                        className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-slate-800/80 border border-slate-700 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40 transition-colors"
+                        className="input w-full pl-10 pr-4 py-2.5"
                     />
                     {isFetching && (
-                        <Loader2 size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 animate-spin text-slate-500" />
+                        <Loader2 size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 animate-spin text-dds-text-muted" />
                     )}
                 </div>
             </div>
 
-            {/* Content */}
             <div className="px-6 py-5">
                 {showingSearch ? (
-                    // Search Results
                     <div>
-                        <p className="text-xs text-slate-500 mb-3">
+                        <p className="text-[12px] text-dds-text-muted mb-3">
                             {isSearching ? 'Searching...' : `${searchData?.totalCount || 0} results for "${debouncedQuery}"`}
                         </p>
                         {isSearching && !searchData ? (
                             <div className="flex items-center justify-center py-10">
-                                <Loader2 size={20} className="animate-spin text-slate-500" />
+                                <Loader2 size={20} className="animate-spin text-dds-text-muted" />
                             </div>
                         ) : searchData?.results.length === 0 ? (
                             <div className="text-center py-10">
-                                <p className="text-sm text-slate-500">No images found</p>
+                                <p className="text-[13px] text-dds-text-secondary">No images found</p>
                             </div>
                         ) : (
                             <div className="space-y-1.5">
@@ -113,11 +109,10 @@ const DockerHubSearch: React.FC = () => {
                         )}
                     </div>
                 ) : (
-                    // Popular Images Grid
                     <div>
                         <div className="flex items-center gap-2 mb-4">
-                            <TrendingUp size={14} className="text-amber-400" />
-                            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Popular Images</p>
+                            <TrendingUp size={14} className="text-dds-yellow" />
+                            <p className="text-[11px] font-mono font-medium text-dds-text-muted uppercase tracking-wider">Popular Images</p>
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                             {POPULAR_IMAGES.map((img) => (
@@ -125,20 +120,20 @@ const DockerHubSearch: React.FC = () => {
                                     key={img.name}
                                     onClick={() => handlePull(img.name)}
                                     disabled={!isConnected || pullMutation.isPending}
-                                    className="group relative text-left px-3.5 py-3 rounded-xl bg-slate-800/40 border border-slate-700/50 hover:border-cyan-500/30 hover:bg-slate-800/80 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="group relative text-left px-3.5 py-3 rounded-md bg-dds-surface border border-dds-border hover:border-dds-primary/30 hover:bg-dds-muted transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     {pullingImage === img.name ? (
-                                        <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-slate-800/90">
-                                            <Loader2 size={16} className="animate-spin text-cyan-400" />
+                                        <div className="absolute inset-0 flex items-center justify-center rounded-md bg-dds-bg/90">
+                                            <Loader2 size={16} className="animate-spin text-dds-primary" />
                                         </div>
                                     ) : null}
-                                    <p className="text-sm font-medium text-slate-200 group-hover:text-cyan-300 transition-colors">{img.name}</p>
-                                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{img.desc}</p>
+                                    <p className="text-[13px] font-medium text-dds-text-primary group-hover:text-dds-primary transition-colors">{img.name}</p>
+                                    <p className="text-[11px] text-dds-text-secondary mt-0.5 line-clamp-1">{img.desc}</p>
                                 </button>
                             ))}
                         </div>
                         {!isConnected && (
-                            <p className="text-xs text-yellow-400/70 mt-4 text-center">
+                            <p className="text-[12px] text-dds-yellow/70 mt-4 text-center">
                                 Connect Docker Hub above to pull images
                             </p>
                         )}
@@ -149,7 +144,6 @@ const DockerHubSearch: React.FC = () => {
     );
 };
 
-// Extracted row component for search results
 const SearchResultRow: React.FC<{
     image: DockerHubSearchResult;
     onPull: (name: string) => void;
@@ -157,24 +151,24 @@ const SearchResultRow: React.FC<{
     disabled: boolean;
 }> = ({ image, onPull, isPulling, disabled }) => {
     return (
-        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-slate-800/30 border border-slate-700/40 hover:border-slate-600/60 transition-colors">
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-md bg-dds-surface border border-dds-border hover:border-dds-text-muted transition-colors">
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-slate-200 truncate">{image.name}</p>
+                    <p className="text-[13px] font-medium text-dds-text-primary truncate">{image.name}</p>
                     {image.isOfficial && (
-                        <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-blue-300 bg-blue-500/15 border border-blue-500/20">
+                        <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium text-dds-blue bg-dds-blue/10 border border-dds-blue/20">
                             <Shield size={9} />
                             Official
                         </span>
                     )}
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{image.description || 'No description'}</p>
+                <p className="text-[12px] text-dds-text-secondary mt-0.5 line-clamp-1">{image.description || 'No description'}</p>
                 <div className="flex items-center gap-3 mt-1">
-                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                        <Star size={10} className="text-amber-500" />
+                    <span className="inline-flex items-center gap-1 text-[11px] font-mono text-dds-text-muted">
+                        <Star size={10} className="text-dds-yellow" />
                         {formatPulls(image.starCount)}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
+                    <span className="inline-flex items-center gap-1 text-[11px] font-mono text-dds-text-muted">
                         <Download size={10} />
                         {formatPulls(image.pullCount)}
                     </span>
@@ -183,7 +177,7 @@ const SearchResultRow: React.FC<{
             <button
                 onClick={() => onPull(image.name)}
                 disabled={disabled}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium text-dds-blue bg-dds-blue/10 border border-dds-blue/20 hover:bg-dds-blue/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
                 {isPulling ? (
                     <Loader2 size={12} className="animate-spin" />

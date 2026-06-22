@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
-import Header from '../components/Header';
 
 interface SystemMetrics {
     activeWebSockets: number;
@@ -70,8 +69,7 @@ const AdminObservabilityPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-900 text-gray-100">
-            <Header />
-            <div className="max-w-7xl mx-auto px-4 py-8">
+                        <div className="max-w-7xl mx-auto px-4 py-8">
                 <h1 className="text-3xl font-bold mb-8 text-emerald-400">System Observability</h1>
 
                 {error ? (

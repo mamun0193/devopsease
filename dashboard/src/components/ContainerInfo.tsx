@@ -25,9 +25,9 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
   if (!containerId) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-20">
-        <Info size={48} className="text-slate-600 mb-4" />
-        <h3 className="text-lg font-medium text-slate-300">No Container Selected</h3>
-        <p className="text-slate-500">Select a container to view its details</p>
+        <Info size={48} className="text-dds-text-muted mb-4" />
+        <h3 className="text-[15px] font-medium text-dds-text-primary">No Container Selected</h3>
+        <p className="text-[13px] text-dds-text-secondary mt-1">Select a container to view its details</p>
       </div>
     );
   }
@@ -35,8 +35,8 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-20">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
-        <p className="text-slate-400">Loading container details...</p>
+        <div className="w-8 h-8 border-2 border-dds-primary border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-[13px] font-medium text-dds-text-muted tracking-wide">Loading container details...</p>
       </div>
     );
   }
@@ -44,11 +44,11 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
   if (error || !info) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-20">
-        <Info size={32} className="text-red-400 mb-4" />
-        <p className="text-slate-300">Failed to load container details</p>
+        <Info size={32} className="text-dds-red mb-4" />
+        <p className="text-[13px] font-medium text-dds-text-primary">Failed to load container details</p>
         <button
           onClick={() => refetch()}
-          className="flex items-center gap-2 mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 transition-colors"
+          className="flex items-center gap-2 mt-4 px-4 py-2 bg-dds-surface hover:bg-dds-bg border border-dds-border rounded-lg text-[13px] text-dds-text-primary transition-colors"
         >
           <RefreshCw size={14} />
           Retry
@@ -57,20 +57,18 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
     );
   }
 
-  console.log('Container State:', info?.state);
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-start gap-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+    <div className="p-4 md:p-6 space-y-6">
+      <div className="flex items-start gap-3 p-4 bg-dds-surface border border-dds-border shadow-sm rounded-xl">
         <span className="text-lg">📋</span>
-        <span className="text-sm text-blue-300">
-          <strong>What is this?</strong> This shows all the technical details about your container -
+        <span className="text-[13px] text-dds-text-primary">
+          <strong className="text-dds-primary font-medium mr-1">What is this?</strong> This shows all the technical details about your container -
           like its image, network settings, and storage. Useful for debugging configuration issues.
         </span>
       </div>
 
 
-      <Section title="Basic Information" icon={<Server size={18} />}>
+      <Section title="Basic Information" icon={<Server size={16} />}>
         <InfoRow
           label="Name"
           value={info.name?.replace(/^\//, '')}
@@ -114,7 +112,7 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
       </Section>
 
       {/* State Details */}
-      <Section title="State Details" icon={<Activity size={18} />}>
+      <Section title="State Details" icon={<Activity size={16} />}>
         <InfoRow
           label="Running"
           value={info.state?.running ? 'Yes' : 'No'}
@@ -156,9 +154,9 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
 
       {/* Network */}
       {info.networks && info.networks.length > 0 && (
-        <Section title="Network" icon={<Network size={18} />}>
+        <Section title="Network" icon={<Network size={16} />}>
           {info.networks.map((network, index) => (
-            <div key={index} className="space-y-2 pb-3 border-b border-slate-800 last:border-0 last:pb-0">
+            <div key={index} className="space-y-2 pb-3 border-b border-dds-border last:border-0 last:pb-0">
               <InfoRow
                 label="Network Name"
                 value={network.name}
@@ -177,8 +175,8 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
 
       {/* Ports */}
       {info.ports && Object.keys(info.ports).length > 0 && (
-        <Section title="Port Mappings" icon={<Globe size={18} />}>
-          <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg text-xs text-slate-400 mb-3">
+        <Section title="Port Mappings" icon={<Globe size={16} />}>
+          <div className="flex items-center gap-2 px-3 py-2 bg-dds-bg border border-dds-border/50 rounded-lg text-[12px] text-dds-text-secondary mb-3">
             <span>💡</span>
             <span>Port mappings connect container ports to your computer. Format: HOST:CONTAINER</span>
           </div>
@@ -208,17 +206,17 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
 
       {/* Environment Variables */}
       {info.environmentVariables && info.environmentVariables.length > 0 && (
-        <Section title="Environment Variables" icon={<Terminal size={18} />}>
-          <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg text-xs text-slate-400 mb-3">
+        <Section title="Environment Variables" icon={<Terminal size={16} />}>
+          <div className="flex items-center gap-2 px-3 py-2 bg-dds-bg border border-dds-border/50 rounded-lg text-[12px] text-dds-text-secondary mb-3">
             <span>🔧</span>
             <span>Environment variables configure the application inside the container</span>
           </div>
           <div className="space-y-1">
             {info.environmentVariables.slice(0, 10).map((env, index) => (
-              <div key={index} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-slate-800/50">
-                <span className="text-blue-400 font-mono text-xs">{env.key}</span>
-                <span className="text-slate-600">=</span>
-                <span className="text-slate-400 font-mono text-xs truncate">
+              <div key={index} className="flex items-center gap-2 py-1.5 px-3 rounded hover:bg-dds-bg transition-colors">
+                <span className="text-dds-primary font-mono text-[12px]">{env.key}</span>
+                <span className="text-dds-text-muted">=</span>
+                <span className="text-dds-text-secondary font-mono text-[12px] truncate">
                   {env.key.toLowerCase().includes('password') ||
                     env.key.toLowerCase().includes('secret') ||
                     env.key.toLowerCase().includes('token')
@@ -229,7 +227,7 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
               </div>
             ))}
             {info.environmentVariables.length > 10 && (
-              <div className="text-xs text-slate-500 px-2 pt-2">
+              <div className="text-[12px] text-dds-text-muted px-3 pt-2">
                 +{info.environmentVariables.length - 10} more variables
               </div>
             )}
@@ -239,13 +237,13 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
 
       {/* Mounts */}
       {info.mounts && info.mounts.length > 0 && (
-        <Section title="Storage Mounts" icon={<HardDrive size={18} />}>
-          <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg text-xs text-slate-400 mb-3">
+        <Section title="Storage Mounts" icon={<HardDrive size={16} />}>
+          <div className="flex items-center gap-2 px-3 py-2 bg-dds-bg border border-dds-border/50 rounded-lg text-[12px] text-dds-text-secondary mb-3">
             <span>📁</span>
             <span>Mounts connect folders on your computer to folders inside the container</span>
           </div>
           {info.mounts.map((mount, index) => (
-            <div key={index} className="space-y-2 pb-3 border-b border-slate-800 last:border-0 last:pb-0">
+            <div key={index} className="space-y-2 pb-3 border-b border-dds-border last:border-0 last:pb-0">
               <InfoRow
                 label="Type"
                 value={mount.type}
@@ -275,21 +273,21 @@ const ContainerInfo: React.FC<ContainerInfoProps> = ({ containerId }) => {
 
       {/* Labels */}
       {info.labels && Object.keys(info.labels).length > 0 && (
-        <Section title="Labels" icon={<Tag size={18} />} collapsed>
-          <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg text-xs text-slate-400 mb-3">
+        <Section title="Labels" icon={<Tag size={16} />} collapsed>
+          <div className="flex items-center gap-2 px-3 py-2 bg-dds-bg border border-dds-border/50 rounded-lg text-[12px] text-dds-text-secondary mb-3">
             <span>🏷️</span>
             <span>Labels are metadata tags attached to the container for organization</span>
           </div>
           <div className="space-y-1">
             {Object.entries(info.labels).slice(0, 8).map(([key, value]) => (
-              <div key={key} className="flex items-start gap-2 py-1.5 px-2 rounded hover:bg-slate-800/50">
-                <span className="text-purple-400 font-mono text-xs break-all">{key}</span>
-                <span className="text-slate-600">=</span>
-                <span className="text-slate-400 font-mono text-xs truncate">{value}</span>
+              <div key={key} className="flex items-start gap-2 py-1.5 px-3 rounded hover:bg-dds-bg transition-colors">
+                <span className="text-dds-blue font-mono text-[12px] break-all">{key}</span>
+                <span className="text-dds-text-muted">=</span>
+                <span className="text-dds-text-secondary font-mono text-[12px] truncate">{value}</span>
               </div>
             ))}
             {Object.keys(info.labels).length > 8 && (
-              <div className="text-xs text-slate-500 px-2 pt-2">
+              <div className="text-[12px] text-dds-text-muted px-3 pt-2">
                 +{Object.keys(info.labels).length - 8} more labels
               </div>
             )}
@@ -312,15 +310,15 @@ const Section: React.FC<SectionProps> = ({ title, icon, children, collapsed = fa
   const [isOpen, setIsOpen] = React.useState(!collapsed);
 
   return (
-    <motion.div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+    <motion.div className="bg-dds-surface border border-dds-border rounded-xl overflow-hidden shadow-sm">
       <button
-        className="w-full flex items-center gap-3 p-4 hover:bg-slate-800/50 transition-colors"
+        className="w-full flex items-center gap-3 p-4 hover:bg-dds-bg/50 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className="text-blue-400">{icon}</span>
-        <span className="font-medium text-slate-200 flex-1 text-left">{title}</span>
+        <span className="text-dds-primary">{icon}</span>
+        <span className="font-medium text-[15px] text-dds-text-primary flex-1 text-left">{title}</span>
         <motion.span
-          className="text-slate-500"
+          className="text-dds-text-muted"
           animate={{ rotate: isOpen ? 90 : 0 }}
         >
           <ChevronRight size={16} />
@@ -331,7 +329,7 @@ const Section: React.FC<SectionProps> = ({ title, icon, children, collapsed = fa
         animate={{ height: isOpen ? 'auto' : 0, opacity: isOpen ? 1 : 0 }}
         className="overflow-hidden"
       >
-        <div className="px-4 pb-4 pt-0 space-y-3">
+        <div className="px-4 pb-4 pt-0 space-y-1">
           {children}
         </div>
       </motion.div>
@@ -361,25 +359,25 @@ const InfoRow: React.FC<InfoRowProps> = ({
 }) => {
   const getBadgeClasses = () => {
     switch (badgeVariant) {
-      case 'success': return 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
-      case 'error': return 'bg-red-500/15 text-red-400 border-red-500/30';
-      case 'warning': return 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30';
-      default: return 'bg-blue-500/15 text-blue-400 border-blue-500/30';
+      case 'success': return 'badge badge-success';
+      case 'error': return 'badge badge-failed';
+      case 'warning': return 'badge badge-warning';
+      default: return 'badge badge-queued';
     }
   };
 
   return (
-    <div className={`flex items-start justify-between gap-4 py-2 px-3 rounded-lg ${highlight ? 'bg-red-500/10 border border-red-500/20' : 'hover:bg-slate-800/50'}`}>
+    <div className={`flex items-start justify-between gap-4 py-2.5 px-3 rounded-lg transition-colors ${highlight ? 'bg-dds-red/5 border border-dds-red/20' : 'hover:bg-dds-bg/60'}`}>
       <div className="flex flex-col min-w-0">
-        <span className="text-sm text-slate-400">{label}</span>
-        {hint && <span className="text-xs text-slate-600">{hint}</span>}
+        <span className="text-[13px] text-dds-text-secondary">{label}</span>
+        {hint && <span className="text-[11px] text-dds-text-muted mt-0.5">{hint}</span>}
       </div>
       {badge ? (
-        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wide border ${getBadgeClasses()}`}>
+        <span className={getBadgeClasses()}>
           {value}
         </span>
       ) : (
-        <span className={`text-sm text-slate-200 text-right break-all ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
+        <span className={`text-[13px] text-dds-text-primary text-right break-all ${mono ? 'font-mono text-[12px]' : ''}`}>{value}</span>
       )}
     </div>
   );

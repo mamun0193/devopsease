@@ -1,18 +1,16 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 
-
-const cardVariant = {
+const cardVariant: Variants = {
     hidden: (col: number) => ({
         opacity: 0,
-        x: col === 0 ? -36 : col === 2 ? 36 : 0,
-        y: col === 1 ? 24 : 0,
+        y: 10,
     }),
     visible: {
         opacity: 1,
-        x: 0,
         y: 0,
-        transition: { duration: 0.45, ease: 'easeOut' },
+        transition: { duration: 0.3, ease: 'easeOut' as const },
     },
 };
 
@@ -34,9 +32,6 @@ interface OverviewCardProps {
     col?: 0 | 1 | 2;
 }
 
-const base =
-    'bg-slate-900 border border-slate-800 rounded-xl p-5 transition-colors';
-
 const OverviewCard: React.FC<OverviewCardProps> = ({
     icon,
     label,
@@ -50,21 +45,21 @@ const OverviewCard: React.FC<OverviewCardProps> = ({
 }) => {
     const inner = (
         <>
-            <div className="flex items-center gap-2 text-slate-500 text-xs mb-2">
+            <div className="flex items-center gap-2 text-dds-text-muted font-medium text-[11px] uppercase tracking-wider mb-3">
                 {icon}
                 {label}
             </div>
 
             {variant === 'stat' ? (
                 <>
-                    <p className="text-2xl font-bold text-slate-100">
+                    <p className="text-2xl font-mono font-medium text-dds-white">
                         {count ?? 0}
                     </p>
                     {stats.length > 0 && (
-                        <div className="flex items-center gap-2 mt-2 text-xs flex-wrap">
+                        <div className="flex items-center gap-2 mt-2 text-[11px] font-mono flex-wrap">
                             {stats.map((s, i) => (
                                 <React.Fragment key={i}>
-                                    {i > 0 && <span className="text-slate-600">·</span>}
+                                    {i > 0 && <span className="text-dds-border">|</span>}
                                     <span className={`flex items-center gap-1 ${s.colorClass}`}>
                                         {s.icon}
                                         {s.text}
@@ -80,22 +75,22 @@ const OverviewCard: React.FC<OverviewCardProps> = ({
         </>
     );
 
+    const baseClass = `card p-4 flex flex-col ${onClick ? 'card-interactive' : ''} ${className}`;
+
     if (onClick) {
         return (
             <motion.div
-                className={`${base} cursor-pointer hover:border-slate-700 ${className}`}
+                className={baseClass}
                 onClick={onClick}
                 variants={cardVariant}
                 custom={col}
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.99 }}
             >
                 {inner}
             </motion.div>
         );
     }
 
-    return <motion.div className={`${base} ${className}`} variants={cardVariant} custom={col}>{inner}</motion.div>;
+    return <motion.div className={baseClass} variants={cardVariant} custom={col}>{inner}</motion.div>;
 };
 
 export default OverviewCard;

@@ -12,46 +12,25 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import Header from '../components/Header';
-import type { FilterItem } from '../components/Header';
-import ResourceNav from '../components/ResourceNav';
 import { useClusters, useConnectCluster } from '../hooks/useClusters';
 import { addToast } from '../store/toastSlice';
 import type { K8sCluster } from '../api';
 
-/* ── Summary Card ─────────────────────────────────────────────────────────── */
-
-function SummaryCard({
-    icon: Icon,
-    label,
-    value,
-    color,
-}: {
-    icon: React.ElementType;
-    label: string;
-    value: string | number;
-    color: string;
-}) {
+function SummaryCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: string | number; color: string }) {
     return (
-        <motion.div
-            className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-        >
+        <div className="card p-4">
             <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-lg ${color} flex items-center justify-center`}>
+                <div className={`w-9 h-9 rounded-lg ${color} flex items-center justify-center border border-white/5`}>
                     <Icon size={16} className="text-white" />
                 </div>
                 <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wide">{label}</p>
-                    <p className="text-lg font-bold text-slate-100">{value}</p>
+                    <p className="text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">{label}</p>
+                    <p className="text-xl font-bold text-dds-text-primary">{value}</p>
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 }
-
-/* ── Cluster Row ──────────────────────────────────────────────────────────── */
 
 function ClusterRow({ cluster }: { cluster: K8sCluster }) {
     const isConnected = cluster.status === 'connected';
@@ -62,24 +41,24 @@ function ClusterRow({ cluster }: { cluster: K8sCluster }) {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
-            className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4 hover:border-slate-600/60 transition-colors"
+            className="bg-dds-bg border border-dds-border rounded-md p-4 hover:border-dds-text-muted transition-colors"
         >
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                        isConnected ? 'bg-emerald-500/20' : 'bg-red-500/20'
+                    <div className={`w-8 h-8 rounded-md flex items-center justify-center ${
+                        isConnected ? 'bg-dds-green/10' : 'bg-dds-red/10'
                     }`}>
                         {isConnected ? (
-                            <CheckCircle2 size={15} className="text-emerald-400" />
+                            <CheckCircle2 size={15} className="text-dds-green" />
                         ) : (
-                            <XCircle size={15} className="text-red-400" />
+                            <XCircle size={15} className="text-dds-red" />
                         )}
                     </div>
                     <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-100 truncate">
+                        <p className="text-[13px] font-medium text-dds-text-primary truncate">
                             {cluster.name}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-[11px] font-mono text-dds-text-secondary">
                             {new Date(cluster.createdAt).toLocaleDateString('en-US', {
                                 month: 'short',
                                 day: 'numeric',
@@ -92,13 +71,13 @@ function ClusterRow({ cluster }: { cluster: K8sCluster }) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-mono rounded-md ${
                         isConnected
-                            ? 'bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20'
-                            : 'bg-red-500/10 text-red-400 ring-1 ring-red-500/20'
+                            ? 'bg-dds-green/5 text-dds-green border border-dds-green/20'
+                            : 'bg-dds-red/5 text-dds-red border border-dds-red/20'
                     }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${
-                            isConnected ? 'bg-emerald-400' : 'bg-red-400'
+                            isConnected ? 'bg-dds-green' : 'bg-dds-red'
                         }`} />
                         {isConnected ? 'Connected' : 'Failed'}
                     </span>
@@ -106,8 +85,8 @@ function ClusterRow({ cluster }: { cluster: K8sCluster }) {
             </div>
 
             {!isConnected && cluster.lastError && (
-                <div className="mt-3 px-3 py-2 bg-red-500/5 border border-red-500/10 rounded-lg">
-                    <p className="text-xs text-red-400/90 leading-relaxed line-clamp-2">
+                <div className="mt-3 px-3 py-2 bg-dds-red/5 border border-dds-red/10 rounded-md">
+                    <p className="text-[12px] font-mono text-dds-red/90 leading-relaxed line-clamp-2">
                         {cluster.lastError}
                     </p>
                 </div>
@@ -115,8 +94,6 @@ function ClusterRow({ cluster }: { cluster: K8sCluster }) {
         </motion.div>
     );
 }
-
-/* ── Connect Form ─────────────────────────────────────────────────────────── */
 
 function ConnectForm({ onSuccess }: { onSuccess?: () => void }) {
     const dispatch = useDispatch();
@@ -169,17 +146,16 @@ function ConnectForm({ onSuccess }: { onSuccess?: () => void }) {
         <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-800/30 border border-slate-700/40 rounded-xl p-5"
+            className="card p-5"
         >
             <div className="flex items-center gap-2 mb-4">
-                <Plus size={16} className="text-blue-400" />
-                <h2 className="text-sm font-semibold text-slate-200">Connect a Cluster</h2>
+                <Plus size={16} className="text-dds-blue" />
+                <h2 className="text-[13px] font-semibold text-dds-text-primary">Connect a Cluster</h2>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Cluster Name */}
                 <div>
-                    <label htmlFor="cluster-name" className="block text-xs font-medium text-slate-400 mb-1.5">
+                    <label htmlFor="cluster-name" className="block text-[12px] font-medium text-dds-text-secondary mb-1.5">
                         Cluster Name
                     </label>
                     <input
@@ -189,13 +165,12 @@ function ConnectForm({ onSuccess }: { onSuccess?: () => void }) {
                         onChange={(e) => setName(e.target.value)}
                         placeholder="e.g., production-cluster"
                         disabled={isSubmitting}
-                        className="w-full px-3 py-2 bg-slate-900/60 border border-slate-700/60 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-all disabled:opacity-50"
+                        className="input w-full"
                     />
                 </div>
 
-                {/* Kubeconfig */}
                 <div>
-                    <label htmlFor="kubeconfig-input" className="block text-xs font-medium text-slate-400 mb-1.5">
+                    <label htmlFor="kubeconfig-input" className="block text-[12px] font-medium text-dds-text-secondary mb-1.5">
                         Kubeconfig
                     </label>
                     <textarea
@@ -205,21 +180,20 @@ function ConnectForm({ onSuccess }: { onSuccess?: () => void }) {
                         placeholder="Paste your kubeconfig YAML here..."
                         rows={8}
                         disabled={isSubmitting}
-                        className="w-full px-3 py-2 bg-slate-900/60 border border-slate-700/60 rounded-lg text-sm text-slate-100 placeholder-slate-600 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-all resize-y disabled:opacity-50"
+                        className="input w-full font-mono text-[11px] resize-y"
                     />
-                    <div className="flex items-center gap-1.5 mt-1.5">
-                        <Shield size={11} className="text-slate-600" />
-                        <p className="text-[11px] text-slate-600">
+                    <div className="flex items-center gap-1.5 mt-2">
+                        <Shield size={11} className="text-dds-text-muted" />
+                        <p className="text-[11px] text-dds-text-muted">
                             Your kubeconfig is encrypted at rest and never logged.
                         </p>
                     </div>
                 </div>
 
-                {/* Submit */}
                 <button
                     type="submit"
                     disabled={!canSubmit}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="btn-primary w-full flex items-center justify-center gap-2"
                 >
                     {isSubmitting ? (
                         <>
@@ -235,7 +209,6 @@ function ConnectForm({ onSuccess }: { onSuccess?: () => void }) {
                 </button>
             </form>
 
-            {/* Result Feedback */}
             <AnimatePresence>
                 {lastResult && (
                     <motion.div
@@ -244,19 +217,19 @@ function ConnectForm({ onSuccess }: { onSuccess?: () => void }) {
                         exit={{ opacity: 0, height: 0 }}
                         className="mt-4 overflow-hidden"
                     >
-                        <div className={`flex items-start gap-2.5 px-3.5 py-3 rounded-lg border ${
+                        <div className={`flex items-start gap-2.5 px-3.5 py-3 rounded-md border ${
                             lastResult.status === 'connected'
-                                ? 'bg-emerald-500/5 border-emerald-500/20'
-                                : 'bg-red-500/5 border-red-500/20'
+                                ? 'bg-dds-green/5 border-dds-green/20'
+                                : 'bg-dds-red/5 border-dds-red/20'
                         }`}>
                             {lastResult.status === 'connected' ? (
-                                <CheckCircle2 size={16} className="text-emerald-400 mt-0.5 flex-shrink-0" />
+                                <CheckCircle2 size={16} className="text-dds-green mt-0.5 flex-shrink-0" />
                             ) : (
-                                <XCircle size={16} className="text-red-400 mt-0.5 flex-shrink-0" />
+                                <XCircle size={16} className="text-dds-red mt-0.5 flex-shrink-0" />
                             )}
                             <div>
-                                <p className={`text-sm font-medium ${
-                                    lastResult.status === 'connected' ? 'text-emerald-300' : 'text-red-300'
+                                <p className={`text-[12px] font-medium ${
+                                    lastResult.status === 'connected' ? 'text-dds-green' : 'text-dds-red'
                                 }`}>
                                     {lastResult.status === 'connected'
                                         ? `Connected to "${lastResult.name}" ✅`
@@ -264,7 +237,7 @@ function ConnectForm({ onSuccess }: { onSuccess?: () => void }) {
                                     }
                                 </p>
                                 {lastResult.lastError && (
-                                    <p className="text-xs text-red-400/80 mt-1 leading-relaxed">
+                                    <p className="text-[11px] font-mono text-dds-red/80 mt-1 leading-relaxed">
                                         {lastResult.lastError}
                                     </p>
                                 )}
@@ -276,8 +249,6 @@ function ConnectForm({ onSuccess }: { onSuccess?: () => void }) {
         </motion.div>
     );
 }
-
-/* ── Page ──────────────────────────────────────────────────────────────────── */
 
 const ClustersPage: React.FC = () => {
     const navigate = useNavigate();
@@ -299,81 +270,38 @@ const ClustersPage: React.FC = () => {
         }
     }, [clusters, activeFilter]);
 
-    const filterItems: FilterItem[] = useMemo(() => [
-        {
-            key: 'all',
-            label: 'Total',
-            count: summary.total,
-            color: 'text-slate-300',
-            activeBg: 'bg-slate-700',
-            activeBorder: 'border-slate-600',
-            icon: <Cloud size={14} className="text-slate-400" />,
-        },
-        {
-            key: 'connected',
-            label: 'Connected',
-            count: summary.connected,
-            color: 'text-emerald-400',
-            activeBg: 'bg-emerald-500/20',
-            activeBorder: 'border-emerald-500/50',
-            dot: 'bg-emerald-500',
-        },
-        {
-            key: 'failed',
-            label: 'Failed',
-            count: summary.failed,
-            color: 'text-red-400',
-            activeBg: 'bg-red-500/20',
-            activeBorder: 'border-red-500/50',
-            icon: <XCircle size={14} className="text-red-400" />,
-        },
-    ], [summary]);
-
     return (
-        <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header onFilterChange={setActiveFilter} activeFilter={activeFilter} filterItems={filterItems} />
-            <ResourceNav />
-
-            <main className="flex-1 p-6 lg:p-8">
-                <div className="max-w-5xl mx-auto">
-                    {/* Page Header */}
-                    <div className="flex items-center gap-3 mb-6">
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="text-slate-400 hover:text-slate-200 transition-colors"
-                        >
-                            <ArrowLeft size={20} />
-                        </button>
-                        <h1 className="text-2xl font-bold text-slate-100">Kubernetes Clusters</h1>
+        <div className="h-full flex flex-col bg-dds-bg text-dds-text-primary overflow-hidden">
+            <main className="flex-1 overflow-y-auto scrollbar-hide p-6 lg:p-8">
+                <div className="max-w-7xl mx-auto space-y-6">
+                    <div className="flex items-center gap-3">
+                        <Cloud size={24} className="text-dds-text-primary" />
+                        <h1 className="text-2xl font-semibold text-dds-text-primary tracking-tight">Kubernetes Clusters</h1>
                     </div>
 
                     {isLoading ? (
                         <div className="flex items-center justify-center py-20">
-                            <Loader2 size={24} className="animate-spin text-slate-500" />
+                            <Loader2 size={24} className="animate-spin text-dds-text-muted" />
                         </div>
                     ) : (
                         <>
-                            {/* Summary Cards */}
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-                                <SummaryCard icon={Cloud} label="Total Clusters" value={summary.total} color="bg-blue-600/20" />
-                                <SummaryCard icon={CheckCircle2} label="Connected" value={summary.connected} color="bg-emerald-600/20" />
-                                <SummaryCard icon={XCircle} label="Failed" value={summary.failed} color="bg-red-600/20" />
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <SummaryCard icon={Cloud} label="Total Clusters" value={summary.total} color="bg-dds-blue" />
+                                <SummaryCard icon={CheckCircle2} label="Connected" value={summary.connected} color="bg-dds-green" />
+                                <SummaryCard icon={XCircle} label="Failed" value={summary.failed} color="bg-dds-red" />
                             </div>
 
-                            {/* Two-column layout: form + list */}
                             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-                                {/* Connect Form */}
                                 <div className="lg:col-span-2">
                                     <ConnectForm />
                                 </div>
 
-                                {/* Cluster List */}
                                 <div className="lg:col-span-3">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Server size={14} className="text-slate-500" />
-                                        <h2 className="text-sm font-semibold text-slate-300">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <Server size={14} className="text-dds-text-muted" />
+                                        <h2 className="text-[13px] font-medium text-dds-text-primary">
                                             Your Clusters
-                                            <span className="ml-1.5 text-slate-600">
+                                            <span className="ml-1.5 font-mono text-dds-text-secondary">
                                                 ({filteredClusters.length})
                                             </span>
                                         </h2>
@@ -383,15 +311,15 @@ const ClustersPage: React.FC = () => {
                                         <motion.div
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
-                                            className="flex flex-col items-center justify-center py-16 text-center"
+                                            className="card flex flex-col items-center justify-center py-16 text-center"
                                         >
-                                            <Cloud size={36} className="text-slate-700 mb-3" />
-                                            <p className="text-sm text-slate-500">
+                                            <Cloud size={36} className="text-dds-text-muted mb-3" />
+                                            <p className="text-[13px] text-dds-text-secondary">
                                                 {activeFilter === 'all'
                                                     ? 'No clusters connected yet'
                                                     : `No ${activeFilter} clusters`}
                                             </p>
-                                            <p className="text-xs text-slate-600 mt-1">
+                                            <p className="text-[12px] text-dds-text-muted mt-1">
                                                 Paste a kubeconfig to connect your first cluster.
                                             </p>
                                         </motion.div>

@@ -12,8 +12,6 @@ import {
 } from 'lucide-react';
 import RefreshButton from '../components/RefreshButton';
 import { useNavigate } from 'react-router-dom';
-import Header from '../components/Header';
-import ResourceNav from '../components/ResourceNav';
 import { useClusters, useClusterNamespaces, useClusterOverview } from '../hooks/useClusters';
 import type {
     K8sCluster,
@@ -428,9 +426,7 @@ const KubernetesDashboardPage: React.FC = () => {
 
     return (
         <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header />
-            <ResourceNav />
-
+                        
             <main className="flex-1 p-6 lg:p-8">
                 <div className="max-w-6xl mx-auto">
                     {/* Page Header */}
@@ -466,7 +462,7 @@ const KubernetesDashboardPage: React.FC = () => {
                                 onSelect={setNamespace}
                             />
                             <RefreshButton
-                                onRefresh={refetch}
+                                onRefresh={() => { refetch(); }}
                                 isFetching={isFetching}
                                 isLoading={!clusterId}
                                 size="md"

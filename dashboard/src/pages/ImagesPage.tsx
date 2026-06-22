@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { formatDistanceToNow } from 'date-fns';
 import { useDispatch } from 'react-redux';
 import {
     Layers,
@@ -12,7 +11,6 @@ import {
     AlertTriangle,
     XOctagon,
     Loader2,
-    ArrowLeft,
     Server,
     Clock,
     ChevronRight,
@@ -23,24 +21,21 @@ import {
     Upload,
     Download,
 } from 'lucide-react';
-import Header from '../components/Header';
-import type { FilterItem } from '../components/Header';
-import ResourceNav from '../components/ResourceNav';
 import PushImageModal from '../components/registry/PushImageModal';
 import { imageApi } from '../api';
 import { useDockerHubStatus } from '../hooks/useDockerHub';
 import { addToast } from '../store/toastSlice';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; label: string }> = {
-    ACTIVE: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', label: 'Active' },
-    UNUSED: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', label: 'Unused' },
-    DANGLING: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', label: 'Dangling' },
+    ACTIVE: { color: 'text-dds-green', bg: 'bg-dds-green/10', border: 'border-dds-green/30', label: 'Active' },
+    UNUSED: { color: 'text-dds-yellow', bg: 'bg-dds-yellow/10', border: 'border-dds-yellow/30', label: 'Unused' },
+    DANGLING: { color: 'text-dds-red', bg: 'bg-dds-red/10', border: 'border-dds-red/30', label: 'Dangling' },
 };
 
 function StatusBadge({ status }: { status: string }) {
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.UNUSED;
     return (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${config.color} ${config.bg} border ${config.border}`}>
+        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-mono tracking-wide ${config.color} ${config.bg} border ${config.border}`}>
             {config.label}
         </span>
     );
@@ -48,21 +43,17 @@ function StatusBadge({ status }: { status: string }) {
 
 function SummaryCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: string | number; color: string }) {
     return (
-        <motion.div
-            className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-        >
+        <div className="card p-4">
             <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-lg ${color} flex items-center justify-center`}>
+                <div className={`w-9 h-9 rounded-lg ${color} flex items-center justify-center border border-white/5`}>
                     <Icon size={16} className="text-white" />
                 </div>
                 <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wide">{label}</p>
-                    <p className="text-lg font-bold text-slate-100">{value}</p>
+                    <p className="text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">{label}</p>
+                    <p className="text-xl font-bold text-dds-text-primary">{value}</p>
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 }
 
@@ -140,92 +131,94 @@ function PruneModal({ onClose }: { onClose: () => void }) {
     return (
         <AnimatePresence>
             <motion.div
-                className="fixed inset-0 z-50 flex items-center justify-center"
+                className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
             >
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
                 <motion.div
-                    className="relative w-full max-w-lg mx-4 bg-slate-900 border border-slate-700/70 rounded-2xl shadow-2xl overflow-hidden"
-                    initial={{ scale: 0.95, opacity: 0, y: 16 }}
-                    animate={{ scale: 1, opacity: 1, y: 0 }}
-                    transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+                    className="w-full max-w-lg bg-dds-elevated border border-dds-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+                    initial={{ scale: 0.95, y: 20 }}
+                    animate={{ scale: 1, y: 0 }}
+                    exit={{ scale: 0.95, y: 20 }}
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-                        <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
-                                <Sparkles size={16} className="text-amber-400" />
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-dds-border bg-dds-surface">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-dds-orange/10 flex items-center justify-center border border-dds-orange/20">
+                                <Sparkles size={20} className="text-dds-orange" />
                             </div>
-                            <h2 className="text-base font-semibold text-slate-100">Safe Clean Storage</h2>
+                            <div>
+                                <h2 className="text-lg font-semibold text-dds-text-primary">Safe Clean Storage</h2>
+                                <p className="text-[13px] text-dds-text-muted">Remove unused & dangling images.</p>
+                            </div>
                         </div>
-                        <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded-lg hover:bg-slate-800">
-                            <X size={18} />
+                        <button onClick={onClose} disabled={pruning} className="text-dds-text-muted hover:text-dds-text-primary disabled:opacity-50">
+                            <X size={20} />
                         </button>
                     </div>
 
                     {/* Body */}
-                    <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+                    <div className="px-6 py-5 overflow-y-auto">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-10 gap-3">
-                                <Loader2 size={24} className="animate-spin text-slate-500" />
-                                <p className="text-sm text-slate-500">Scanning for reclaimable images…</p>
+                                <Loader2 size={24} className="animate-spin text-dds-text-muted" />
+                                <p className="text-[13px] text-dds-text-muted">Scanning for reclaimable images…</p>
                             </div>
                         ) : error ? (
                             <div className="flex flex-col items-center py-8 gap-2">
-                                <XOctagon size={28} className="text-red-400" />
-                                <p className="text-sm text-red-400">{error}</p>
+                                <XOctagon size={28} className="text-dds-red" />
+                                <p className="text-[13px] text-dds-red">{error}</p>
                             </div>
                         ) : result ? (
                             <div className="flex flex-col items-center py-6 gap-3">
-                                <div className="w-12 h-12 rounded-full bg-emerald-500/15 flex items-center justify-center">
-                                    <ShieldCheck size={24} className="text-emerald-400" />
+                                <div className="w-12 h-12 rounded-full bg-dds-green/15 flex items-center justify-center">
+                                    <ShieldCheck size={24} className="text-dds-green" />
                                 </div>
-                                <p className="text-base font-semibold text-slate-100">
+                                <p className="text-base font-semibold text-dds-text-primary">
                                     {result.deletedCount > 0 ? 'Storage Cleaned' : 'Nothing to clean'}
                                 </p>
                                 {result.deletedCount > 0 && (
-                                    <p className="text-sm text-emerald-400">
+                                    <p className="text-[13px] text-dds-green">
                                         Reclaimed {formatSize(result.reclaimedMB)} from {result.deletedCount} image{result.deletedCount !== 1 ? 's' : ''}
                                     </p>
                                 )}
                                 {result.errors.length > 0 && (
-                                    <div className="w-full mt-3 bg-red-500/10 border border-red-500/30 rounded-xl p-3">
-                                        <p className="text-xs font-medium text-red-400 mb-1.5">Partial failures ({result.errors.length})</p>
+                                    <div className="w-full mt-3 bg-dds-red/10 border border-dds-red/30 rounded-xl p-3">
+                                        <p className="text-[11px] font-mono text-dds-red mb-1.5 uppercase">Partial failures ({result.errors.length})</p>
                                         {result.errors.map((e, i) => (
-                                            <p key={i} className="text-xs text-red-300/80 truncate">{e.tag}: {e.error}</p>
+                                            <p key={i} className="text-[12px] text-dds-red/80 truncate">{e.tag}: {e.error}</p>
                                         ))}
                                     </div>
                                 )}
                             </div>
                         ) : candidates.length === 0 ? (
                             <div className="flex flex-col items-center py-8 gap-2">
-                                <CheckCircle2 size={28} className="text-emerald-400" />
-                                <p className="text-sm text-slate-400">No reclaimable images found</p>
-                                <p className="text-xs text-slate-600">All images are in use or recently built</p>
+                                <CheckCircle2 size={28} className="text-dds-green" />
+                                <p className="text-[13px] text-dds-text-secondary">No reclaimable images found</p>
+                                <p className="text-[12px] text-dds-text-muted">All images are in use or recently built</p>
                             </div>
                         ) : (
                             <>
                                 <div className="flex items-center justify-between mb-4">
-                                    <p className="text-sm text-slate-400">
+                                    <p className="text-[13px] text-dds-text-secondary">
                                         {candidates.length} image{candidates.length !== 1 ? 's' : ''} can be removed
                                     </p>
-                                    <span className="text-sm font-semibold text-amber-400">{formatSize(totalReclaimableMB)} reclaimable</span>
+                                    <span className="text-[13px] font-mono font-medium text-dds-orange">{formatSize(totalReclaimableMB)} reclaimable</span>
                                 </div>
-                                <div className="rounded-xl border border-slate-800 overflow-hidden">
+                                <div className="rounded-xl border border-dds-border overflow-hidden">
                                     <table className="w-full text-sm">
                                         <thead>
-                                            <tr className="border-b border-slate-800 bg-slate-800/40">
-                                                <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Tag</th>
-                                                <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Size</th>
+                                            <tr className="border-b border-dds-border bg-dds-muted/50">
+                                                <th className="text-left px-4 py-2.5 text-[11px] font-mono text-dds-text-muted uppercase">Tag</th>
+                                                <th className="text-right px-4 py-2.5 text-[11px] font-mono text-dds-text-muted uppercase">Size</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {candidates.map((c) => (
-                                                <tr key={c.id} className="border-b border-slate-800/40 last:border-0">
-                                                    <td className="px-4 py-2.5 text-slate-300 truncate max-w-[240px]">{c.tag}</td>
-                                                    <td className="px-4 py-2.5 text-right text-slate-500">{formatSize(c.sizeMB)}</td>
+                                                <tr key={c.id} className="border-b border-dds-border last:border-0 hover:bg-dds-muted/30">
+                                                    <td className="px-4 py-2.5 text-[13px] text-dds-text-primary truncate max-w-[240px]">{c.tag}</td>
+                                                    <td className="px-4 py-2.5 text-right text-[13px] font-mono text-dds-text-secondary">{formatSize(c.sizeMB)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -236,11 +229,11 @@ function PruneModal({ onClose }: { onClose: () => void }) {
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-800">
+                    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-dds-border bg-dds-surface">
                         {result ? (
                             <button
                                 onClick={onClose}
-                                className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-slate-200 hover:bg-slate-600 transition-colors"
+                                className="btn-primary"
                             >
                                 Done
                             </button>
@@ -248,14 +241,15 @@ function PruneModal({ onClose }: { onClose: () => void }) {
                             <>
                                 <button
                                     onClick={onClose}
-                                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                                    className="btn-secondary"
+                                    disabled={pruning}
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     onClick={handlePrune}
                                     disabled={pruning || loading || candidates.length === 0}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="flex items-center gap-2 px-4 py-2 bg-dds-orange/15 text-dds-orange rounded-md text-sm font-medium hover:bg-dds-orange/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     {pruning ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                     {pruning ? 'Cleaning…' : 'Confirm Clean'}
@@ -305,23 +299,23 @@ function PruneBuildCacheModal({ onClose, currentCacheSizeMB }: { onClose: () => 
                 exit={{ opacity: 0 }}
             >
                 <motion.div
-                    className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+                    className="w-full max-w-lg bg-dds-elevated border border-dds-border rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
                     initial={{ scale: 0.95, y: 20 }}
                     animate={{ scale: 1, y: 0 }}
                     exit={{ scale: 0.95, y: 20 }}
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900/50">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-dds-border bg-dds-surface">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                                <Database size={20} className="text-purple-400" />
+                            <div className="w-10 h-10 rounded-xl bg-dds-primary/10 flex items-center justify-center border border-dds-primary/20">
+                                <Database size={20} className="text-dds-primary" />
                             </div>
                             <div>
-                                <h2 className="text-lg font-semibold text-slate-100">Clean Build Cache</h2>
-                                <p className="text-sm text-slate-400 leading-tight pb-0.5">Free up space used by Docker build processes.</p>
+                                <h2 className="text-lg font-semibold text-dds-text-primary">Clean Build Cache</h2>
+                                <p className="text-[13px] text-dds-text-muted leading-tight pb-0.5">Free up space used by Docker builds.</p>
                             </div>
                         </div>
-                        <button onClick={onClose} disabled={pruning} className="text-slate-500 hover:text-slate-300 disabled:opacity-50">
+                        <button onClick={onClose} disabled={pruning} className="text-dds-text-muted hover:text-dds-text-primary disabled:opacity-50">
                             <X size={20} />
                         </button>
                     </div>
@@ -329,37 +323,37 @@ function PruneBuildCacheModal({ onClose, currentCacheSizeMB }: { onClose: () => 
                     {/* Content */}
                     <div className="flex-1 overflow-y-auto px-6 py-5">
                         {error && (
-                            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex gap-3">
-                                <AlertTriangle size={18} className="text-red-400 shrink-0 mt-0.5" />
+                            <div className="mb-6 p-4 rounded-xl bg-dds-red/10 border border-dds-red/20 flex gap-3">
+                                <AlertTriangle size={18} className="text-dds-red shrink-0 mt-0.5" />
                                 <div>
-                                    <p className="text-sm font-medium text-red-200">Prune Failed</p>
-                                    <p className="text-sm text-red-400/80 mt-1">{error}</p>
+                                    <p className="text-[13px] font-medium text-dds-red">Prune Failed</p>
+                                    <p className="text-[13px] text-dds-red/80 mt-1">{error}</p>
                                 </div>
                             </div>
                         )}
 
                         {result ? (
                             <div className="flex flex-col items-center py-8 gap-4">
-                                <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 mb-2">
-                                    <CheckCircle2 size={32} className="text-emerald-400" />
+                                <div className="w-16 h-16 rounded-full bg-dds-green/10 flex items-center justify-center border border-dds-green/20 mb-2">
+                                    <CheckCircle2 size={32} className="text-dds-green" />
                                 </div>
                                 <div className="text-center">
-                                    <h3 className="text-xl font-semibold text-slate-100 mb-1">Cache Cleaned</h3>
-                                    <p className="text-slate-400">Successfully reclaimed storage space.</p>
+                                    <h3 className="text-xl font-semibold text-dds-text-primary mb-1">Cache Cleaned</h3>
+                                    <p className="text-dds-text-secondary text-[13px]">Successfully reclaimed storage space.</p>
                                 </div>
-                                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 w-full mt-4 flex items-center justify-between">
-                                    <span className="text-sm text-slate-400">Space reclaimed</span>
-                                    <span className="font-semibold text-emerald-400">{formatSize(result.reclaimedMB)}</span>
+                                <div className="p-4 rounded-xl bg-dds-bg border border-dds-border w-full mt-4 flex items-center justify-between">
+                                    <span className="text-[13px] text-dds-text-secondary">Space reclaimed</span>
+                                    <span className="font-mono font-semibold text-dds-green">{formatSize(result.reclaimedMB)}</span>
                                 </div>
                             </div>
                         ) : (
                             <>
-                                <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 w-full flex flex-col gap-2 mb-6">
+                                <div className="p-4 rounded-xl bg-dds-bg border border-dds-border w-full flex flex-col gap-2 mb-6">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-sm text-slate-400">Current Cache Size</span>
-                                        <span className="font-semibold text-slate-200">{formatSize(currentCacheSizeMB)}</span>
+                                        <span className="text-[13px] text-dds-text-secondary">Current Cache Size</span>
+                                        <span className="font-mono font-semibold text-dds-text-primary">{formatSize(currentCacheSizeMB)}</span>
                                     </div>
-                                    <p className="text-xs text-slate-500 leading-relaxed mt-2 border-t border-slate-800 pt-3">
+                                    <p className="text-[12px] text-dds-text-muted leading-relaxed mt-2 border-t border-dds-border pt-3">
                                         This action asks Docker Engine to clear all unneeded build cache data. Only cache data that is safely removable will be deleted.
                                     </p>
                                 </div>
@@ -368,11 +362,11 @@ function PruneBuildCacheModal({ onClose, currentCacheSizeMB }: { onClose: () => 
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-800 bg-slate-900/50">
+                    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-dds-border bg-dds-surface">
                         {result ? (
                             <button
                                 onClick={onClose}
-                                className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-700 text-slate-200 hover:bg-slate-600 transition-colors"
+                                className="btn-primary"
                             >
                                 Done
                             </button>
@@ -380,7 +374,7 @@ function PruneBuildCacheModal({ onClose, currentCacheSizeMB }: { onClose: () => 
                             <>
                                 <button
                                     onClick={onClose}
-                                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors disable:opacity-50"
+                                    className="btn-secondary"
                                     disabled={pruning}
                                 >
                                     Cancel
@@ -388,7 +382,7 @@ function PruneBuildCacheModal({ onClose, currentCacheSizeMB }: { onClose: () => 
                                 <button
                                     onClick={handlePrune}
                                     disabled={pruning || currentCacheSizeMB <= 0}
-                                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-500/15 text-purple-400 border border-purple-500/30 hover:bg-purple-500/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="flex items-center gap-2 px-4 py-2 bg-dds-primary/15 text-dds-primary rounded-md text-sm font-medium hover:bg-dds-primary/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     {pruning ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />}
                                     {pruning ? 'Cleaning…' : 'Clean Cache'}
@@ -411,8 +405,6 @@ const ImagesPage: React.FC = () => {
     const { data: dockerHubStatus } = useDockerHubStatus();
     const isHubConnected = dockerHubStatus?.connected === true;
 
-    // Uses same query keys as useImages / useImageUsageSummary hooks.
-    // Static — refreshed via mutations (pull/push/build/prune).
     const { data: images = [], isLoading: imagesLoading } = useQuery({
         queryKey: ['images'],
         queryFn: imageApi.listImages,
@@ -441,32 +433,21 @@ const ImagesPage: React.FC = () => {
 
     const hasUnused = filterCounts.UNUSED > 0 || filterCounts.DANGLING > 0;
 
-    const imageFilterItems: FilterItem[] = useMemo(() => [
-        { key: 'all', label: 'All', count: filterCounts.all, color: 'text-slate-100', activeBg: 'bg-slate-700', activeBorder: 'border-slate-600', icon: <Layers size={16} className="text-slate-400" /> },
-        { key: 'ACTIVE', label: 'Active', count: filterCounts.ACTIVE, color: 'text-emerald-400', activeBg: 'bg-emerald-500/20', activeBorder: 'border-emerald-500/50', dot: 'bg-emerald-500 animate-pulse' },
-        { key: 'UNUSED', label: 'Unused', count: filterCounts.UNUSED, color: 'text-yellow-400', activeBg: 'bg-yellow-500/20', activeBorder: 'border-yellow-500/50', icon: <AlertTriangle size={16} className="text-yellow-400" /> },
-        { key: 'DANGLING', label: 'Dangling', count: filterCounts.DANGLING, color: 'text-red-400', activeBg: 'bg-red-500/20', activeBorder: 'border-red-500/50', icon: <XOctagon size={16} className="text-red-400" /> },
-    ], [filterCounts]);
-
     return (
-        <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header onFilterChange={setActiveFilter} activeFilter={activeFilter} filterItems={imageFilterItems} />
-            <ResourceNav />
-            <main className="flex-1 p-6 lg:p-8">
-                <div className="max-w-5xl mx-auto">
+        <div className="h-full flex flex-col bg-dds-bg text-dds-text-primary overflow-hidden">
+            <main className="flex-1 overflow-y-auto scrollbar-hide p-6 lg:p-8">
+                <div className="max-w-7xl mx-auto space-y-6">
                     {/* Page Header */}
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <button onClick={() => navigate('/dashboard')} className="text-slate-400 hover:text-slate-200 transition-colors">
-                                <ArrowLeft size={20} />
-                            </button>
-                            <h1 className="text-2xl font-bold text-slate-100">Images</h1>
+                            <Layers size={24} className="text-dds-text-primary" />
+                            <h1 className="text-2xl font-semibold text-dds-text-primary tracking-tight">Images</h1>
                         </div>
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => setShowBuildCacheModal(true)}
                                 disabled={isLoading || (summary?.buildCacheMB || 0) === 0}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-purple-500/10 text-purple-400 border border-purple-500/25 hover:bg-purple-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="btn-secondary"
                             >
                                 <Database size={15} />
                                 Clean Cache
@@ -474,9 +455,9 @@ const ImagesPage: React.FC = () => {
                             <button
                                 onClick={() => setShowPruneModal(true)}
                                 disabled={!hasUnused || isLoading}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-amber-500/10 text-amber-400 border border-amber-500/25 hover:bg-amber-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                className="btn-secondary"
                             >
-                                <Sparkles size={15} />
+                                <Sparkles size={15} className="text-dds-orange" />
                                 Safe Clean Storage
                             </button>
                         </div>
@@ -484,100 +465,96 @@ const ImagesPage: React.FC = () => {
 
                     {isLoading ? (
                         <div className="flex items-center justify-center py-20">
-                            <Loader2 size={24} className="animate-spin text-slate-500" />
+                            <Loader2 size={24} className="animate-spin text-dds-text-muted" />
                         </div>
                     ) : (
                         <>
                             {/* Summary Panel */}
                             {summary && (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
-                                    <SummaryCard icon={HardDrive} label="Total Storage" value={formatSize(summary.totalImageStorageMB)} color="bg-blue-600/20" />
-                                    <SummaryCard icon={Database} label="Build Cache" value={formatSize(summary.buildCacheMB)} color="bg-purple-600/20" />
-                                    <SummaryCard icon={CheckCircle2} label="Active" value={summary.activeImages} color="bg-emerald-600/20" />
-                                    <SummaryCard icon={AlertTriangle} label="Unused" value={summary.unusedImages} color="bg-yellow-600/20" />
-                                    <SummaryCard icon={XOctagon} label="Dangling" value={summary.danglingImages} color="bg-red-600/20" />
+                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                                    <SummaryCard icon={HardDrive} label="Total Storage" value={formatSize(summary.totalImageStorageMB)} color="bg-dds-blue" />
+                                    <SummaryCard icon={Database} label="Build Cache" value={formatSize(summary.buildCacheMB)} color="bg-dds-primary" />
+                                    <SummaryCard icon={CheckCircle2} label="Active" value={summary.activeImages} color="bg-dds-green" />
+                                    <SummaryCard icon={AlertTriangle} label="Unused" value={summary.unusedImages} color="bg-dds-yellow" />
+                                    <SummaryCard icon={XOctagon} label="Dangling" value={summary.danglingImages} color="bg-dds-red" />
                                 </div>
                             )}
 
                             {/* Docker Hub Banner */}
                             <button
                                 onClick={() => navigate('/registry')}
-                                className="w-full flex items-center justify-between px-5 py-3.5 mb-8 rounded-xl bg-gradient-to-r from-cyan-500/10 via-cyan-500/5 to-transparent border border-cyan-500/20 hover:border-cyan-500/40 group transition-all"
+                                className="w-full flex items-center justify-between px-5 py-4 rounded-xl border border-dds-border bg-gradient-to-r from-dds-blue/10 via-dds-blue/5 to-transparent hover:border-dds-blue/40 group transition-all"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center border border-cyan-500/25">
-                                        <Download size={14} className="text-cyan-400" />
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-lg bg-dds-blue/15 flex items-center justify-center border border-dds-blue/25">
+                                        <Download size={18} className="text-dds-blue" />
                                     </div>
                                     <div className="text-left">
-                                        <p className="text-sm font-medium text-slate-200">Pull images from Docker Hub</p>
-                                        <p className="text-xs text-slate-500">Connect your account to pull and push images</p>
+                                        <p className="text-[14px] font-medium text-dds-text-primary">Pull images from Docker Hub</p>
+                                        <p className="text-[12px] text-dds-text-secondary mt-0.5">Connect your account to pull and push images</p>
                                     </div>
                                 </div>
-                                <ChevronRight size={16} className="text-slate-600 group-hover:text-cyan-400 transition-colors" />
+                                <ChevronRight size={18} className="text-dds-text-muted group-hover:text-dds-blue transition-colors" />
                             </button>
 
                             {/* Image Table */}
-                            {filteredImages.length === 0 ? (
-                                <div className="text-center py-20">
-                                    <Layers size={48} className="mx-auto text-slate-700 mb-4" />
-                                    <p className="text-slate-500 text-lg">No images yet</p>
-                                    <p className="text-slate-600 text-sm mt-1">Build an image to see it listed here</p>
-                                </div>
-                            ) : (
-                                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden">
+                            <div className="card overflow-hidden">
+                                {filteredImages.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                                        <Layers size={40} className="text-dds-text-muted mb-4" />
+                                        <h3 className="text-lg font-medium text-dds-text-primary mb-1">No images yet</h3>
+                                        <p className="text-sm text-dds-text-secondary max-w-sm">
+                                            Build an image or pull from Docker Hub to see it listed here.
+                                        </p>
+                                    </div>
+                                ) : (
                                     <div className="overflow-x-auto">
-                                        <table className="w-full text-sm">
+                                        <table className="w-full text-left border-collapse whitespace-nowrap">
                                             <thead>
-                                                <tr className="border-b border-slate-800">
-                                                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Tag</th>
-                                                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Size</th>
-                                                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                                                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Attached Containers</th>
-                                                    <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Used</th>
-                                                    <th className="text-right px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                                                <tr className="border-b border-dds-border bg-dds-muted/50">
+                                                    <th className="px-5 py-3.5 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Tag</th>
+                                                    <th className="px-5 py-3.5 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Size</th>
+                                                    <th className="px-5 py-3.5 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Status</th>
+                                                    <th className="px-5 py-3.5 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Containers</th>
+                                                    <th className="px-5 py-3.5 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Last Used</th>
+                                                    <th className="px-5 py-3.5 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider text-right">Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {filteredImages.map((image, idx) => (
-                                                    <motion.tr
+                                                    <tr
                                                         key={image._id}
-                                                        className="border-b border-slate-800/50 cursor-pointer hover:bg-slate-800/30 transition-colors"
-                                                        initial={{ opacity: 0 }}
-                                                        animate={{ opacity: 1 }}
-                                                        transition={{ delay: idx * 0.03 }}
+                                                        className="border-b border-dds-border last:border-0 hover:bg-dds-muted/50 transition-colors"
                                                         onClick={() => navigate(`/images/${image._id}`)}
                                                     >
                                                         <td className="px-5 py-3.5">
-                                                            <div className="flex items-center gap-2.5">
-                                                                <div className="w-7 h-7 rounded-md bg-slate-700/50 flex items-center justify-center shrink-0">
-                                                                    <Layers size={13} className="text-slate-400" />
-                                                                </div>
-                                                                <span className="font-medium text-slate-200 truncate max-w-[200px]">{image.tag}</span>
-                                                                <ChevronRight size={14} className="text-slate-600" />
+                                                            <div className="flex items-center gap-3">
+                                                                <Layers size={16} className="text-dds-text-muted" />
+                                                                <span className="text-[13px] font-medium text-dds-text-primary max-w-[200px] truncate">{image.tag}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="px-5 py-3.5 text-slate-400">
-                                                            <span className="flex items-center gap-1.5">
-                                                                <HardDrive size={12} className="text-slate-600" />
+                                                        <td className="px-5 py-3.5">
+                                                            <span className="text-[12px] font-mono text-dds-text-secondary flex items-center gap-1.5">
+                                                                <HardDrive size={12} className="text-dds-text-muted" />
                                                                 {formatSize(image.sizeMB)}
                                                             </span>
                                                         </td>
                                                         <td className="px-5 py-3.5">
                                                             <StatusBadge status={image.imageUsageStatus} />
                                                         </td>
-                                                        <td className="px-5 py-3.5 text-slate-400">
+                                                        <td className="px-5 py-3.5">
                                                             {image.attachedContainerIds.length > 0 ? (
-                                                                <span className="flex items-center gap-1.5">
-                                                                    <Server size={12} className="text-slate-600" />
+                                                                <span className="text-[12px] font-mono text-dds-text-secondary flex items-center gap-1.5">
+                                                                    <Server size={12} className="text-dds-text-muted" />
                                                                     {image.attachedContainerIds.length}
                                                                 </span>
                                                             ) : (
-                                                                <span className="text-slate-600">—</span>
+                                                                <span className="text-[12px] text-dds-text-muted">—</span>
                                                             )}
                                                         </td>
-                                                        <td className="px-5 py-3.5 text-slate-500">
-                                                            <span className="flex items-center gap-1.5">
-                                                                <Clock size={12} className="text-slate-600" />
+                                                        <td className="px-5 py-3.5">
+                                                            <span className="text-[12px] font-mono text-dds-text-secondary flex items-center gap-1.5">
+                                                                <Clock size={12} className="text-dds-text-muted" />
                                                                 {formatDate(image.lastUsedAt)}
                                                             </span>
                                                         </td>
@@ -588,20 +565,20 @@ const ImagesPage: React.FC = () => {
                                                                     setPushTarget({ imageId: image._id, imageTag: image.tag });
                                                                 }}
                                                                 disabled={!isHubConnected}
-                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-cyan-400 bg-cyan-500/10 border border-cyan-500/25 hover:bg-cyan-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                className="btn-ghost text-dds-blue px-2 py-1 h-auto hover:bg-dds-blue/10 disabled:opacity-30 disabled:cursor-not-allowed"
                                                                 title={isHubConnected ? 'Push to Docker Hub' : 'Connect Docker Hub first'}
                                                             >
                                                                 <Upload size={12} />
                                                                 Push
                                                             </button>
                                                         </td>
-                                                    </motion.tr>
+                                                    </tr>
                                                 ))}
                                             </tbody>
                                         </table>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </>
                     )}
                 </div>

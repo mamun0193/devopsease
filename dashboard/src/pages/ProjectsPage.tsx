@@ -10,26 +10,21 @@ import {
     Play,
     Square,
     AlertTriangle,
-    ArrowLeft,
-    Server,
 } from 'lucide-react';
-import Header from '../components/Header';
-import type { FilterItem } from '../components/Header';
-import ResourceNav from '../components/ResourceNav';
 import { useProjects, useCreateProject } from '../hooks/useProjects';
 import type { Project } from '../api';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; icon: React.ReactNode; label: string }> = {
-    CREATED: { color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/30', icon: <FolderKanban size={14} />, label: 'Created' },
-    RUNNING: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: <Play size={14} />, label: 'Running' },
-    STOPPED: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', icon: <Square size={14} />, label: 'Stopped' },
-    FAILED: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', icon: <AlertTriangle size={14} />, label: 'Failed' },
+    CREATED: { color: 'text-dds-text-secondary', bg: 'bg-dds-muted', border: 'border-dds-border', icon: <FolderKanban size={12} />, label: 'Created' },
+    RUNNING: { color: 'text-dds-green', bg: 'bg-dds-green/10', border: 'border-dds-green/30', icon: <Play size={12} />, label: 'Running' },
+    STOPPED: { color: 'text-dds-yellow', bg: 'bg-dds-yellow/10', border: 'border-dds-yellow/30', icon: <Square size={12} />, label: 'Stopped' },
+    FAILED: { color: 'text-dds-red', bg: 'bg-dds-red/10', border: 'border-dds-red/30', icon: <AlertTriangle size={12} />, label: 'Failed' },
 };
 
 function StatusBadge({ status }: { status: string }) {
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.CREATED;
     return (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${config.color} ${config.bg} border ${config.border}`}>
+        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-mono tracking-wide ${config.color} ${config.bg} border ${config.border}`}>
             {config.icon}
             {config.label}
         </span>
@@ -38,38 +33,29 @@ function StatusBadge({ status }: { status: string }) {
 
 function ProjectRow({ project, onClick }: { project: Project; onClick: () => void }) {
     return (
-        <motion.button
+        <tr 
             onClick={onClick}
-            className="w-full text-left bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-xl p-4 transition-all group"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ scale: 1.005 }}
+            className="group border-b border-dds-border last:border-0 hover:bg-dds-muted/50 cursor-pointer transition-colors"
         >
-            <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500/20 to-purple-500/20 border border-violet-500/30 flex items-center justify-center shrink-0">
-                        <FolderKanban size={16} className="text-violet-400" />
-                    </div>
-                    <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-100 truncate">{project.name}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                            {project.services?.length || 0} service{(project.services?.length || 0) !== 1 ? 's' : ''} · {new Date(project.createdAt).toLocaleString()}
-                        </p>
-                    </div>
+            <td className="py-3 px-4">
+                <div className="flex items-center gap-3">
+                    <FolderKanban size={16} className="text-dds-text-muted" />
+                    <span className="text-sm font-medium text-dds-text-primary">{project.name}</span>
                 </div>
-
-                <div className="flex items-center gap-4 shrink-0">
-                    <StatusBadge status={project.status} />
-
-                    <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500">
-                        <Server size={12} />
-                        {project.services?.length || 0}
-                    </div>
-
-                    <ChevronRight size={16} className="text-slate-600 group-hover:text-slate-400 transition-colors" />
-                </div>
-            </div>
-        </motion.button>
+            </td>
+            <td className="py-3 px-4">
+                <StatusBadge status={project.status} />
+            </td>
+            <td className="py-3 px-4 text-sm font-mono text-dds-text-secondary">
+                {project.services?.length || 0}
+            </td>
+            <td className="py-3 px-4 text-sm text-dds-text-secondary">
+                {new Date(project.createdAt).toLocaleString()}
+            </td>
+            <td className="py-3 px-4 text-right">
+                <ChevronRight size={16} className="text-dds-text-muted group-hover:text-dds-text-primary transition-colors ml-auto" />
+            </td>
+        </tr>
     );
 }
 
@@ -84,56 +70,7 @@ const ProjectsPage: React.FC = () => {
     const { data: projects = [], isLoading } = useProjects();
     const createProject = useCreateProject();
 
-    const [activeFilter, setActiveFilter] = useState<string>('all');
     const [showForm, setShowForm] = useState(false);
-
-    const filteredProjects = useMemo(() => {
-        switch (activeFilter) {
-            case 'running': return projects.filter(p => p.status === 'RUNNING');
-            case 'stopped': return projects.filter(p => p.status === 'STOPPED' || p.status === 'CREATED');
-            case 'failed':  return projects.filter(p => p.status === 'FAILED');
-            default:        return projects;
-        }
-    }, [projects, activeFilter]);
-
-    const filterItems: FilterItem[] = useMemo(() => [
-        {
-            key: 'all',
-            label: 'Total',
-            count: projects.length,
-            color: 'text-slate-300',
-            activeBg: 'bg-slate-700',
-            activeBorder: 'border-slate-600',
-            icon: <FolderKanban size={14} className="text-slate-400" />,
-        },
-        {
-            key: 'running',
-            label: 'Running',
-            count: projects.filter(p => p.status === 'RUNNING').length,
-            color: 'text-emerald-400',
-            activeBg: 'bg-emerald-500/20',
-            activeBorder: 'border-emerald-500/50',
-            dot: 'bg-emerald-500',
-        },
-        {
-            key: 'stopped',
-            label: 'Stopped',
-            count: projects.filter(p => p.status === 'STOPPED' || p.status === 'CREATED').length,
-            color: 'text-yellow-400',
-            activeBg: 'bg-yellow-500/20',
-            activeBorder: 'border-yellow-500/50',
-            icon: <Square size={14} className="text-yellow-400" />,
-        },
-        {
-            key: 'failed',
-            label: 'Failed',
-            count: projects.filter(p => p.status === 'FAILED').length,
-            color: 'text-red-400',
-            activeBg: 'bg-red-500/20',
-            activeBorder: 'border-red-500/50',
-            icon: <AlertTriangle size={14} className="text-red-400" />,
-        },
-    ], [projects]);
     const [name, setName] = useState('');
     const [composeYaml, setComposeYaml] = useState(DEFAULT_COMPOSE);
     const [formError, setFormError] = useState('');
@@ -165,28 +102,22 @@ const ProjectsPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header onFilterChange={setActiveFilter} activeFilter={activeFilter} filterItems={filterItems} />
-            <ResourceNav />
-            <main className="flex-1 p-6 lg:p-8">
-                <div className="max-w-4xl mx-auto">
+        <div className="h-full flex flex-col bg-dds-bg text-dds-text-primary overflow-hidden">
+            <main className="flex-1 overflow-y-auto scrollbar-hide p-6 lg:p-8">
+                <div className="max-w-7xl mx-auto space-y-6">
                     {/* Header */}
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <button onClick={() => navigate('/dashboard')} className="text-slate-400 hover:text-slate-200 transition-colors">
-                                <ArrowLeft size={20} />
-                            </button>
-                            <h1 className="text-2xl font-bold text-slate-100">Projects</h1>
+                            <FolderKanban size={24} className="text-dds-text-primary" />
+                            <h1 className="text-2xl font-semibold text-dds-text-primary tracking-tight">Projects</h1>
                         </div>
-                        <motion.button
+                        <button
                             onClick={() => setShowForm(!showForm)}
-                            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-xl text-sm font-medium transition-colors"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            className="btn-primary flex items-center gap-2"
                         >
                             <Plus size={16} />
                             New Project
-                        </motion.button>
+                        </button>
                     </div>
 
                     {/* Create Form */}
@@ -199,38 +130,38 @@ const ProjectsPage: React.FC = () => {
                                 className="overflow-hidden"
                                 onSubmit={handleSubmit}
                             >
-                                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-6 space-y-4">
+                                <div className="card p-6 space-y-5">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1.5">Project Name</label>
+                                        <label className="block text-[13px] font-medium text-dds-text-primary mb-1.5">Project Name</label>
                                         <input
                                             type="text"
                                             value={name}
                                             onChange={(e) => setName(e.target.value)}
                                             placeholder="e.g. my-webapp"
-                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 text-sm placeholder:text-slate-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/25 transition-colors"
+                                            className="input w-full"
                                             maxLength={64}
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1.5">Compose YAML</label>
+                                        <label className="block text-[13px] font-medium text-dds-text-primary mb-1.5">Compose YAML</label>
                                         <textarea
                                             value={composeYaml}
                                             onChange={(e) => setComposeYaml(e.target.value)}
                                             rows={12}
-                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 text-sm font-mono placeholder:text-slate-600 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/25 transition-colors resize-y"
+                                            className="input w-full font-mono text-[13px] resize-y"
                                             placeholder="services:&#10;  web:&#10;    image: nginx:alpine"
                                             spellCheck={false}
                                         />
                                     </div>
 
                                     {formError && (
-                                        <div className="flex items-start gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2.5">
+                                        <div className="flex items-start gap-2 text-[13px] text-dds-red bg-dds-red/10 border border-dds-red/20 rounded-md p-3">
                                             <XCircle size={14} className="mt-0.5 shrink-0" />
                                             <div>
                                                 <p>{formError}</p>
                                                 {validationErrors.length > 0 && (
-                                                    <ul className="mt-1.5 space-y-0.5 text-red-400/80">
+                                                    <ul className="mt-1 space-y-0.5 opacity-80">
                                                         {validationErrors.map((err, i) => (
                                                             <li key={i}>• {err}</li>
                                                         ))}
@@ -240,11 +171,11 @@ const ProjectsPage: React.FC = () => {
                                         </div>
                                     )}
 
-                                    <div className="flex items-center gap-3 pt-1">
+                                    <div className="flex items-center gap-3 pt-2">
                                         <button
                                             type="submit"
                                             disabled={createProject.isPending}
-                                            className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:bg-violet-600/50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors"
+                                            className="btn-primary flex items-center gap-2"
                                         >
                                             {createProject.isPending ? (
                                                 <><Loader2 size={14} className="animate-spin" /> Deploying…</>
@@ -255,7 +186,7 @@ const ProjectsPage: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => { setShowForm(false); setFormError(''); setValidationErrors([]); }}
-                                            className="px-4 py-2.5 text-slate-400 hover:text-slate-200 text-sm transition-colors"
+                                            className="btn-secondary"
                                         >
                                             Cancel
                                         </button>
@@ -266,27 +197,44 @@ const ProjectsPage: React.FC = () => {
                     </AnimatePresence>
 
                     {/* Project List */}
-                    {isLoading ? (
-                        <div className="flex items-center justify-center py-20">
-                            <Loader2 size={24} className="animate-spin text-slate-500" />
-                        </div>
-                    ) : projects.length === 0 ? (
-                        <div className="text-center py-20">
-                            <FolderKanban size={48} className="mx-auto text-slate-700 mb-4" />
-                            <p className="text-slate-500 text-lg">No projects yet</p>
-                            <p className="text-slate-600 text-sm mt-1">Deploy your first multi-service project</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-2">
-                            {filteredProjects.map((project) => (
-                                <ProjectRow
-                                    key={project._id}
-                                    project={project}
-                                    onClick={() => navigate(`/projects/${project._id}`)}
-                                />
-                            ))}
-                        </div>
-                    )}
+                    <div className="card overflow-hidden">
+                        {isLoading ? (
+                            <div className="flex items-center justify-center py-20">
+                                <Loader2 size={24} className="animate-spin text-dds-text-muted" />
+                            </div>
+                        ) : projects.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-center">
+                                <FolderKanban size={40} className="text-dds-text-muted mb-4" />
+                                <h3 className="text-lg font-medium text-dds-text-primary mb-1">No Projects Found</h3>
+                                <p className="text-sm text-dds-text-secondary max-w-sm">
+                                    Create a new project using docker-compose.yaml to group multiple containers together.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse whitespace-nowrap">
+                                    <thead>
+                                        <tr className="border-b border-dds-border bg-dds-muted/50">
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Project</th>
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Status</th>
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Services</th>
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Created At</th>
+                                            <th className="py-3 px-4"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {projects.map((project) => (
+                                            <ProjectRow
+                                                key={project._id}
+                                                project={project}
+                                                onClick={() => navigate(`/projects/${project._id}`)}
+                                            />
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </main>
         </div>

@@ -1,14 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import {
-  Activity,
-  Box,
   Server,
   AlertTriangle,
   Pause,
   Bell,
   Rocket,
   XCircle,
+  Loader2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useContainers, useHealthCheck } from '../hooks/useContainers';
@@ -45,7 +44,6 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all', filterItems, quickLinks }) => {
   const { data: containers = [], isFetching, refetch } = useContainers();
-  const { data: health } = useHealthCheck();
   const { data: deployments = [] } = useDeployments();
   const navigate = useNavigate();
   const stats = getContainerStats(containers);
@@ -89,23 +87,20 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all', f
 
   return (
     <header
-      className={`bg-gray-900/50 backdrop-blur-md border-b border-gray-800 sticky top-0 z-50 transition-transform duration-300 ease-out h-12 ${headerHidden ? '-translate-y-full' : 'translate-y-0'}`}
+      className={`bg-dds-bg/80 backdrop-blur-md border-b border-dds-border sticky top-0 z-40 transition-transform duration-300 ease-out h-12 ${headerHidden ? '-translate-y-full' : 'translate-y-0'}`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-6">
-        {/* Logo & Title */}
-        <div className="flex items-center gap-2">
-          <motion.div
-            className="relative"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-6">
+        {/* Left: Global Search / Workspace (DDS Style) */}
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-[6px] border border-dds-border bg-dds-surface text-dds-text-secondary hover:text-dds-white hover:border-dds-primary transition-all duration-200"
           >
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-              <Box size={18} className="text-white" />
+            <span className="text-[12px] font-medium">Search anything...</span>
+            <div className="flex items-center gap-1 ml-4 text-[10px] font-mono text-dds-text-muted bg-dds-bg px-1.5 py-0.5 rounded border border-dds-border">
+              <span>Ctrl</span><span>K</span>
             </div>
-          </motion.div>
-          <span className="hidden sm:block font-bold text-xl bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-            DevOpsEase
-          </span>
+          </button>
         </div>
 
         {/* Center: quick nav links OR filter badges */}
@@ -227,42 +222,39 @@ const Header: React.FC<HeaderProps> = ({ onFilterChange, activeFilter = 'all', f
 
         {/* Actions */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm">
-            <div className={`w-2 h-2 rounded-full ${health ? 'bg-emerald-500 animate-pulse' : 'bg-yellow-500'}`} />
-            <span className="text-slate-400 hidden sm:inline text-xs">
-              {health ? 'Connected' : 'Connecting...'}
-            </span>
-          </div>
+
 
           {/* Deployment status pill */}
           {deployStats.total > 0 && (
             <button
               onClick={() => navigate('/deployments')}
               title="View deployments"
-              className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-800/70 border border-slate-700/60 hover:border-slate-600 hover:bg-slate-800 transition-all text-xs"
+              className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-md border border-dds-border bg-dds-surface hover:border-dds-primary/50 hover:bg-dds-muted transition-all text-[12px] font-mono"
             >
-              <Rocket size={11} className="text-slate-500" />
-              {deployStats.running > 0 && (
-                <span className="flex items-center gap-1 text-emerald-400 font-medium">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  {deployStats.running}
-                </span>
-              )}
-              {deployStats.deploying > 0 && (
-                <span className="flex items-center gap-1 text-amber-400 font-medium">
-                  <AlertTriangle size={10} />
-                  {deployStats.deploying}
-                </span>
-              )}
-              {deployStats.failed > 0 && (
-                <span className="flex items-center gap-1 text-red-400 font-medium">
-                  <XCircle size={10} />
-                  {deployStats.failed}
-                </span>
-              )}
-              {deployStats.stopped > 0 && (
-                <span className="text-slate-500 font-medium">{deployStats.stopped}</span>
-              )}
+              <Rocket size={12} className="text-dds-primary" />
+              <div className="flex items-center gap-3">
+                {deployStats.running > 0 && (
+                  <span className="flex items-center gap-1.5 text-dds-green font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-dds-green animate-pulse" />
+                    {deployStats.running}
+                  </span>
+                )}
+                {deployStats.deploying > 0 && (
+                  <span className="flex items-center gap-1.5 text-dds-yellow font-medium">
+                    <Loader2 size={10} className="animate-spin" />
+                    {deployStats.deploying}
+                  </span>
+                )}
+                {deployStats.failed > 0 && (
+                  <span className="flex items-center gap-1.5 text-dds-red font-medium">
+                    <XCircle size={10} />
+                    {deployStats.failed}
+                  </span>
+                )}
+                {deployStats.stopped > 0 && deployStats.running === 0 && deployStats.deploying === 0 && deployStats.failed === 0 && (
+                  <span className="text-dds-text-muted font-medium">{deployStats.stopped} stopped</span>
+                )}
+              </div>
             </button>
           )}
 

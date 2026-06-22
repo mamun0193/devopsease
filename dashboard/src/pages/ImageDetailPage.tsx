@@ -14,20 +14,18 @@ import {
     Copy,
     Loader2,
 } from 'lucide-react';
-import Header from '../components/Header';
-import ResourceNav from '../components/ResourceNav';
 import { imageApi } from '../api';
 
-const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; label: string }> = {
-    ACTIVE: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', label: 'Active' },
-    UNUSED: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', label: 'Unused' },
-    DANGLING: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', label: 'Dangling' },
+const STATUS_CONFIG: Record<string, { badgeClass: string; label: string }> = {
+    ACTIVE: { badgeClass: 'badge badge-success', label: 'Active' },
+    UNUSED: { badgeClass: 'badge badge-warning', label: 'Unused' },
+    DANGLING: { badgeClass: 'badge badge-failed', label: 'Dangling' },
 };
 
 function StatusBadge({ status }: { status: string }) {
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.UNUSED;
     return (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${config.color} ${config.bg} border ${config.border}`}>
+        <span className={config.badgeClass}>
             {config.label}
         </span>
     );
@@ -51,9 +49,9 @@ function formatSize(mb: number): string {
 
 function DetailField({ icon: Icon, label, children }: { icon?: React.ElementType; label: string; children: React.ReactNode }) {
     return (
-        <div className="space-y-1.5">
-            <p className="text-xs text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
-                {Icon && <Icon size={11} />}
+        <div className="space-y-2">
+            <p className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider flex items-center gap-1.5">
+                {Icon && <Icon size={12} />}
                 {label}
             </p>
             <div>{children}</div>
@@ -74,76 +72,76 @@ const ImageDetailPage: React.FC = () => {
     const cleanId = image?.dockerImageId?.replace('sha256:', '') || '';
 
     return (
-        <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header />
-            <ResourceNav />
+        <div className="min-h-screen flex flex-col bg-dds-bg">
             <main className="flex-1 p-6 lg:p-8">
                 <div className="max-w-4xl mx-auto">
                     {/* Back + Title */}
-                    <div className="flex items-center gap-3 mb-8">
-                        <button onClick={() => navigate('/images')} className="text-slate-400 hover:text-slate-200 transition-colors">
-                            <ArrowLeft size={20} />
+                    <div className="flex items-center gap-4 mb-8">
+                        <button onClick={() => navigate('/images')} className="text-dds-text-secondary hover:text-dds-white transition-colors p-1.5 rounded-lg hover:bg-dds-surface">
+                            <ArrowLeft size={18} />
                         </button>
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-slate-700/50 flex items-center justify-center">
-                                <Layers size={16} className="text-slate-400" />
+                            <div className="w-10 h-10 rounded-lg bg-dds-surface border border-dds-border flex items-center justify-center shadow-sm">
+                                <Layers size={18} className="text-dds-primary" />
                             </div>
                             <div>
-                                <h1 className="text-xl font-bold text-slate-100">{image?.tag || 'Loading...'}</h1>
-                                {image && <p className="text-xs text-slate-500 mt-0.5">Image Details</p>}
+                                <h1 className="text-base font-semibold text-dds-text-primary">{image?.tag || 'Loading...'}</h1>
+                                {image && <p className="text-[12px] font-mono text-dds-text-muted mt-0.5">Image Details</p>}
                             </div>
                             {image && <StatusBadge status={image.imageUsageStatus} />}
                         </div>
                     </div>
 
                     {isLoading ? (
-                        <div className="flex items-center justify-center py-20">
-                            <Loader2 size={24} className="animate-spin text-slate-500" />
+                        <div className="flex flex-col items-center justify-center py-20 gap-4">
+                            <Loader2 size={24} className="animate-spin text-dds-primary" />
+                            <p className="text-sm font-medium text-dds-text-muted">Loading image details...</p>
                         </div>
                     ) : isError || !image ? (
-                        <div className="text-center py-20">
-                            <Layers size={48} className="mx-auto text-slate-700 mb-4" />
-                            <p className="text-slate-500 text-lg">Image not found</p>
+                        <div className="text-center py-20 bg-dds-surface/50 border border-dds-border rounded-xl">
+                            <Layers size={48} className="mx-auto text-dds-text-muted mb-4" />
+                            <p className="text-dds-text-primary font-medium text-sm mb-4">Image not found</p>
                             <button
                                 onClick={() => navigate('/images')}
-                                className="mt-4 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                                className="btn-primary inline-flex"
                             >
-                                ← Back to Images
+                                <ArrowLeft size={16} className="mr-1.5" />
+                                Back to Images
                             </button>
                         </div>
                     ) : (
                         <div className="space-y-6">
                             {/* Overview Card */}
                             <motion.div
-                                className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6"
+                                className="bg-dds-surface border border-dds-border rounded-xl p-6 shadow-sm"
                                 initial={{ opacity: 0, y: 12 }}
                                 animate={{ opacity: 1, y: 0 }}
                             >
-                                <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-5">Overview</h2>
+                                <h2 className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-6">Overview</h2>
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                                     <DetailField icon={Hash} label="Docker Image ID">
                                         <div className="flex items-center gap-2">
-                                            <code className="text-xs text-slate-300 bg-slate-700/50 px-2 py-1 rounded font-mono">
+                                            <code className="text-[12px] text-dds-text-primary bg-dds-bg border border-dds-border/50 px-2 py-1 rounded font-mono">
                                                 {cleanId ? cleanId.substring(0, 16) + '...' : '—'}
                                             </code>
                                             {cleanId && (
                                                 <button
                                                     onClick={() => navigator.clipboard.writeText(cleanId)}
-                                                    className="text-slate-600 hover:text-slate-400 transition-colors"
+                                                    className="text-dds-text-muted hover:text-dds-white transition-colors p-1"
                                                     title="Copy full ID"
                                                 >
-                                                    <Copy size={12} />
+                                                    <Copy size={13} />
                                                 </button>
                                             )}
                                         </div>
                                     </DetailField>
 
                                     <DetailField icon={HardDrive} label="Size">
-                                        <p className="text-sm font-semibold text-slate-200">{formatSize(image.sizeMB)}</p>
+                                        <p className="text-[13px] font-mono font-medium text-dds-text-primary">{formatSize(image.sizeMB)}</p>
                                     </DetailField>
 
                                     <DetailField icon={Layers} label="Layers">
-                                        <p className="text-sm font-semibold text-slate-200">{image.layerCount}</p>
+                                        <p className="text-[13px] font-mono font-medium text-dds-text-primary">{image.layerCount}</p>
                                     </DetailField>
 
                                     <DetailField label="Status">
@@ -154,61 +152,63 @@ const ImageDetailPage: React.FC = () => {
 
                             {/* Usage & Source Card */}
                             <motion.div
-                                className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6"
+                                className="bg-dds-surface border border-dds-border rounded-xl p-6 shadow-sm"
                                 initial={{ opacity: 0, y: 12 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.05 }}
                             >
-                                <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-5">Usage & Source</h2>
+                                <h2 className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-6">Usage & Source</h2>
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
                                     <DetailField icon={Download} label="Pull Count">
-                                        <p className="text-sm font-semibold text-slate-200">{image.pullCount ?? 0}</p>
+                                        <p className="text-[13px] font-mono font-medium text-dds-text-primary">{image.pullCount ?? 0}</p>
                                     </DetailField>
 
                                     <DetailField icon={Box} label="Source">
-                                        <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${(image.pulledFrom || 'DOCKERFILE') === 'DOCKERFILE'
-                                                ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                                                : 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
+                                        <span className={`badge ${(image.pulledFrom || 'DOCKERFILE') === 'DOCKERFILE'
+                                                ? 'badge-queued'
+                                                : 'badge-running'
                                             }`}>
                                             {image.pulledFrom || 'DOCKERFILE'}
                                         </span>
                                     </DetailField>
 
                                     <DetailField icon={Clock} label="Created">
-                                        <p className="text-sm text-slate-300">{formatDate(image.createdAt)}</p>
+                                        <p className="text-[13px] font-mono text-dds-text-secondary">{formatDate(image.createdAt)}</p>
                                     </DetailField>
 
                                     <DetailField icon={Clock} label="Last Used">
-                                        <p className="text-sm text-slate-300">{formatDate(image.lastUsedAt)}</p>
+                                        <p className="text-[13px] font-mono text-dds-text-secondary">{formatDate(image.lastUsedAt)}</p>
                                     </DetailField>
                                 </div>
                             </motion.div>
 
                             {/* Attached Containers Card */}
                             <motion.div
-                                className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6"
+                                className="bg-dds-surface border border-dds-border rounded-xl p-6 shadow-sm"
                                 initial={{ opacity: 0, y: 12 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.1 }}
                             >
-                                <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-5 flex items-center gap-2">
+                                <h2 className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-6 flex items-center gap-2">
                                     <Server size={14} />
                                     Attached Containers
-                                    <span className="text-xs text-slate-600 font-normal">({image.attachedContainerIds.length})</span>
+                                    <span className="text-[10px] text-dds-text-muted font-normal bg-dds-bg px-1.5 py-0.5 rounded">
+                                        {image.attachedContainerIds.length}
+                                    </span>
                                 </h2>
                                 {image.attachedContainerIds.length > 0 ? (
                                     <div className="flex flex-wrap gap-2">
                                         {image.attachedContainerIds.map((cid) => (
                                             <code
                                                 key={cid}
-                                                className="text-xs text-slate-300 bg-slate-700/50 border border-slate-700 px-3 py-1.5 rounded-lg font-mono hover:bg-slate-700 transition-colors cursor-default"
+                                                className="text-[12px] text-dds-text-primary bg-dds-bg border border-dds-border/50 px-2 py-1 rounded font-mono cursor-default"
                                             >
                                                 {cid.substring(0, 12)}
                                             </code>
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="text-sm text-slate-600">No containers attached to this image</p>
+                                    <p className="text-[13px] text-dds-text-muted italic">No containers attached to this image</p>
                                 )}
                             </motion.div>
                         </div>

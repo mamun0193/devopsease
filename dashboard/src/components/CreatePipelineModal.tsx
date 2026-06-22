@@ -124,147 +124,150 @@ const CreatePipelineModal: React.FC<CreatePipelineModalProps> = ({ isOpen, onClo
                         leaveFrom="opacity-100 scale-100"
                         leaveTo="opacity-0 scale-95"
                     >
-                        <DialogPanel className="w-full max-w-lg max-h-[90vh] transform overflow-y-auto rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl transition-all">
+                        <DialogPanel className="w-full max-w-lg max-h-[90vh] transform flex flex-col overflow-y-auto rounded-xl bg-dds-bg border border-dds-border shadow-2xl transition-all">
                             {/* Header */}
-                            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-dds-border bg-dds-surface/50">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/30">
-                                        <GitMerge size={18} className="text-violet-400" />
+                                    <div className="w-9 h-9 rounded-lg bg-dds-primary/10 border border-dds-primary/20 flex items-center justify-center shadow-inner">
+                                        <GitMerge size={18} className="text-dds-primary" />
                                     </div>
-                                    <DialogTitle className="text-lg font-semibold text-slate-100">
+                                    <DialogTitle className="text-base font-semibold text-dds-text-primary">
                                         Create Pipeline
                                     </DialogTitle>
                                 </div>
                                 <button
                                     onClick={onClose}
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                                    className="p-1.5 rounded-lg text-dds-text-muted hover:text-dds-white hover:bg-dds-surface transition-colors"
                                 >
                                     <X size={18} />
                                 </button>
                             </div>
 
                             {/* Body */}
-                            <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
-                                {/* Step 1: Repository */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">Repository</label>
-                                    {loadingRepos ? (
-                                        <div className="flex items-center gap-2 text-sm text-slate-500 py-2">
-                                            <Loader2 size={14} className="animate-spin" />
-                                            Loading repositories…
-                                        </div>
-                                    ) : repos.length === 0 ? (
-                                        <p className="text-sm text-slate-500 py-2">
-                                            No repositories connected. Connect a repository first.
-                                        </p>
-                                    ) : (
-                                        <select
-                                            value={selectedRepo}
-                                            onChange={(e) => { setSelectedRepo(e.target.value); setPipelineName(''); }}
-                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-colors appearance-none cursor-pointer"
-                                        >
-                                            <option value="">Select a repository…</option>
-                                            {repos.map(repo => (
-                                                <option key={repo._id} value={repo._id}>
-                                                    {repo.owner}/{repo.repoName}
-                                                </option>
+                            <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
+                                <div className="px-6 py-5 space-y-5 flex-1">
+                                    {/* Step 1: Repository */}
+                                    <div>
+                                        <label className="block text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-2">Repository <span className="text-dds-red">*</span></label>
+                                        {loadingRepos ? (
+                                            <div className="flex items-center gap-2 text-[13px] text-dds-text-muted py-2">
+                                                <Loader2 size={14} className="animate-spin" />
+                                                Loading repositories…
+                                            </div>
+                                        ) : repos.length === 0 ? (
+                                            <p className="text-[13px] text-dds-text-muted py-2 bg-dds-surface border border-dds-border rounded-md px-3">
+                                                No repositories connected. Connect a repository first.
+                                            </p>
+                                        ) : (
+                                            <select
+                                                value={selectedRepo}
+                                                onChange={(e) => { setSelectedRepo(e.target.value); setPipelineName(''); }}
+                                                className="w-full bg-dds-surface border border-dds-border rounded-md px-4 py-2.5 text-dds-text-primary text-[13px] focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 transition-colors appearance-none cursor-pointer"
+                                                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+                                            >
+                                                <option value="" className="text-dds-text-muted bg-dds-surface">Select a repository…</option>
+                                                {repos.map(repo => (
+                                                    <option key={repo._id} value={repo._id} className="bg-dds-surface text-dds-text-primary">
+                                                        {repo.owner}/{repo.repoName}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+
+                                    {/* Step 2: Branch */}
+                                    <div>
+                                        <label className="block text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-2">
+                                            <GitBranch size={13} className="inline mr-1.5 -mt-0.5" />
+                                            Branch
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={branch}
+                                            onChange={(e) => setBranch(e.target.value)}
+                                            placeholder="main"
+                                            className="w-full bg-dds-surface border border-dds-border rounded-md px-4 py-2.5 text-dds-text-primary text-[13px] placeholder:text-dds-text-muted focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 transition-colors"
+                                        />
+                                    </div>
+
+                                    {/* Step 3: Name */}
+                                    <div>
+                                        <label className="block text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-2">Pipeline Name</label>
+                                        <input
+                                            type="text"
+                                            value={pipelineName}
+                                            onChange={(e) => setPipelineName(e.target.value)}
+                                            placeholder="my-app-pipeline"
+                                            maxLength={128}
+                                            className="w-full bg-dds-surface border border-dds-border rounded-md px-4 py-2.5 text-dds-text-primary text-[13px] placeholder:text-dds-text-muted focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 transition-colors"
+                                        />
+                                    </div>
+
+                                    {/* Step 4: Pipeline Steps */}
+                                    <div className="pt-2">
+                                        <label className="block text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-2">
+                                            <CheckSquare size={13} className="inline mr-1.5 -mt-0.5" />
+                                            Pipeline Steps
+                                        </label>
+                                        <div className="space-y-2">
+                                            {AVAILABLE_STEPS.map((step) => (
+                                                <button
+                                                    key={step.name}
+                                                    type="button"
+                                                    onClick={() => toggleStep(step.name)}
+                                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-md border text-left transition-all ${
+                                                        selectedSteps.has(step.name)
+                                                            ? 'bg-dds-primary/10 border-dds-primary/40 text-dds-text-primary'
+                                                            : 'bg-dds-surface border-dds-border text-dds-text-secondary hover:border-dds-border/80'
+                                                    }`}
+                                                >
+                                                    <div className={`w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
+                                                        selectedSteps.has(step.name)
+                                                            ? 'bg-dds-primary border-dds-primary'
+                                                            : 'border-dds-text-muted bg-dds-bg'
+                                                    }`}>
+                                                        {selectedSteps.has(step.name) && (
+                                                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[13px] font-medium">{step.label}</p>
+                                                        <p className="text-[11px] text-dds-text-muted mt-0.5">{step.description}</p>
+                                                    </div>
+                                                </button>
                                             ))}
-                                        </select>
+                                        </div>
+                                    </div>
+
+                                    {/* Error */}
+                                    {error && (
+                                        <div className="flex items-center gap-2 text-[13px] text-dds-red bg-dds-red/10 border border-dds-red/20 rounded-md px-4 py-2.5">
+                                            <AlertCircle size={14} />
+                                            {error}
+                                        </div>
                                     )}
                                 </div>
 
-                                {/* Step 2: Branch */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                                        <GitBranch size={14} className="inline mr-1.5 -mt-0.5" />
-                                        Branch
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={branch}
-                                        onChange={(e) => setBranch(e.target.value)}
-                                        placeholder="main"
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 text-sm placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-colors"
-                                    />
-                                </div>
-
-                                {/* Step 3: Name */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">Pipeline Name</label>
-                                    <input
-                                        type="text"
-                                        value={pipelineName}
-                                        onChange={(e) => setPipelineName(e.target.value)}
-                                        placeholder="my-app-pipeline"
-                                        maxLength={128}
-                                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 text-sm placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-colors"
-                                    />
-                                </div>
-
-                                {/* Step 4: Pipeline Steps */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                                        <CheckSquare size={14} className="inline mr-1.5 -mt-0.5" />
-                                        Pipeline Steps
-                                    </label>
-                                    <div className="space-y-2">
-                                        {AVAILABLE_STEPS.map((step) => (
-                                            <button
-                                                key={step.name}
-                                                type="button"
-                                                onClick={() => toggleStep(step.name)}
-                                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
-                                                    selectedSteps.has(step.name)
-                                                        ? 'bg-blue-500/10 border-blue-500/40 text-slate-100'
-                                                        : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:border-slate-600'
-                                                }`}
-                                            >
-                                                <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border transition-colors ${
-                                                    selectedSteps.has(step.name)
-                                                        ? 'bg-blue-500 border-blue-500'
-                                                        : 'border-slate-600'
-                                                }`}>
-                                                    {selectedSteps.has(step.name) && (
-                                                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-medium">{step.label}</p>
-                                                    <p className="text-xs text-slate-500">{step.description}</p>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Error */}
-                                {error && (
-                                    <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2.5">
-                                        <AlertCircle size={14} />
-                                        {error}
-                                    </div>
-                                )}
-
                                 {/* Actions */}
-                                <div className="flex items-center justify-end gap-3 pt-2">
+                                <div className="flex items-center justify-end gap-3 px-6 py-5 border-t border-dds-border bg-dds-surface/50 mt-auto">
                                     <button
                                         type="button"
                                         onClick={onClose}
-                                        className="px-4 py-2.5 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors"
+                                        className="btn-secondary flex-1"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="submit"
                                         disabled={createPipeline.isPending || !selectedRepo || selectedSteps.size === 0}
-                                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium shadow-lg shadow-violet-500/20 transition-all"
+                                        className="btn-primary flex-1 flex justify-center items-center"
                                     >
                                         {createPipeline.isPending ? (
-                                            <><Loader2 size={14} className="animate-spin" /> Creating…</>
+                                            <><Loader2 size={14} className="animate-spin mr-2" /> Creating…</>
                                         ) : (
-                                            <><GitMerge size={14} /> Create Pipeline</>
+                                            <><GitMerge size={14} className="mr-2" /> Create Pipeline</>
                                         )}
                                     </button>
                                 </div>

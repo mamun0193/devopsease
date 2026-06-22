@@ -318,20 +318,20 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
 
   const getButtonClasses = (color: string, disabled: boolean, danger?: boolean) => {
     if (disabled) {
-      return 'bg-slate-800 text-slate-500 cursor-not-allowed';
+      return 'bg-dds-bg text-dds-text-muted border border-dds-border cursor-not-allowed opacity-60';
     }
 
     if (danger) {
-      return 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30';
+      return 'bg-dds-red/10 text-dds-red hover:bg-dds-red/20 border border-dds-red/30';
     }
 
     const colorMap: Record<string, string> = {
-      green: 'bg-green-500/10 text-green-400 hover:bg-green-500/20 border border-green-500/30',
-      emerald: 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30',
-      amber: 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30',
-      blue: 'bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border border-blue-500/30',
-      purple: 'bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/30',
-      red: 'bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/30',
+      green: 'bg-dds-green/10 text-dds-green hover:bg-dds-green/20 border border-dds-green/30',
+      emerald: 'bg-dds-green/10 text-dds-green hover:bg-dds-green/20 border border-dds-green/30',
+      amber: 'bg-dds-orange/10 text-dds-orange hover:bg-dds-orange/20 border border-dds-orange/30',
+      blue: 'bg-dds-blue/10 text-dds-blue hover:bg-dds-blue/20 border border-dds-blue/30',
+      purple: 'bg-dds-primary/10 text-dds-primary hover:bg-dds-primary/20 border border-dds-primary/30',
+      red: 'bg-dds-red/10 text-dds-red hover:bg-dds-red/20 border border-dds-red/30',
     };
 
     return colorMap[color] || colorMap.blue;
@@ -352,7 +352,7 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
               disabled={button.disabled}
               title={(button as any).rbacReason || (compact ? button.label : undefined)}
               className={`
-                flex items-center ${compact ? 'justify-center w-10' : 'gap-2 px-4'} h-10 rounded-lg text-sm font-medium whitespace-nowrap
+                flex items-center ${compact ? 'justify-center w-10' : 'gap-2 px-4'} h-9 rounded-lg text-[13px] font-medium whitespace-nowrap
                 transition-all duration-200 shadow-sm
                 ${getButtonClasses(button.color, button.disabled, button.danger)}
               `}
@@ -360,9 +360,9 @@ const ContainerControls: React.FC<ContainerControlsProps> = ({
               whileTap={!button.disabled ? { scale: 0.98 } : {}}
             >
               {isLoading ? (
-                <Loader2 size={16} className="animate-spin" />
+                <Loader2 size={15} className="animate-spin" />
               ) : (
-                <Icon size={16} />
+                <Icon size={15} />
               )}
               {!compact && button.label}
             </motion.button>

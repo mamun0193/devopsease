@@ -16,9 +16,9 @@ export const getDeployments = async (req, res, next) => {
     try {
         const userId = req.user._id;
 
-        const userRepos = await Repository.find({ userId }).select('_id defaultBranch').lean();
+        const userRepos = await Repository.find({ userId }).select('_id repoName defaultBranch').lean();
         const repoIds = userRepos.map(r => r._id);
-        const repoMap = Object.fromEntries(userRepos.map(r => [r._id.toString(), r.defaultBranch]));
+        const repoMap = Object.fromEntries(userRepos.map(r => [r._id.toString(), r]));
 
         const deployments = await Deployment.find({ 
             repoId: { $in: repoIds },
@@ -32,9 +32,17 @@ export const getDeployments = async (req, res, next) => {
         const builds = await Build.find({ _id: { $in: buildIds } }).select('_id commitHash tag').lean();
         const buildMap = Object.fromEntries(builds.map(b => [b._id.toString(), b]));
 
+        const mongoose = await import('mongoose');
+        const PipelineRun = mongoose.default.model('PipelineRun');
+        const pipelineRuns = await PipelineRun.find({ buildId: { $in: buildIds } }).select('buildId commitHash branch').lean();
+        const pipelineRunMap = Object.fromEntries(pipelineRuns.map(pr => [pr.buildId?.toString(), pr]));
+
         const shaped = deployments.map(d => {
             const build = buildMap[d.buildId?.toString()] ?? {};
-            const branch = repoMap[d.repoId?.toString()] ?? 'main';
+            const pr = pipelineRunMap[d.buildId?.toString()] || {};
+            const repo = repoMap[d.repoId?.toString()] || {};
+            const branch = pr.branch || repo.defaultBranch || 'main';
+            const repoName = repo.repoName || 'Unknown';
             const rawEnv = d.environment ?? 'development';
             const environment = ENV_MAP[rawEnv] ?? rawEnv;
             const status = ['pending', 'deploying', 'running', 'failed', 'stopped', 'removed'].includes(d.status)
@@ -48,8 +56,9 @@ export const getDeployments = async (req, res, next) => {
                 imageTag: d.imageTag ?? build.tag ?? null,
                 port: d.port,
                 createdAt: d.createdAt,
+                repositoryName: repoName,
                 build: {
-                    commitHash: build.commitHash ?? '0000000',
+                    commitHash: build.commitHash || pr.commitHash || null,
                     branch,
                 },
             };

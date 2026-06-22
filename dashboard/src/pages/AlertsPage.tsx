@@ -16,7 +16,6 @@ import {
   Filter,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import Header from '../components/Header';
 import { useAlerts, useResolveAlert, useResolveAllAlerts } from '../hooks/useAlerts';
 import type { Alert } from '../api/alerts';
 
@@ -24,9 +23,9 @@ type SeverityFilter = 'all' | 'CRITICAL' | 'WARNING' | 'INFO';
 type ResolvedFilter = 'all' | 'unresolved' | 'resolved';
 
 const SEVERITY_CONFIG = {
-  CRITICAL: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', icon: AlertOctagon, dot: 'bg-red-500' },
-  WARNING: { color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30', icon: AlertTriangle, dot: 'bg-amber-500' },
-  INFO: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30', icon: Info, dot: 'bg-blue-500' },
+  CRITICAL: { color: 'text-dds-red', bg: 'bg-dds-red/10', border: 'border-dds-red/30', icon: AlertOctagon, dot: 'bg-dds-red' },
+  WARNING: { color: 'text-dds-yellow', bg: 'bg-dds-yellow/10', border: 'border-dds-yellow/30', icon: AlertTriangle, dot: 'bg-dds-yellow' },
+  INFO: { color: 'text-dds-blue', bg: 'bg-dds-blue/10', border: 'border-dds-blue/30', icon: Info, dot: 'bg-dds-blue' },
 };
 
 const TYPE_ICONS: Record<string, React.ElementType> = {
@@ -67,7 +66,7 @@ const AlertRow: React.FC<{ alert: Alert }> = ({ alert }) => {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className={`flex items-start gap-4 p-4 rounded-xl border transition-all ${config.bg} ${config.border} ${alert.resolved ? 'opacity-50' : ''}`}
+      className={`flex items-start gap-4 p-4 rounded-md border transition-all ${config.bg} ${config.border} ${alert.resolved ? 'opacity-50' : ''}`}
     >
       <div className={`mt-0.5 shrink-0 ${config.color}`}>
         <SeverityIcon size={18} />
@@ -75,31 +74,31 @@ const AlertRow: React.FC<{ alert: Alert }> = ({ alert }) => {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap mb-1">
-          <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${config.bg} ${config.border} ${config.color}`}>
+          <span className={`inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md border ${config.bg} ${config.border} ${config.color}`}>
             <div className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
             {alert.severity}
           </span>
-          <span className="inline-flex items-center gap-1 text-xs text-slate-400 font-medium">
+          <span className="inline-flex items-center gap-1 text-[11px] font-mono text-dds-text-secondary">
             <TypeIcon size={12} />
             {alert.type.replace(/_/g, ' ')}
           </span>
           {alert.resolved && (
-            <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
+            <span className="inline-flex items-center gap-1 text-[11px] font-mono text-dds-green">
               <CheckCircle2 size={12} />
               Resolved
             </span>
           )}
         </div>
 
-        <p className="text-sm text-slate-200 leading-relaxed">{alert.message}</p>
+        <p className="text-[13px] text-dds-text-primary leading-relaxed">{alert.message}</p>
 
         <div className="flex items-center gap-3 mt-2">
           {alert.containerId && (
-            <span className="text-xs text-slate-500 font-mono bg-slate-800/50 px-2 py-0.5 rounded">
+            <span className="text-[11px] text-dds-text-secondary font-mono bg-dds-muted/50 px-2 py-0.5 rounded-md">
               {alert.containerId}
             </span>
           )}
-          <span className="text-xs text-slate-500">
+          <span className="text-[11px] font-mono text-dds-text-secondary">
             {formatDateTime(alert.createdAt)}
           </span>
         </div>
@@ -109,7 +108,7 @@ const AlertRow: React.FC<{ alert: Alert }> = ({ alert }) => {
         <button
           onClick={() => resolveAlert.mutate(alert._id)}
           disabled={resolveAlert.isPending}
-          className="shrink-0 p-2 rounded-xl text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/30 transition-all"
+          className="shrink-0 p-2 rounded-md text-dds-text-muted hover:text-dds-green hover:bg-dds-green/10 border border-transparent hover:border-dds-green/30 transition-all"
           title="Resolve"
         >
           <CheckCircle2 size={16} />
@@ -139,143 +138,138 @@ const AlertsPage: React.FC = () => {
   const totalUnresolved = alerts.filter(a => !a.resolved).length;
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <Header />
-
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        {/* Page Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Link
-              to="/dashboard"
-              className="p-2 rounded-xl bg-slate-800/50 border border-slate-700 hover:bg-slate-700/50 transition-colors text-slate-400 hover:text-slate-200"
-            >
-              <ArrowLeft size={18} />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-                <Bell size={24} className="text-blue-400" />
-                Alerts
-              </h1>
-              <p className="text-sm text-slate-500 mt-0.5">
-                {totalUnresolved > 0 ? `${totalUnresolved} unresolved alert${totalUnresolved !== 1 ? 's' : ''}` : 'No active alerts'}
-                {criticalCount > 0 && <span className="text-red-400 ml-2">({criticalCount} critical)</span>}
-              </p>
+    <div className="h-full flex flex-col bg-dds-bg text-dds-text-primary overflow-hidden">
+      
+      <main className="flex-1 overflow-y-auto scrollbar-hide p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Link
+                to="/dashboard"
+                className="p-2 rounded-md bg-dds-surface border border-dds-border hover:bg-dds-muted transition-colors text-dds-text-muted hover:text-dds-text-primary"
+              >
+                <ArrowLeft size={18} />
+              </Link>
+              <div>
+                <h1 className="text-2xl font-semibold text-dds-text-primary tracking-tight flex items-center gap-2">
+                  <Bell size={24} className="text-dds-blue" />
+                  Alerts
+                </h1>
+                <p className="text-[13px] text-dds-text-secondary mt-0.5">
+                  {totalUnresolved > 0 ? `${totalUnresolved} unresolved alert${totalUnresolved !== 1 ? 's' : ''}` : 'No active alerts'}
+                  {criticalCount > 0 && <span className="text-dds-red ml-2">({criticalCount} critical)</span>}
+                </p>
+              </div>
             </div>
+
+            {totalUnresolved > 0 && (
+              <button
+                onClick={() => resolveAll.mutate()}
+                disabled={resolveAll.isPending}
+                className="flex items-center gap-2 px-4 py-2 rounded-md bg-dds-green/10 border border-dds-green/30 text-dds-green hover:bg-dds-green/20 transition-colors text-[13px] font-medium"
+              >
+                <CheckCircle2 size={16} />
+                Resolve All
+              </button>
+            )}
           </div>
 
-          {totalUnresolved > 0 && (
-            <button
-              onClick={() => resolveAll.mutate()}
-              disabled={resolveAll.isPending}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-colors text-sm font-medium"
-            >
-              <CheckCircle2 size={16} />
-              Resolve All
-            </button>
-          )}
-        </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1 text-[13px] text-dds-text-muted">
+              <Filter size={14} />
+            </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-3 mb-6 flex-wrap">
-          <div className="flex items-center gap-1 text-sm text-slate-400">
-            <Filter size={14} />
-          </div>
-
-          {/* Resolved filter */}
-          {(['all', 'unresolved', 'resolved'] as ResolvedFilter[]).map(f => (
-            <button
-              key={f}
-              onClick={() => { setResolvedFilter(f); setPage(1); }}
-              className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition-all ${resolvedFilter === f
-                  ? 'bg-slate-700 border-slate-600 text-slate-200'
-                  : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700/50'
-                }`}
-            >
-              {f.charAt(0).toUpperCase() + f.slice(1)}
-            </button>
-          ))}
-
-          <div className="w-px h-5 bg-slate-700" />
-
-          {/* Severity filter */}
-          {(['all', 'CRITICAL', 'WARNING', 'INFO'] as SeverityFilter[]).map(f => {
-            const cfg = f !== 'all' ? SEVERITY_CONFIG[f] : null;
-            return (
+            {(['all', 'unresolved', 'resolved'] as ResolvedFilter[]).map(f => (
               <button
                 key={f}
-                onClick={() => setSeverityFilter(f)}
-                className={`px-3 py-1.5 text-xs rounded-lg border font-medium transition-all flex items-center gap-1.5 ${severityFilter === f
-                    ? cfg
-                      ? `${cfg.bg} ${cfg.border} ${cfg.color}`
-                      : 'bg-slate-700 border-slate-600 text-slate-200'
-                    : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700/50'
+                onClick={() => { setResolvedFilter(f); setPage(1); }}
+                className={`px-3 py-1.5 text-[12px] font-mono rounded-md border transition-all ${resolvedFilter === f
+                    ? 'bg-dds-blue/10 border-dds-blue text-dds-blue'
+                    : 'bg-dds-surface border-dds-border text-dds-text-muted hover:bg-dds-muted'
                   }`}
               >
-                {cfg && <div className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
-                {f === 'all' ? 'All' : f}
+                {f.charAt(0).toUpperCase() + f.slice(1)}
               </button>
-            );
-          })}
-        </div>
-
-        {/* Alert List */}
-        {isLoading ? (
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="animate-pulse flex items-start gap-4 p-4 rounded-xl bg-slate-800/30 border border-slate-800">
-                <div className="w-5 h-5 bg-slate-700 rounded-full shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3 bg-slate-700 rounded w-24" />
-                  <div className="h-4 bg-slate-700 rounded w-3/4" />
-                  <div className="h-3 bg-slate-700 rounded w-32" />
-                </div>
-              </div>
             ))}
-          </div>
-        ) : filteredAlerts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
-            <Bell size={40} className="text-slate-700" />
-            <p className="text-slate-400 font-medium">No alerts found</p>
-            <p className="text-sm text-slate-600">
-              {resolvedFilter !== 'all' || severityFilter !== 'all'
-                ? 'Try adjusting your filters.'
-                : 'Alerts will appear here when abnormal conditions are detected in your containers.'}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <AnimatePresence mode="popLayout">
-              {filteredAlerts.map(alert => (
-                <AlertRow key={alert._id} alert={alert} />
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
 
-        {/* Pagination */}
-        {pagination && pagination.pages > 1 && (
-          <div className="flex items-center justify-center gap-3 mt-8">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage(p => p - 1)}
-              className="px-3 py-1.5 text-sm rounded-lg border bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700/50 disabled:opacity-40 transition-all"
-            >
-              Previous
-            </button>
-            <span className="text-sm text-slate-500">
-              Page {pagination.page} of {pagination.pages}
-            </span>
-            <button
-              disabled={page >= pagination.pages}
-              onClick={() => setPage(p => p + 1)}
-              className="px-3 py-1.5 text-sm rounded-lg border bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-700/50 disabled:opacity-40 transition-all"
-            >
-              Next
-            </button>
+            <div className="w-px h-5 bg-dds-border" />
+
+            {(['all', 'CRITICAL', 'WARNING', 'INFO'] as SeverityFilter[]).map(f => {
+              const cfg = f !== 'all' ? SEVERITY_CONFIG[f] : null;
+              return (
+                <button
+                  key={f}
+                  onClick={() => setSeverityFilter(f)}
+                  className={`px-3 py-1.5 text-[12px] font-mono rounded-md border transition-all flex items-center gap-1.5 ${severityFilter === f
+                      ? cfg
+                        ? `${cfg.bg} ${cfg.border} ${cfg.color}`
+                        : 'bg-dds-blue/10 border-dds-blue text-dds-blue'
+                      : 'bg-dds-surface border-dds-border text-dds-text-muted hover:bg-dds-muted'
+                    }`}
+                >
+                  {cfg && <div className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />}
+                  {f === 'all' ? 'All' : f}
+                </button>
+              );
+            })}
           </div>
-        )}
-      </div>
+
+          {isLoading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="animate-pulse flex items-start gap-4 p-4 rounded-md bg-dds-muted/30 border border-dds-border">
+                  <div className="w-5 h-5 bg-dds-muted rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 bg-dds-muted rounded w-24" />
+                    <div className="h-4 bg-dds-muted rounded w-3/4" />
+                    <div className="h-3 bg-dds-muted rounded w-32" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredAlerts.length === 0 ? (
+            <div className="card flex flex-col items-center justify-center py-24 gap-4 text-center">
+              <Bell size={40} className="text-dds-text-muted" />
+              <p className="text-[14px] font-medium text-dds-text-primary">No alerts found</p>
+              <p className="text-[13px] text-dds-text-secondary">
+                {resolvedFilter !== 'all' || severityFilter !== 'all'
+                  ? 'Try adjusting your filters.'
+                  : 'Alerts will appear here when abnormal conditions are detected in your containers.'}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <AnimatePresence mode="popLayout">
+                {filteredAlerts.map(alert => (
+                  <AlertRow key={alert._id} alert={alert} />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+
+          {pagination && pagination.pages > 1 && (
+            <div className="flex items-center justify-center gap-3 mt-8">
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage(p => p - 1)}
+                className="btn-secondary disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <span className="text-[13px] font-mono text-dds-text-secondary">
+                Page {pagination.page} of {pagination.pages}
+              </span>
+              <button
+                disabled={page >= pagination.pages}
+                onClick={() => setPage(p => p + 1)}
+                className="btn-secondary disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 };

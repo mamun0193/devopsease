@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   Server,
   Hammer,
-  Activity,
   HardDrive,
   AlertTriangle,
   CheckCircle2,
@@ -17,17 +16,14 @@ import {
   User,
   Rocket,
   GitBranch,
-  LayoutDashboard,
   Cloud,
-  ArrowLeft,
   Box,
 } from 'lucide-react';
-import Header from '../components/Header';
 import AppFooter from '../components/AppFooter';
-import ResourceNav from '../components/ResourceNav';
 import OverviewCard from '../components/OverviewCard';
 import ResourceUsagePanel from '../components/ResourceUsagePanel';
 import TopContainersPanel from '../components/TopContainersPanel';
+import RecentDeploymentsTable from '../components/RecentDeploymentsTable';
 import { useContainers, useHealthCheck } from '../hooks/useContainers';
 import { useBuilds } from '../hooks/useBuilds';
 import { useImages, useImageUsageSummary } from '../hooks/useImages';
@@ -76,9 +72,9 @@ const HomePage: React.FC = () => {
     ['exited', 'dead'].includes(c.state?.status?.toLowerCase() ?? ''),
   ).length;
 
-  const activeBuilds = builds.filter(b => b.status === 'PENDING' || b.status === 'RUNNING').length;
-  const successBuilds = builds.filter(b => b.status === 'SUCCESS').length;
-  const failedBuilds = builds.filter(b => b.status === 'FAILED' || b.status === 'TIMEOUT').length;
+  const activeBuilds = builds.filter(b => b.status === 'pending' || b.status === 'running').length;
+  const successBuilds = builds.filter(b => b.status === 'success').length;
+  const failedBuilds = builds.filter(b => b.status === 'failed' || b.status === 'timeout').length;
 
   const danglingImages = imageSummary?.danglingImages ?? images.filter(i => i.imageUsageStatus === 'DANGLING').length;
   const totalImageMB = imageSummary?.totalImageStorageMB ?? images.reduce((s, i) => s + (i.sizeMB ?? 0), 0);
@@ -91,8 +87,8 @@ const HomePage: React.FC = () => {
 
   const runningProjects = projects.filter(p => p.status === 'RUNNING').length;
 
-  const connectedClusters = clusters.filter(c => c.status === 'CONNECTED' || c.status === 'ACTIVE').length;
-  const offlineClusters = clusters.filter(c => c.status === 'DISCONNECTED' || c.status === 'ERROR').length;
+  const connectedClusters = clusters.filter(c => c.status === 'connected').length;
+  const offlineClusters = clusters.filter(c => c.status === 'failed').length;
   const stoppedProjects = projects.filter(p => p.status === 'STOPPED' || p.status === 'CREATED').length;
 
   // Repo-derived values for the Projects card
@@ -131,23 +127,12 @@ const HomePage: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950">
-      <Header />
-      <ResourceNav />
-
+    <div className="flex flex-col h-full bg-dds-bg text-dds-white">
+      
       <main className="flex-1 p-6 lg:p-8">
         <div className="max-w-7xl mx-auto space-y-6">
 
-          {/* ── Section title ───────────────────────────────────────────── */}
-          <motion.div
-            className="flex items-center gap-3"
-            variants={fadeUp}
-            initial="hidden"
-            animate="visible"
-          >
-            <div className={`w-2.5 h-2.5 rounded-full ${health ? 'bg-emerald-500 animate-pulse' : 'bg-yellow-500'}`} />
-            <h1 className="text-2xl font-bold text-slate-100">System Overview</h1>
-          </motion.div>
+
 
           {/* ── Stats grid ──────────────────────────────────────────────── */}
           <motion.div
@@ -344,15 +329,22 @@ const HomePage: React.FC = () => {
 
           </motion.div>
 
-          {/* Resource Quota Panel */}
-          <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ delay: 0.4 }}>
-            <ResourceUsagePanel />
-          </motion.div>
+          <div className="flex flex-col gap-6">
+            {/* Recent Deployments Table */}
+            <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ delay: 0.4 }}>
+              <RecentDeploymentsTable />
+            </motion.div>
 
-          {/* Top Containers */}
-          <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ delay: 0.55 }}>
-            <TopContainersPanel />
-          </motion.div>
+            {/* Top Containers */}
+            <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ delay: 0.55 }}>
+              <TopContainersPanel />
+            </motion.div>
+
+            {/* Resource Quota Panel */}
+            <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ delay: 0.45 }}>
+              <ResourceUsagePanel />
+            </motion.div>
+          </div>
 
         </div>
       </main>

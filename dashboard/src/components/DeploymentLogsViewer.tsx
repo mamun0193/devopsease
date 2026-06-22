@@ -7,6 +7,8 @@ interface DeploymentLogsViewerProps {
   deploymentId: string;
 }
 
+const stripAnsi = (str: string) => str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
+
 const DeploymentLogsViewer: React.FC<DeploymentLogsViewerProps> = ({ deploymentId }) => {
   const { data: initialLogs, isLoading, error } = useDeploymentLogs(deploymentId);
   const [logs, setLogs] = useState<string[]>([]);
@@ -134,12 +136,15 @@ const DeploymentLogsViewer: React.FC<DeploymentLogsViewerProps> = ({ deploymentI
         {logs.length === 0 ? (
           <div className="text-slate-500 text-center mt-10">No logs available yet</div>
         ) : (
-          logs.map((line, i) => (
-            <div key={i} className={`break-all whitespace-pre-wrap flex px-2 py-0.5 rounded transition-colors hover:bg-slate-800/50 ${getLogStyles(line)}`}>
-              <span className="text-slate-600 mr-4 select-none w-8 text-right shrink-0">{i + 1}</span>
-              <span className="flex-1 leading-relaxed">{line}</span>
-            </div>
-          ))
+          logs.map((line, i) => {
+            const cleanLine = stripAnsi(line);
+            return (
+              <div key={i} className={`break-all whitespace-pre-wrap flex px-2 py-0.5 rounded transition-colors hover:bg-slate-800/50 ${getLogStyles(cleanLine)}`}>
+                <span className="text-slate-600 mr-4 select-none w-8 text-right shrink-0">{i + 1}</span>
+                <span className="flex-1 leading-relaxed">{cleanLine}</span>
+              </div>
+            );
+          })
         )}
       </div>
 

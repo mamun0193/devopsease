@@ -26,32 +26,31 @@ interface FailureAnalysisProps {
 const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
   containerId,
   containerName,
-  containerState
 }) => {
   const { data, isLoading, error, refetch } = useFailureAnalysis(containerId);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'HEALTHY':
-        return <CheckCircle size={48} className="text-emerald-400" />;
+        return <CheckCircle size={48} className="text-dds-green" />;
       case 'PENDING':
-        return <Loader2 size={48} className="text-blue-400 animate-spin" />;
+        return <Loader2 size={48} className="text-dds-blue animate-spin" />;
       case 'PAUSED':
-        return <Pause size={48} className="text-slate-400" />;
+        return <Pause size={48} className="text-dds-text-muted" />;
       case 'GRACEFUL_STOP':
-        return <CheckCircle size={48} className="text-emerald-400" />;
+        return <CheckCircle size={48} className="text-dds-green" />;
       case 'CRASH_LOOP':
-        return <AlertTriangle size={48} className="text-red-400" />;
+        return <AlertTriangle size={48} className="text-dds-red" />;
       case 'RESOURCE_EXHAUSTION':
-        return <Zap size={48} className="text-red-400" />;
+        return <Zap size={48} className="text-dds-red" />;
       case 'PORT_CONFLICT':
-        return <AlertTriangle size={48} className="text-orange-400" />;
+        return <AlertTriangle size={48} className="text-dds-orange" />;
       case 'PERMISSION_ERROR':
-        return <Shield size={48} className="text-yellow-400" />;
+        return <Shield size={48} className="text-dds-orange" />; // or dds-yellow if exists
       case 'CONFIG_ERROR':
-        return <AlertTriangle size={48} className="text-purple-400" />;
+        return <AlertTriangle size={48} className="text-dds-primary" />;
       default:
-        return <HelpCircle size={48} className="text-slate-400" />;
+        return <HelpCircle size={48} className="text-dds-text-muted" />;
     }
   };
 
@@ -59,7 +58,7 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
     switch (type) {
       case 'HEALTHY':
       case 'GRACEFUL_STOP':
-        return 'emerald';
+        return 'green';
       case 'PENDING':
         return 'blue';
       case 'PAUSED':
@@ -68,9 +67,8 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
       case 'RESOURCE_EXHAUSTION':
         return 'red';
       case 'PORT_CONFLICT':
-        return 'orange';
       case 'PERMISSION_ERROR':
-        return 'yellow';
+        return 'orange';
       case 'CONFIG_ERROR':
         return 'purple';
       default:
@@ -83,9 +81,9 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
   };
 
   const getConfidenceColor = (score: number) => {
-    if (score >= 0.85) return 'bg-red-500';
-    if (score >= 0.6) return 'bg-yellow-500';
-    return 'bg-blue-500';
+    if (score >= 0.85) return 'bg-dds-red';
+    if (score >= 0.6) return 'bg-dds-orange';
+    return 'bg-dds-blue';
   };
 
   const getConfidenceLabel = (score: number) => {
@@ -95,15 +93,15 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
   };
 
   const getInstabilityColor = (score: number) => {
-    if (score >= 0.7) return 'bg-red-500';
-    if (score >= 0.4) return 'bg-orange-500';
-    return 'bg-emerald-500';
+    if (score >= 0.7) return 'bg-dds-red';
+    if (score >= 0.4) return 'bg-dds-orange';
+    return 'bg-dds-green';
   };
 
   const getInstabilityLabel = (score: number) => {
-    if (score >= 0.7) return { text: 'Unstable', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' };
-    if (score >= 0.4) return { text: 'At Risk', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20' };
-    return { text: 'Stable', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' };
+    if (score >= 0.7) return { text: 'Unstable', color: 'text-dds-red', bg: 'bg-dds-red/10', border: 'border-dds-red/20' };
+    if (score >= 0.4) return { text: 'At Risk', color: 'text-dds-orange', bg: 'bg-dds-orange/10', border: 'border-dds-orange/20' };
+    return { text: 'Stable', color: 'text-dds-green', bg: 'bg-dds-green/10', border: 'border-dds-green/20' };
   };
 
   const formatMTBF = (seconds: number | null) => {
@@ -117,10 +115,10 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
 
   if (!containerId) {
     return (
-      <div className="flex flex-col items-center justify-center h-full py-20">
-        <Shield size={48} className="text-slate-600 mb-4" />
-        <h3 className="text-lg font-medium text-slate-300">Failure Intelligence</h3>
-        <p className="text-slate-500">Select a container to analyze potential issues</p>
+      <div className="flex flex-col items-center justify-center h-full py-20 bg-dds-surface/50 rounded-xl border border-dds-border">
+        <Shield size={48} className="text-dds-text-muted mb-4" />
+        <h3 className="text-[15px] font-medium text-dds-text-primary">Failure Intelligence</h3>
+        <p className="text-[13px] text-dds-text-secondary mt-1">Select a container to analyze potential issues</p>
       </div>
     );
   }
@@ -129,13 +127,13 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
     return (
       <div className="p-6">
         <div className="flex items-center gap-2 mb-6">
-          <Shield size={20} className="text-blue-400" />
-          <h2 className="text-lg font-semibold text-slate-100">Analyzing...</h2>
+          <Shield size={20} className="text-dds-blue" />
+          <h2 className="text-[15px] font-semibold text-dds-text-primary uppercase tracking-wider">Analyzing...</h2>
         </div>
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-slate-300 font-medium">Running failure analysis...</p>
-          <span className="text-sm text-slate-500 mt-1">Checking signals, patterns, and history</span>
+        <div className="flex flex-col items-center justify-center py-16 bg-dds-surface/50 rounded-xl border border-dds-border">
+          <div className="w-10 h-10 border-2 border-dds-blue border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-dds-text-primary font-medium text-[14px]">Running failure analysis...</p>
+          <span className="text-[12px] text-dds-text-secondary mt-1">Checking signals, patterns, and history</span>
         </div>
       </div>
     );
@@ -145,14 +143,14 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
     return (
       <div className="p-6">
         <div className="flex items-center gap-2 mb-6">
-          <Shield size={20} className="text-red-400" />
-          <h2 className="text-lg font-semibold text-slate-100">Analysis Error</h2>
+          <Shield size={20} className="text-dds-red" />
+          <h2 className="text-[15px] font-semibold text-dds-text-primary uppercase tracking-wider">Analysis Error</h2>
         </div>
-        <div className="flex flex-col items-center justify-center py-12 bg-red-500/10 border border-red-500/30 rounded-xl">
-          <AlertTriangle size={32} className="text-red-400 mb-4" />
-          <p className="text-slate-300 font-medium">Failed to analyze container</p>
-          <span className="text-sm text-slate-500 mt-1">{error.message}</span>
-          <div className="mt-4">
+        <div className="flex flex-col items-center justify-center py-12 bg-dds-red/10 border border-dds-red/30 rounded-xl shadow-sm">
+          <AlertTriangle size={32} className="text-dds-red mb-4" />
+          <p className="text-dds-text-primary font-medium text-[14px]">Failed to analyze container</p>
+          <span className="text-[12px] text-dds-text-secondary mt-1">{error.message}</span>
+          <div className="mt-5">
             <RefreshButton
               onRefresh={() => { refetch(); }}
               label="Retry Analysis"
@@ -174,48 +172,48 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
   // Healthy/Info States
   if (isHealthyOrInfo) {
     const colorStyles = {
-      emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', iconBg: 'bg-emerald-500/20' },
-      blue: { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', iconBg: 'bg-blue-500/20' },
-      slate: { bg: 'bg-slate-500/10', border: 'border-slate-500/30', text: 'text-slate-400', iconBg: 'bg-slate-500/20' },
+      green: { bg: 'bg-dds-green/10', border: 'border-dds-green/30', text: 'text-dds-green', iconBg: 'bg-dds-green/20' },
+      blue: { bg: 'bg-dds-blue/10', border: 'border-dds-blue/30', text: 'text-dds-blue', iconBg: 'bg-dds-blue/20' },
+      slate: { bg: 'bg-dds-surface/50', border: 'border-dds-border', text: 'text-dds-text-secondary', iconBg: 'bg-dds-surface' },
     };
 
     const styles = colorStyles[color as keyof typeof colorStyles] || colorStyles.slate;
 
-    const title = {
+    const title = ({
       HEALTHY: 'Container is Healthy',
       GRACEFUL_STOP: 'Container Stopped Gracefully',
       PENDING: 'Container is Starting',
       PAUSED: 'Container is Paused',
-    }[data.type] || 'No Issues Detected';
+    } as Record<string, string>)[data.type] || 'No Issues Detected';
 
-    const description = {
+    const description = ({
       HEALTHY: `${containerName} is running without any detected issues`,
       GRACEFUL_STOP: `${containerName} was stopped cleanly with no errors`,
       PENDING: `${containerName} is currently starting up or restarting`,
       PAUSED: `${containerName} has been paused and can be resumed`,
-    }[data.type] || data.summary;
+    } as Record<string, string>)[data.type] || data.summary;
 
     return (
       <div>
         <div className="flex items-center gap-2 mb-4">
-          <Shield size={20} className={styles.text} />
-          <h2 className="text-lg font-semibold text-slate-100">Health Status</h2>
+          <Shield size={18} className={styles.text} />
+          <h2 className="text-[15px] font-semibold text-dds-text-primary uppercase tracking-wider">Health Status</h2>
         </div>
-        <div className={`flex flex-col items-center justify-center py-12 border rounded-xl ${styles.bg} ${styles.border}`}>
+        <div className={`flex flex-col items-center justify-center py-12 border rounded-xl shadow-sm ${styles.bg} ${styles.border}`}>
           <motion.div
-            className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${styles.iconBg}`}
+            className={`w-20 h-20 rounded-full flex items-center justify-center mb-5 ${styles.iconBg}`}
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 200 }}
           >
             {getTypeIcon(data.type)}
           </motion.div>
-          <h3 className={`text-xl font-semibold mb-2 ${styles.text}`}>{title}</h3>
-          <p className="text-slate-400 text-center">
-            <strong className="text-slate-200">{description}</strong>
+          <h3 className={`text-[18px] font-semibold mb-2 ${styles.text}`}>{title}</h3>
+          <p className="text-[14px] text-dds-text-primary text-center font-medium max-w-md px-4">
+            {description}
           </p>
-          <div className="flex items-center gap-2 mt-6 px-4 py-2 bg-slate-800/50 rounded-lg text-sm text-slate-400">
-            <Lightbulb size={16} className="text-yellow-400" />
+          <div className="flex items-center gap-2 mt-6 px-5 py-2.5 bg-dds-bg border border-dds-border/50 rounded-lg text-[13px] text-dds-text-secondary shadow-sm">
+            <Lightbulb size={16} className="text-dds-orange" />
             <span>Tip: Check the logs tab to monitor application activity in real-time</span>
           </div>
         </div>
@@ -225,25 +223,24 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
 
   // Failure States
   const colorStyles = {
-    red: { border: 'border-red-500', bg: 'bg-red-500/10', text: 'text-red-400' },
-    orange: { border: 'border-orange-500', bg: 'bg-orange-500/10', text: 'text-orange-400' },
-    yellow: { border: 'border-yellow-500', bg: 'bg-yellow-500/10', text: 'text-yellow-400' },
-    purple: { border: 'border-purple-500', bg: 'bg-purple-500/10', text: 'text-purple-400' },
-    slate: { border: 'border-slate-500', bg: 'bg-slate-500/10', text: 'text-slate-400' },
-    emerald: { border: 'border-emerald-500', bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
-    blue: { border: 'border-blue-500', bg: 'bg-blue-500/10', text: 'text-blue-400' },
+    red: { border: 'border-dds-red/40', bg: 'bg-dds-red/10', text: 'text-dds-red' },
+    orange: { border: 'border-dds-orange/40', bg: 'bg-dds-orange/10', text: 'text-dds-orange' },
+    purple: { border: 'border-dds-primary/40', bg: 'bg-dds-primary/10', text: 'text-dds-primary' },
+    slate: { border: 'border-dds-border', bg: 'bg-dds-surface/50', text: 'text-dds-text-secondary' },
+    green: { border: 'border-dds-green/40', bg: 'bg-dds-green/10', text: 'text-dds-green' },
+    blue: { border: 'border-dds-blue/40', bg: 'bg-dds-blue/10', text: 'text-dds-blue' },
   };
 
   const styles = colorStyles[color as keyof typeof colorStyles] || colorStyles.slate;
   const instabilityStatus = getInstabilityLabel(data.instabilityScore || 0);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 bg-dds-surface border border-dds-border rounded-xl shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Shield size={20} className="text-red-400" />
-          <h2 className="text-lg font-semibold text-slate-100">Failure Intelligence</h2>
+          <Shield size={18} className="text-dds-red" />
+          <h2 className="text-[15px] font-semibold text-dds-text-primary uppercase tracking-wider">Failure Intelligence</h2>
         </div>
         <RefreshButton
           onRefresh={() => { refetch(); }}
@@ -255,37 +252,37 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
 
       {/* Main Alert Banner */}
       <motion.div
-        className={`p-4 rounded-xl border-l-4 flex items-start gap-4 ${styles.border} ${styles.bg} ${styles.text}`}
+        className={`p-5 rounded-xl border-l-4 flex items-start gap-4 shadow-sm ${styles.border} ${styles.bg}`}
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="p-2 rounded-lg bg-current/10">
+        <div className="p-2.5 rounded-lg bg-dds-bg border border-dds-border/50 shadow-sm shrink-0">
           {getTypeIcon(data.type)}
         </div>
         <div>
-          <h3 className="font-semibold text-lg">{data.type.replace(/_/g, ' ')}</h3>
-          <p className="text-sm opacity-80 mt-1">{data.summary}</p>
+          <h3 className={`font-semibold text-[16px] ${styles.text}`}>{data.type.replace(/_/g, ' ')}</h3>
+          <p className="text-[13px] text-dds-text-primary font-medium mt-1 leading-relaxed">{data.summary}</p>
         </div>
       </motion.div>
 
-      {/* Instability Section - Day 42 */}
-      <div className="bg-slate-800/50 rounded-xl p-4 space-y-4">
+      {/* Instability Section */}
+      <div className="bg-dds-bg rounded-xl p-5 border border-dds-border shadow-sm space-y-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-slate-300 font-medium">
+          <div className="flex items-center gap-2 text-[13px] text-dds-text-primary font-medium">
             <Activity size={16} className={instabilityStatus.color} />
             <span>Stability Assessment</span>
           </div>
-          <div className={`px-2 py-0.5 rounded text-xs font-semibold border ${instabilityStatus.bg} ${instabilityStatus.text} ${instabilityStatus.border}`}>
+          <div className={`px-2 py-0.5 rounded text-[11px] uppercase tracking-wider font-semibold border ${instabilityStatus.bg} ${instabilityStatus.text} ${instabilityStatus.border}`}>
             {instabilityStatus.text}
           </div>
         </div>
 
-        <div className="space-y-1">
-          <div className="flex justify-between text-xs text-slate-400">
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-[12px] text-dds-text-secondary">
             <span>Instability Score</span>
-            <span>{Math.round((data.instabilityScore || 0) * 100)}%</span>
+            <span className="font-mono">{Math.round((data.instabilityScore || 0) * 100)}%</span>
           </div>
-          <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+          <div className="h-2 bg-dds-surface border border-dds-border rounded-full overflow-hidden">
             <motion.div
               className={`h-full ${getInstabilityColor(data.instabilityScore || 0)}`}
               initial={{ width: 0 }}
@@ -296,19 +293,19 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
         </div>
 
         {data.restartCount > 0 && data.mtbfSeconds !== null && (
-          <div className="pt-2 border-t border-slate-700/50 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1.5 text-slate-400">
+          <div className="pt-3 border-t border-dds-border/80 flex items-center justify-between text-[12px]">
+            <div className="flex items-center gap-1.5 text-dds-text-secondary">
               <Timer size={14} />
               <span>Mean Time Between Failures</span>
             </div>
-            <div className="font-mono text-slate-200">
+            <div className="font-mono font-medium text-dds-text-primary">
               {formatMTBF(data.mtbfSeconds)}
             </div>
           </div>
         )}
 
         {data.restartCount === 0 && (
-          <div className="pt-2 border-t border-slate-700/50 text-xs text-emerald-400 flex items-center gap-1.5">
+          <div className="pt-3 border-t border-dds-border/80 text-[12px] text-dds-green flex items-center gap-1.5 font-medium">
             <CheckCircle size={14} />
             <span>Zero failures recorded</span>
           </div>
@@ -316,52 +313,52 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
       </div>
 
       {/* Confidence Indicator */}
-      <div className="bg-slate-800/50 rounded-xl p-4 space-y-3">
-        <div className="flex items-center gap-2 text-sm text-slate-400">
-          <TrendingUp size={16} />
+      <div className="bg-dds-bg rounded-xl p-5 border border-dds-border shadow-sm space-y-3">
+        <div className="flex items-center gap-2 text-[13px] text-dds-text-primary font-medium">
+          <TrendingUp size={16} className="text-dds-text-muted" />
           <span>Confidence Level: {getConfidenceLabel(data.confidenceScore)}</span>
         </div>
-        <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+        <div className="h-2 bg-dds-surface border border-dds-border rounded-full overflow-hidden">
           <div
             className={`h-full transition-all duration-500 ${getConfidenceColor(data.confidenceScore)}`}
             style={{ width: getConfidenceWidth(data.confidenceScore) }}
           />
         </div>
-        <div className="flex justify-between text-xs">
-          <span className={data.confidenceScore < 0.6 ? 'text-blue-400 font-medium' : 'text-slate-600'}>Low</span>
-          <span className={data.confidenceScore >= 0.6 && data.confidenceScore < 0.85 ? 'text-yellow-400 font-medium' : 'text-slate-600'}>Medium</span>
-          <span className={data.confidenceScore >= 0.85 ? 'text-red-400 font-medium' : 'text-slate-600'}>High</span>
+        <div className="flex justify-between text-[11px] font-medium tracking-wide uppercase">
+          <span className={data.confidenceScore < 0.6 ? 'text-dds-blue' : 'text-dds-text-muted'}>Low</span>
+          <span className={data.confidenceScore >= 0.6 && data.confidenceScore < 0.85 ? 'text-dds-orange' : 'text-dds-text-muted'}>Medium</span>
+          <span className={data.confidenceScore >= 0.85 ? 'text-dds-red' : 'text-dds-text-muted'}>High</span>
         </div>
       </div>
 
       {/* Explanation */}
       {data.explanation?.explanation && (
-        <div className="bg-slate-800/50 rounded-xl p-4">
-          <div className="flex items-center gap-2 text-yellow-400 mb-3">
+        <div className="bg-dds-bg rounded-xl p-5 border border-dds-border shadow-sm">
+          <div className="flex items-center gap-2 text-dds-orange mb-3">
             <Zap size={16} />
-            <span className="font-medium">What Happened</span>
+            <span className="font-medium text-[13px]">What Happened</span>
           </div>
-          <p className="text-slate-200">{data.explanation.explanation}</p>
+          <p className="text-dds-text-secondary text-[13px] leading-relaxed">{data.explanation.explanation}</p>
         </div>
       )}
 
       {/* Likely Causes */}
       {data.explanation?.likelyCauses && data.explanation.likelyCauses.length > 0 && (
-        <div className="bg-slate-800/50 rounded-xl p-4">
-          <h4 className="flex items-center gap-2 text-orange-400 font-medium mb-3">
+        <div className="bg-dds-bg rounded-xl p-5 border border-dds-border shadow-sm">
+          <h4 className="flex items-center gap-2 text-dds-orange font-medium text-[13px] mb-3">
             <AlertTriangle size={16} />
             Possible Causes
           </h4>
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {data.explanation.likelyCauses.map((cause: string, index: number) => (
               <motion.li
                 key={index}
-                className="flex items-start gap-2 text-slate-300 text-sm"
+                className="flex items-start gap-2 text-dds-text-secondary text-[13px] leading-relaxed"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <ChevronRight size={14} className="text-slate-500 mt-1 shrink-0" />
+                <ChevronRight size={14} className="text-dds-text-muted mt-1 shrink-0" />
                 <span>{cause}</span>
               </motion.li>
             ))}
@@ -371,21 +368,21 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
 
       {/* Suggested Actions */}
       {data.explanation?.suggestedChecks && data.explanation.suggestedChecks.length > 0 && (
-        <div className="bg-slate-800/50 rounded-xl p-4">
-          <h4 className="flex items-center gap-2 text-emerald-400 font-medium mb-3">
+        <div className="bg-dds-bg rounded-xl p-5 border border-dds-border shadow-sm">
+          <h4 className="flex items-center gap-2 text-dds-green font-medium text-[13px] mb-3">
             <Lightbulb size={16} />
             What to Do Next
           </h4>
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {data.explanation.suggestedChecks.map((action: string, index: number) => (
               <motion.li
                 key={index}
-                className="flex items-start gap-3 text-slate-300 text-sm"
+                className="flex items-start gap-3 text-dds-text-primary text-[13px] leading-relaxed"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 + 0.2 }}
               >
-                <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs font-medium shrink-0">
+                <span className="w-5 h-5 rounded bg-dds-green/10 border border-dds-green/30 text-dds-green flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5">
                   {index + 1}
                 </span>
                 <span>{action}</span>
@@ -397,30 +394,30 @@ const FailureAnalysis: React.FC<FailureAnalysisProps> = ({
 
       {/* Evidence */}
       {data.evidence && data.evidence.length > 0 && (
-        <div className="bg-slate-800/50 rounded-xl p-4">
-          <h4 className="flex items-center gap-2 text-purple-400 font-medium mb-3">
+        <div className="bg-dds-bg rounded-xl p-5 border border-dds-border shadow-sm">
+          <h4 className="flex items-center gap-2 text-dds-primary font-medium text-[13px] mb-3">
             <Zap size={16} />
             Detected Evidence
           </h4>
           <div className="flex flex-wrap gap-2 mb-3">
             {data.evidence.map((item: string, index: number) => (
-              <span key={index} className="px-2.5 py-1 bg-slate-700 rounded-lg text-xs text-slate-300 font-mono">
+              <span key={index} className="px-2.5 py-1 bg-dds-surface border border-dds-border rounded text-[11px] text-dds-text-primary font-mono shadow-sm">
                 {item}
               </span>
             ))}
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-[12px] text-dds-text-muted">
             These are the technical indicators our system detected that led to this diagnosis.
           </p>
         </div>
       )}
 
       {/* Beginner Help */}
-      <div className="flex items-start gap-4 p-4 bg-blue-500/5 border border-blue-500/20 rounded-xl">
-        <div className="text-2xl">🎓</div>
+      <div className="flex items-start gap-4 p-5 bg-dds-blue/5 border border-dds-blue/20 rounded-xl shadow-sm">
+        <div className="text-2xl mt-0.5">🎓</div>
         <div>
-          <p className="font-medium text-slate-200">Need more help?</p>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="font-medium text-[14px] text-dds-text-primary">Need more help?</p>
+          <p className="text-[13px] text-dds-text-secondary mt-1.5 leading-relaxed">
             This analysis is based on patterns we detected. For more details, check the Logs tab
             and look for red error messages. The explanations there will help you understand
             what each error means.

@@ -20,9 +20,6 @@ import {
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import Header from '../components/Header';
-import type { FilterItem } from '../components/Header';
-import ResourceNav from '../components/ResourceNav';
 import {
     useClusters,
     useClusterPods,
@@ -31,14 +28,12 @@ import {
 } from '../hooks/useClusters';
 import type { K8sPod, K8sCluster } from '../api';
 
-// Status helpers 
-
 const STATUS_CONFIG: Record<string, { color: string; bg: string; ring: string; icon: React.ElementType; dot: string }> = {
-    Running:    { color: 'text-emerald-400', bg: 'bg-emerald-500/10', ring: 'ring-emerald-500/20', icon: CheckCircle2, dot: 'bg-emerald-400' },
-    Succeeded:  { color: 'text-blue-400',    bg: 'bg-blue-500/10',    ring: 'ring-blue-500/20',    icon: CheckCircle2, dot: 'bg-blue-400' },
-    Pending:    { color: 'text-amber-400',   bg: 'bg-amber-500/10',   ring: 'ring-amber-500/20',   icon: Clock,        dot: 'bg-amber-400' },
-    Failed:     { color: 'text-red-400',     bg: 'bg-red-500/10',     ring: 'ring-red-500/20',     icon: XCircle,      dot: 'bg-red-400' },
-    Unknown:    { color: 'text-slate-400',   bg: 'bg-slate-500/10',   ring: 'ring-slate-500/20',   icon: AlertTriangle, dot: 'bg-slate-400' },
+    Running:    { color: 'text-dds-green', bg: 'bg-dds-green/10', ring: 'ring-dds-green/20', icon: CheckCircle2, dot: 'bg-dds-green' },
+    Succeeded:  { color: 'text-dds-blue',    bg: 'bg-dds-blue/10',    ring: 'ring-dds-blue/20',    icon: CheckCircle2, dot: 'bg-dds-blue' },
+    Pending:    { color: 'text-dds-yellow',   bg: 'bg-dds-yellow/10',   ring: 'ring-dds-yellow/20',   icon: Clock,        dot: 'bg-dds-yellow' },
+    Failed:     { color: 'text-dds-red',     bg: 'bg-dds-red/10',     ring: 'ring-dds-red/20',     icon: XCircle,      dot: 'bg-dds-red' },
+    Unknown:    { color: 'text-dds-text-muted',   bg: 'bg-dds-muted/50',   ring: 'ring-dds-border',   icon: AlertTriangle, dot: 'bg-dds-text-muted' },
 };
 
 function getStatusConfig(status: string) {
@@ -58,49 +53,23 @@ function formatAge(timestamp: string | null): string {
     return `${days}d`;
 }
 
-// Summary Card 
-
-function SummaryCard({
-    icon: Icon,
-    label,
-    value,
-    color,
-}: {
-    icon: React.ElementType;
-    label: string;
-    value: string | number;
-    color: string;
-}) {
+function SummaryCard({ icon: Icon, label, value, color }: { icon: React.ElementType; label: string; value: string | number; color: string }) {
     return (
-        <motion.div
-            className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-        >
+        <div className="card p-4">
             <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-lg ${color} flex items-center justify-center`}>
+                <div className={`w-9 h-9 rounded-lg ${color} flex items-center justify-center border border-white/5`}>
                     <Icon size={16} className="text-white" />
                 </div>
                 <div>
-                    <p className="text-xs text-slate-500 uppercase tracking-wide">{label}</p>
-                    <p className="text-lg font-bold text-slate-100">{value}</p>
+                    <p className="text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">{label}</p>
+                    <p className="text-xl font-bold text-dds-text-primary">{value}</p>
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 }
 
-// Cluster Selector 
-
-function ClusterSelector({
-    clusters,
-    selectedId,
-    onSelect,
-}: {
-    clusters: K8sCluster[];
-    selectedId: string | null;
-    onSelect: (id: string) => void;
-}) {
+function ClusterSelector({ clusters, selectedId, onSelect }: { clusters: K8sCluster[]; selectedId: string | null; onSelect: (id: string) => void; }) {
     const [open, setOpen] = useState(false);
     const selected = clusters.find(c => c._id === selectedId);
 
@@ -108,13 +77,13 @@ function ClusterSelector({
         <div className="relative">
             <button
                 onClick={() => setOpen(!open)}
-                className="flex items-center gap-2 px-3 py-2 bg-slate-800/60 border border-slate-700/60 rounded-lg text-sm text-slate-200 hover:border-slate-600 transition-colors min-w-[200px]"
+                className="flex items-center gap-2 px-3 py-2 bg-dds-surface border border-dds-border rounded-md text-[13px] text-dds-text-primary hover:border-dds-blue/50 transition-colors min-w-[200px]"
             >
-                <Server size={14} className="text-slate-400 flex-shrink-0" />
+                <Server size={14} className="text-dds-text-muted flex-shrink-0" />
                 <span className="truncate flex-1 text-left">
                     {selected?.name || 'Select cluster'}
                 </span>
-                <ChevronDown size={14} className={`text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`text-dds-text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
 
             <AnimatePresence>
@@ -123,22 +92,22 @@ function ClusterSelector({
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -4 }}
-                        className="absolute z-50 top-full mt-1 left-0 right-0 bg-slate-800 border border-slate-700 rounded-lg shadow-xl overflow-hidden"
+                        className="absolute z-50 top-full mt-1 left-0 right-0 bg-dds-elevated border border-dds-border rounded-md shadow-xl overflow-hidden"
                     >
                         {clusters.filter(c => c.status === 'connected').map(cluster => (
                             <button
                                 key={cluster._id}
                                 onClick={() => { onSelect(cluster._id); setOpen(false); }}
-                                className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left hover:bg-slate-700/50 transition-colors ${
-                                    cluster._id === selectedId ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300'
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-[13px] text-left hover:bg-dds-muted transition-colors ${
+                                    cluster._id === selectedId ? 'bg-dds-blue/10 text-dds-blue' : 'text-dds-text-secondary'
                                 }`}
                             >
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-dds-green flex-shrink-0" />
                                 <span className="truncate">{cluster.name}</span>
                             </button>
                         ))}
                         {clusters.filter(c => c.status === 'connected').length === 0 && (
-                            <p className="px-3 py-4 text-xs text-slate-500 text-center">
+                            <p className="px-3 py-4 text-[12px] text-dds-text-muted text-center">
                                 No connected clusters
                             </p>
                         )}
@@ -149,26 +118,14 @@ function ClusterSelector({
     );
 }
 
-// Namespace Selector
-
-function NamespaceSelector({
-    namespaces,
-    selected,
-    onSelect,
-    isLoading,
-}: {
-    namespaces: Array<{ name: string }>;
-    selected: string;
-    onSelect: (ns: string) => void;
-    isLoading: boolean;
-}) {
+function NamespaceSelector({ namespaces, selected, onSelect, isLoading }: { namespaces: Array<{ name: string }>; selected: string; onSelect: (ns: string) => void; isLoading: boolean; }) {
     return (
         <div className="relative">
             <select
                 value={selected}
                 onChange={(e) => onSelect(e.target.value)}
                 disabled={isLoading}
-                className="appearance-none px-3 py-2 pr-8 bg-slate-800/60 border border-slate-700/60 rounded-lg text-sm text-slate-200 hover:border-slate-600 transition-colors cursor-pointer disabled:opacity-50"
+                className="appearance-none px-3 py-2 pr-8 bg-dds-surface border border-dds-border rounded-md text-[13px] text-dds-text-primary hover:border-dds-blue/50 transition-colors cursor-pointer disabled:opacity-50"
             >
                 {namespaces.map((ns) => (
                     <option key={ns.name} value={ns.name}>
@@ -176,22 +133,12 @@ function NamespaceSelector({
                     </option>
                 ))}
             </select>
-            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+            <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-dds-text-muted pointer-events-none" />
         </div>
     );
 }
 
-/* ── Pod Row ──────────────────────────────────────────────────────────────── */
-
-function PodRow({
-    pod,
-    isSelected,
-    onClick,
-}: {
-    pod: K8sPod;
-    isSelected: boolean;
-    onClick: () => void;
-}) {
+function PodRow({ pod, isSelected, onClick }: { pod: K8sPod; isSelected: boolean; onClick: () => void; }) {
     const config = getStatusConfig(pod.status);
     const StatusIcon = config.icon;
 
@@ -202,68 +149,61 @@ function PodRow({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             onClick={onClick}
-            className={`w-full text-left bg-slate-800/40 border rounded-xl p-4 transition-all ${
+            className={`w-full text-left bg-dds-bg border rounded-md p-4 transition-all ${
                 isSelected
-                    ? 'border-blue-500/50 bg-blue-500/5 ring-1 ring-blue-500/20'
-                    : 'border-slate-700/40 hover:border-slate-600/60'
+                    ? 'border-dds-blue bg-dds-blue/5 ring-1 ring-dds-blue/20'
+                    : 'border-dds-border hover:border-dds-text-muted'
             }`}
         >
             <div className="flex items-center justify-between gap-3">
-                {/* Left: Name + Node */}
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${config.bg}`}>
+                    <div className={`w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 ${config.bg}`}>
                         <StatusIcon size={15} className={config.color} />
                     </div>
                     <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-100 truncate">{pod.name}</p>
-                        <p className="text-xs text-slate-500 truncate">
+                        <p className="text-[13px] font-medium text-dds-text-primary truncate">{pod.name}</p>
+                        <p className="text-[11px] font-mono text-dds-text-secondary truncate">
                             {pod.nodeName || 'Unscheduled'}
                         </p>
                     </div>
                 </div>
 
-                {/* Right: Status + Restarts + Age */}
                 <div className="flex items-center gap-3 flex-shrink-0">
-                    {/* Restarts badge */}
                     {pod.restarts > 0 && (
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-mono rounded-md ${
                             pod.restarts >= 5
-                                ? 'bg-red-500/10 text-red-400 ring-1 ring-red-500/20'
-                                : 'bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20'
+                                ? 'bg-dds-red/10 text-dds-red border border-dds-red/20'
+                                : 'bg-dds-yellow/10 text-dds-yellow border border-dds-yellow/20'
                         }`}>
                             <RotateCcw size={10} />
                             {pod.restarts}
                         </span>
                     )}
 
-                    {/* Age */}
-                    <span className="text-xs text-slate-500 tabular-nums w-10 text-right">
+                    <span className="text-[12px] font-mono text-dds-text-secondary w-10 text-right">
                         {formatAge(pod.age)}
                     </span>
 
-                    {/* Status badge */}
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${config.bg} ${config.color} ring-1 ${config.ring}`}>
+                    <span className={`inline-flex items-center gap-1.5 px-2 py-1 text-[11px] font-mono rounded-md ${config.bg} ${config.color} border border-transparent`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
                         {pod.status}
                     </span>
 
-                    {/* Logs icon */}
                     <Terminal size={14} className={`flex-shrink-0 transition-colors ${
-                        isSelected ? 'text-blue-400' : 'text-slate-600'
+                        isSelected ? 'text-dds-blue' : 'text-dds-text-muted'
                     }`} />
                 </div>
             </div>
 
-            {/* Containers detail */}
             {pod.containers.length > 1 && (
                 <div className="mt-2.5 flex flex-wrap gap-1.5">
                     {pod.containers.map((c) => (
                         <span
                             key={c.name}
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-md border ${
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-mono rounded border ${
                                 c.ready
-                                    ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
-                                    : 'bg-red-500/5 border-red-500/20 text-red-400'
+                                    ? 'bg-dds-green/5 border-dds-green/20 text-dds-green'
+                                    : 'bg-dds-red/5 border-dds-red/20 text-dds-red'
                             }`}
                         >
                             <Layers size={9} />
@@ -276,19 +216,7 @@ function PodRow({
     );
 }
 
-// Logs Viewer 
-
-function LogsViewer({
-    clusterId,
-    pod,
-    namespace,
-    onClose,
-}: {
-    clusterId: string;
-    pod: K8sPod;
-    namespace: string;
-    onClose: () => void;
-}) {
+function LogsViewer({ clusterId, pod, namespace, onClose }: { clusterId: string; pod: K8sPod; namespace: string; onClose: () => void; }) {
     const queryClient = useQueryClient();
     const [tailLines, setTailLines] = useState(100);
     const [selectedContainer, setSelectedContainer] = useState<string | undefined>(
@@ -319,21 +247,20 @@ function LogsViewer({
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
-            className="flex flex-col bg-slate-900/80 border border-slate-700/40 rounded-xl overflow-hidden h-full"
+            className="flex flex-col bg-dds-bg border border-dds-border rounded-md overflow-hidden h-full shadow-sm"
         >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/40 bg-slate-800/30">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-dds-border bg-dds-surface">
                 <div className="flex items-center gap-2.5 min-w-0">
-                    <Terminal size={15} className="text-blue-400 flex-shrink-0" />
+                    <Terminal size={15} className="text-dds-blue flex-shrink-0" />
                     <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-100 truncate">{pod.name}</p>
+                        <p className="text-[13px] font-medium text-dds-text-primary truncate">{pod.name}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                            <span className={`inline-flex items-center gap-1 text-[11px] ${config.color}`}>
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-mono ${config.color}`}>
                                 <span className={`w-1 h-1 rounded-full ${config.dot}`} />
                                 {pod.status}
                             </span>
                             {pod.nodeName && (
-                                <span className="text-[11px] text-slate-600">
+                                <span className="text-[11px] font-mono text-dds-text-muted">
                                     · {pod.nodeName}
                                 </span>
                             )}
@@ -341,12 +268,11 @@ function LogsViewer({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    {/* Container selector for multi-container pods */}
                     {pod.containers.length > 1 && (
                         <select
                             value={selectedContainer || ''}
                             onChange={(e) => setSelectedContainer(e.target.value || undefined)}
-                            className="px-2 py-1 bg-slate-800/60 border border-slate-700/60 rounded-md text-xs text-slate-300 cursor-pointer"
+                            className="input text-[11px] font-mono py-1 px-2 h-auto"
                         >
                             {pod.containers.map(c => (
                                 <option key={c.name} value={c.name}>{c.name}</option>
@@ -354,11 +280,10 @@ function LogsViewer({
                         </select>
                     )}
 
-                    {/* Tail lines selector */}
                     <select
                         value={tailLines}
                         onChange={(e) => setTailLines(Number(e.target.value))}
-                        className="px-2 py-1 bg-slate-800/60 border border-slate-700/60 rounded-md text-xs text-slate-300 cursor-pointer"
+                        className="input text-[11px] font-mono py-1 px-2 h-auto"
                     >
                         <option value={50}>50 lines</option>
                         <option value={100}>100 lines</option>
@@ -366,44 +291,41 @@ function LogsViewer({
                         <option value={1000}>1000 lines</option>
                     </select>
 
-                    {/* Refresh */}
                     <button
                         onClick={handleRefresh}
                         disabled={isFetching}
-                        className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-50"
+                        className="p-1.5 rounded-md hover:bg-dds-muted text-dds-text-muted hover:text-dds-text-primary transition-colors disabled:opacity-50"
                         title="Refresh logs"
                     >
                         <RefreshCcw size={14} className={isFetching ? 'animate-spin' : ''} />
                     </button>
 
-                    {/* Close */}
                     <button
                         onClick={onClose}
-                        className="p-1.5 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-slate-200 transition-colors"
+                        className="p-1.5 rounded-md hover:bg-dds-muted text-dds-text-muted hover:text-dds-text-primary transition-colors"
                     >
                         <X size={14} />
                     </button>
                 </div>
             </div>
 
-            {/* Log Output */}
-            <div className="flex-1 overflow-auto p-4 font-mono text-xs leading-relaxed">
+            <div className="flex-1 overflow-auto p-4 font-mono text-[12px] leading-relaxed bg-[#0F111A]">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-12">
-                        <Loader2 size={20} className="animate-spin text-slate-500" />
+                        <Loader2 size={20} className="animate-spin text-dds-text-muted" />
                     </div>
                 ) : error ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <XCircle size={24} className="text-red-400 mb-2" />
-                        <p className="text-sm text-red-400">
+                        <XCircle size={24} className="text-dds-red mb-2" />
+                        <p className="text-[13px] text-dds-red">
                             {(error as any)?.response?.data?.message || (error as any)?.message || 'Failed to fetch logs'}
                         </p>
                     </div>
                 ) : logLines.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <Terminal size={24} className="text-slate-700 mb-2" />
-                        <p className="text-sm text-slate-500">No logs available</p>
-                        <p className="text-xs text-slate-600 mt-1">
+                        <Terminal size={24} className="text-dds-text-muted mb-2" />
+                        <p className="text-[13px] text-dds-text-secondary">No logs available</p>
+                        <p className="text-[12px] text-dds-text-muted mt-1">
                             This pod hasn't emitted any logs yet.
                         </p>
                     </div>
@@ -412,16 +334,16 @@ function LogsViewer({
                         {logLines.map((line, i) => (
                             <div
                                 key={i}
-                                className="group flex hover:bg-slate-800/40 rounded px-1 -mx-1"
+                                className="group flex hover:bg-white/5 rounded px-1 -mx-1"
                             >
-                                <span className="select-none text-slate-700 w-10 text-right pr-3 flex-shrink-0 tabular-nums">
+                                <span className="select-none text-dds-text-muted w-10 text-right pr-3 flex-shrink-0 tabular-nums">
                                     {i + 1}
                                 </span>
                                 <span className={`flex-1 break-all whitespace-pre-wrap ${
                                     line.toLowerCase().includes('error') || line.toLowerCase().includes('fatal')
-                                        ? 'text-red-400/90'
+                                        ? 'text-dds-red/90'
                                         : line.toLowerCase().includes('warn')
-                                        ? 'text-amber-400/80'
+                                        ? 'text-dds-yellow/80'
                                         : 'text-slate-300'
                                 }`}>
                                     {line}
@@ -435,8 +357,6 @@ function LogsViewer({
     );
 }
 
-// Page 
-
 const PodsPage: React.FC = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -448,24 +368,17 @@ const PodsPage: React.FC = () => {
         [clusters],
     );
 
-    // Cluster selection — default to first connected
     const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
     const activeClusterId = selectedClusterId || connectedClusters[0]?._id || null;
 
-    // Namespace
     const { data: namespaces = [], isLoading: loadingNs } = useClusterNamespaces(activeClusterId);
     const [namespace, setNamespace] = useState(searchParams.get('namespace') || 'default');
 
-    // Pods
     const { data: pods = [], isLoading: loadingPods, isFetching: fetchingPods } = useClusterPods(activeClusterId, namespace);
 
-    // Status filter
     const [statusFilter, setStatusFilter] = useState<string>('all');
-
-    // Selected pod for logs
     const [selectedPod, setSelectedPod] = useState<K8sPod | null>(null);
 
-    // Computed
     const summary = useMemo(() => ({
         total: pods.length,
         running: pods.filter(p => p.status === 'Running').length,
@@ -473,45 +386,6 @@ const PodsPage: React.FC = () => {
         failed: pods.filter(p => p.status === 'Failed').length,
         succeeded: pods.filter(p => p.status === 'Succeeded').length,
     }), [pods]);
-
-    const filterItems: FilterItem[] = React.useMemo(() => [
-        {
-            key: 'all',
-            label: 'Total',
-            count: summary.total,
-            color: 'text-slate-300',
-            activeBg: 'bg-slate-700',
-            activeBorder: 'border-slate-600',
-            icon: <Box size={14} className="text-slate-400" />,
-        },
-        {
-            key: 'running',
-            label: 'Running',
-            count: summary.running,
-            color: 'text-emerald-400',
-            activeBg: 'bg-emerald-500/20',
-            activeBorder: 'border-emerald-500/50',
-            dot: 'bg-emerald-400',
-        },
-        {
-            key: 'pending',
-            label: 'Pending',
-            count: summary.pending,
-            color: 'text-amber-400',
-            activeBg: 'bg-amber-500/20',
-            activeBorder: 'border-amber-500/50',
-            dot: 'bg-amber-400',
-        },
-        {
-            key: 'failed',
-            label: 'Failed',
-            count: summary.failed,
-            color: 'text-red-400',
-            activeBg: 'bg-red-500/20',
-            activeBorder: 'border-red-500/50',
-            dot: 'bg-red-400',
-        },
-    ], [summary]);
 
     const filteredPods = useMemo(() => {
         if (statusFilter === 'all') return pods;
@@ -535,34 +409,24 @@ const PodsPage: React.FC = () => {
     }, [queryClient, activeClusterId, namespace]);
 
     return (
-        <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header onFilterChange={setStatusFilter} activeFilter={statusFilter} filterItems={filterItems} />
-            <ResourceNav />
-
-            <main className="flex-1 p-6 lg:p-8">
-                <div className="max-w-7xl mx-auto">
+        <div className="h-full flex flex-col bg-dds-bg text-dds-text-primary overflow-hidden">
+            <main className="flex-1 overflow-y-auto scrollbar-hide p-6 lg:p-8">
+                <div className="max-w-7xl mx-auto space-y-6">
 
                     {/* Page header */}
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => navigate('/clusters')}
-                                className="text-slate-400 hover:text-slate-200 transition-colors"
-                            >
-                                <ArrowLeft size={20} />
-                            </button>
-                            <h1 className="text-2xl font-bold text-slate-100">Pod Observability</h1>
+                            <Box size={24} className="text-dds-text-primary" />
+                            <h1 className="text-2xl font-semibold text-dds-text-primary tracking-tight">Pod Observability</h1>
                         </div>
 
                         <div className="flex items-center gap-3">
-                            {/* Cluster picker */}
                             <ClusterSelector
                                 clusters={connectedClusters}
                                 selectedId={activeClusterId}
                                 onSelect={handleClusterChange}
                             />
 
-                            {/* Namespace picker */}
                             {activeClusterId && namespaces.length > 0 && (
                                 <NamespaceSelector
                                     namespaces={namespaces}
@@ -572,55 +436,53 @@ const PodsPage: React.FC = () => {
                                 />
                             )}
 
-                            {/* Refresh */}
                             <button
                                 onClick={handleRefreshPods}
                                 disabled={fetchingPods || !activeClusterId}
-                                className="flex items-center gap-1.5 px-3 py-2 bg-slate-800/60 border border-slate-700/60 rounded-lg text-xs text-slate-300 hover:border-slate-600 transition-colors disabled:opacity-40"
+                                className="btn-secondary"
                             >
-                                <RefreshCcw size={12} className={fetchingPods ? 'animate-spin' : ''} />
+                                <RefreshCcw size={14} className={fetchingPods ? 'animate-spin' : ''} />
                                 Refresh
                             </button>
                         </div>
                     </div>
 
-                    {/* No cluster guard */}
                     {!loadingClusters && connectedClusters.length === 0 ? (
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             className="flex flex-col items-center justify-center py-24 text-center"
                         >
-                            <Server size={40} className="text-slate-700 mb-4" />
-                            <p className="text-sm text-slate-400 mb-1">No connected clusters</p>
-                            <p className="text-xs text-slate-600">
+                            <Server size={40} className="text-dds-text-muted mb-4" />
+                            <p className="text-[14px] font-medium text-dds-text-primary mb-1">No connected clusters</p>
+                            <p className="text-[13px] text-dds-text-secondary">
                                 Connect a Kubernetes cluster first to view pods.
                             </p>
                             <button
                                 onClick={() => navigate('/clusters')}
-                                className="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium rounded-lg transition-colors"
+                                className="btn-primary mt-4"
                             >
                                 Go to Clusters
                             </button>
                         </motion.div>
                     ) : loadingPods ? (
                         <div className="flex items-center justify-center py-20">
-                            <Loader2 size={24} className="animate-spin text-slate-500" />
+                            <Loader2 size={24} className="animate-spin text-dds-text-muted" />
                         </div>
                     ) : (
                         <>
                             {/* Summary Cards */}
-                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
-                                <SummaryCard icon={Box} label="Total Pods" value={summary.total} color="bg-blue-600/20" />
-                                <SummaryCard icon={CheckCircle2} label="Running" value={summary.running} color="bg-emerald-600/20" />
-                                <SummaryCard icon={Clock} label="Pending" value={summary.pending} color="bg-amber-600/20" />
-                                <SummaryCard icon={XCircle} label="Failed" value={summary.failed} color="bg-red-600/20" />
-                                <SummaryCard icon={Activity} label="Succeeded" value={summary.succeeded} color="bg-blue-600/20" />
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                                <SummaryCard icon={Box} label="Total Pods" value={summary.total} color="bg-dds-blue" />
+                                <SummaryCard icon={CheckCircle2} label="Running" value={summary.running} color="bg-dds-green" />
+                                <SummaryCard icon={Clock} label="Pending" value={summary.pending} color="bg-dds-yellow" />
+                                <SummaryCard icon={XCircle} label="Failed" value={summary.failed} color="bg-dds-red" />
+                                <SummaryCard icon={Activity} label="Succeeded" value={summary.succeeded} color="bg-dds-primary" />
                             </div>
 
                             {/* Status filter pills */}
-                            <div className="flex items-center gap-2 mb-4">
-                                <Filter size={13} className="text-slate-500" />
+                            <div className="flex items-center gap-2 mt-2">
+                                <Filter size={14} className="text-dds-text-muted mr-1" />
                                 {['all', 'Running', 'Pending', 'Failed', 'Succeeded'].map((f) => {
                                     const isActive = statusFilter === f.toLowerCase() || (f === 'all' && statusFilter === 'all');
                                     const filterKey = f === 'all' ? 'all' : f;
@@ -628,10 +490,10 @@ const PodsPage: React.FC = () => {
                                         <button
                                             key={f}
                                             onClick={() => setStatusFilter(filterKey === 'all' ? 'all' : filterKey)}
-                                            className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                                            className={`px-3 py-1 text-[12px] font-mono rounded-md border transition-all ${
                                                 isActive
-                                                    ? 'bg-blue-500/15 border-blue-500/30 text-blue-400'
-                                                    : 'bg-slate-800/40 border-slate-700/40 text-slate-400 hover:border-slate-600'
+                                                    ? 'bg-dds-blue/10 border-dds-blue text-dds-blue'
+                                                    : 'bg-dds-surface border-dds-border text-dds-text-muted hover:text-dds-text-primary hover:border-dds-text-muted'
                                             }`}
                                         >
                                             {f === 'all' ? 'All' : f}
@@ -642,18 +504,17 @@ const PodsPage: React.FC = () => {
 
                             {/* Main content: Pod list + Logs viewer */}
                             <div className={`grid gap-4 ${selectedPod ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
-                                {/* Pod list */}
                                 <div className="space-y-2">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Box size={14} className="text-slate-500" />
-                                        <h2 className="text-sm font-semibold text-slate-300">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Box size={14} className="text-dds-text-muted" />
+                                        <h2 className="text-[13px] font-medium text-dds-text-primary">
                                             Pods
-                                            <span className="ml-1.5 text-slate-600">
+                                            <span className="ml-1.5 font-mono text-dds-text-secondary">
                                                 ({filteredPods.length})
                                             </span>
                                         </h2>
                                         {fetchingPods && (
-                                            <Loader2 size={12} className="animate-spin text-slate-600" />
+                                            <Loader2 size={12} className="animate-spin text-dds-text-muted" />
                                         )}
                                     </div>
 
@@ -661,17 +522,17 @@ const PodsPage: React.FC = () => {
                                         <motion.div
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
-                                            className="flex flex-col items-center justify-center py-16 text-center"
+                                            className="card flex flex-col items-center justify-center py-16 text-center"
                                         >
-                                            <Box size={32} className="text-slate-700 mb-3" />
-                                            <p className="text-sm text-slate-500">
+                                            <Box size={32} className="text-dds-text-muted mb-3" />
+                                            <p className="text-[13px] text-dds-text-secondary">
                                                 {statusFilter === 'all'
                                                     ? `No pods found in "${namespace}"`
                                                     : `No ${statusFilter} pods in "${namespace}"`}
                                             </p>
                                         </motion.div>
                                     ) : (
-                                        <div className="space-y-2 max-h-[calc(100vh-360px)] overflow-y-auto pr-1 scrollbar-thin">
+                                        <div className="space-y-2 max-h-[calc(100vh-360px)] overflow-y-auto pr-2 scrollbar-thin">
                                             <AnimatePresence mode="popLayout">
                                                 {filteredPods.map(pod => (
                                                     <PodRow
@@ -690,7 +551,6 @@ const PodsPage: React.FC = () => {
                                     )}
                                 </div>
 
-                                {/* Logs viewer */}
                                 <AnimatePresence>
                                     {selectedPod && activeClusterId && (
                                         <div className="h-[calc(100vh-360px)]">

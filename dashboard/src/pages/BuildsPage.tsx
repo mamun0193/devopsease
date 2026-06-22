@@ -12,26 +12,22 @@ import {
     Layers,
     Plus,
     ChevronRight,
-    ArrowLeft,
 } from 'lucide-react';
-import Header from '../components/Header';
-import type { FilterItem } from '../components/Header';
-import ResourceNav from '../components/ResourceNav';
 import { useBuilds, useTriggerBuild } from '../hooks/useBuilds';
 import type { Build } from '../api';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; icon: React.ReactNode; label: string }> = {
-    pending: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', icon: <Clock size={14} />, label: 'Pending' },
-    running: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30', icon: <Loader2 size={14} className="animate-spin" />, label: 'Building' },
-    success: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: <CheckCircle2 size={14} />, label: 'Success' },
-    failed: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', icon: <XCircle size={14} />, label: 'Failed' },
-    timeout: { color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/30', icon: <Timer size={14} />, label: 'Timeout' },
+    pending: { color: 'text-dds-yellow', bg: 'bg-dds-yellow/10', border: 'border-dds-yellow/30', icon: <Clock size={12} />, label: 'Pending' },
+    running: { color: 'text-dds-blue', bg: 'bg-dds-blue/10', border: 'border-dds-blue/30', icon: <Loader2 size={12} className="animate-spin" />, label: 'Building' },
+    success: { color: 'text-dds-green', bg: 'bg-dds-green/10', border: 'border-dds-green/30', icon: <CheckCircle2 size={12} />, label: 'Success' },
+    failed: { color: 'text-dds-red', bg: 'bg-dds-red/10', border: 'border-dds-red/30', icon: <XCircle size={12} />, label: 'Failed' },
+    timeout: { color: 'text-dds-orange', bg: 'bg-dds-orange/10', border: 'border-dds-orange/30', icon: <Timer size={12} />, label: 'Timeout' },
 };
 
 function StatusBadge({ status }: { status: string }) {
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
     return (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${config.color} ${config.bg} border ${config.border}`}>
+        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-mono tracking-wide ${config.color} ${config.bg} border ${config.border}`}>
             {config.icon}
             {config.label}
         </span>
@@ -57,52 +53,52 @@ function formatSize(bytes?: number): string {
 
 function BuildRow({ build, onClick }: { build: Build; onClick: () => void }) {
     return (
-        <motion.button
+        <tr
             onClick={onClick}
-            className="w-full text-left bg-slate-800/50 hover:bg-slate-800 border border-slate-700/50 hover:border-slate-600 rounded-xl p-4 transition-all group"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ scale: 1.005 }}
+            className="group border-b border-dds-border last:border-0 hover:bg-dds-muted/50 cursor-pointer transition-colors"
         >
-            <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-slate-700/50 flex items-center justify-center shrink-0">
-                        <Hammer size={16} className="text-slate-400" />
-                    </div>
-                    <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-100 truncate">{build.tag}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">
+            <td className="py-3 px-4">
+                <div className="flex items-center gap-3">
+                    <Hammer size={16} className="text-dds-text-muted" />
+                    <div>
+                        <div className="text-[13px] font-medium text-dds-text-primary group-hover:text-white transition-colors">
+                            {build.tag}
+                        </div>
+                        <div className="text-[11px] font-mono text-dds-text-secondary">
                             {new Date(build.createdAt).toLocaleString()}
-                        </p>
+                        </div>
                     </div>
                 </div>
-
-                <div className="flex items-center gap-4 shrink-0">
-                    <StatusBadge status={build.status} />
-
-                    <div className="hidden sm:flex items-center gap-4 text-xs text-slate-500">
-                        <span className="flex items-center gap-1">
-                            <Clock size={12} />
-                            {formatDuration(build.startedAt, build.completedAt)}
-                        </span>
-                        {build.imageSizeBytes ? (
-                            <span className="flex items-center gap-1">
-                                <HardDrive size={12} />
-                                {formatSize(build.imageSizeBytes)}
-                            </span>
-                        ) : null}
-                        {build.layerCount ? (
-                            <span className="flex items-center gap-1">
-                                <Layers size={12} />
-                                {build.layerCount}
-                            </span>
-                        ) : null}
-                    </div>
-
-                    <ChevronRight size={16} className="text-slate-600 group-hover:text-slate-400 transition-colors" />
-                </div>
-            </div>
-        </motion.button>
+            </td>
+            <td className="py-3 px-4">
+                <StatusBadge status={build.status} />
+            </td>
+            <td className="py-3 px-4">
+                <span className="text-[12px] font-mono text-dds-text-secondary flex items-center gap-1.5">
+                    <Clock size={12} className="text-dds-text-muted" />
+                    {formatDuration(build.startedAt, build.completedAt)}
+                </span>
+            </td>
+            <td className="py-3 px-4">
+                {build.imageSizeBytes ? (
+                    <span className="text-[12px] font-mono text-dds-text-secondary flex items-center gap-1.5">
+                        <HardDrive size={12} className="text-dds-text-muted" />
+                        {formatSize(build.imageSizeBytes)}
+                    </span>
+                ) : <span className="text-dds-text-muted">—</span>}
+            </td>
+            <td className="py-3 px-4">
+                {build.layerCount ? (
+                    <span className="text-[12px] font-mono text-dds-text-secondary flex items-center gap-1.5">
+                        <Layers size={12} className="text-dds-text-muted" />
+                        {build.layerCount}
+                    </span>
+                ) : <span className="text-dds-text-muted">—</span>}
+            </td>
+            <td className="py-3 px-4 text-right">
+                <ChevronRight size={16} className="text-dds-text-muted group-hover:text-dds-text-primary transition-colors ml-auto" />
+            </td>
+        </tr>
     );
 }
 
@@ -115,21 +111,6 @@ const BuildsPage: React.FC = () => {
     const [tag, setTag] = useState('');
     const [dockerfile, setDockerfile] = useState('FROM alpine:latest\nRUN echo "Hello from DevOpsEase"');
     const [formError, setFormError] = useState('');
-    const [activeFilter, setActiveFilter] = useState<'all' | 'running' | 'success' | 'failed' | 'timeout'>('all');
-
-    const filteredBuilds = useMemo(() => {
-        if (activeFilter === 'all') return builds;
-        if (activeFilter === 'running') return builds.filter(b => b.status === 'running' || b.status === 'pending');
-        return builds.filter(b => b.status === activeFilter);
-    }, [builds, activeFilter]);
-
-    const filterCounts = useMemo(() => ({
-        all: builds.length,
-        running: builds.filter(b => b.status === 'running' || b.status === 'pending').length,
-        success: builds.filter(b => b.status === 'success').length,
-        failed: builds.filter(b => b.status === 'failed').length,
-        timeout: builds.filter(b => b.status === 'timeout').length,
-    }), [builds]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -149,37 +130,23 @@ const BuildsPage: React.FC = () => {
         }
     };
 
-    const buildFilterItems: FilterItem[] = useMemo(() => [
-        { key: 'all', label: 'All', count: filterCounts.all, color: 'text-slate-100', activeBg: 'bg-slate-700', activeBorder: 'border-slate-600', icon: <Hammer size={16} className="text-slate-400" /> },
-        { key: 'running', label: 'Running', count: filterCounts.running, color: 'text-blue-400', activeBg: 'bg-blue-500/20', activeBorder: 'border-blue-500/50', dot: 'bg-blue-500 animate-pulse' },
-        { key: 'success', label: 'Success', count: filterCounts.success, color: 'text-emerald-400', activeBg: 'bg-emerald-500/20', activeBorder: 'border-emerald-500/50', icon: <CheckCircle2 size={16} className="text-emerald-400" /> },
-        { key: 'failed', label: 'Failed', count: filterCounts.failed, color: 'text-red-400', activeBg: 'bg-red-500/20', activeBorder: 'border-red-500/50', icon: <XCircle size={16} className="text-red-400" /> },
-        { key: 'timeout', label: 'Timeout', count: filterCounts.timeout, color: 'text-orange-400', activeBg: 'bg-orange-500/20', activeBorder: 'border-orange-500/50', icon: <Timer size={16} className="text-orange-400" /> },
-    ], [filterCounts]);
-
     return (
-        <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header onFilterChange={setActiveFilter} activeFilter={activeFilter} filterItems={buildFilterItems} />
-            <ResourceNav />
-            <main className="flex-1 p-6 lg:p-8">
-                <div className="max-w-4xl mx-auto">
+        <div className="h-full flex flex-col bg-dds-bg text-dds-text-primary overflow-hidden">
+            <main className="flex-1 overflow-y-auto scrollbar-hide p-6 lg:p-8">
+                <div className="max-w-7xl mx-auto space-y-6">
                     {/* Header */}
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <button onClick={() => navigate('/dashboard')} className="text-slate-400 hover:text-slate-200 transition-colors">
-                                <ArrowLeft size={20} />
-                            </button>
-                            <h1 className="text-2xl font-bold text-slate-100">Image Builds</h1>
+                            <Hammer size={24} className="text-dds-text-primary" />
+                            <h1 className="text-2xl font-semibold text-dds-text-primary tracking-tight">Image Builds</h1>
                         </div>
-                        <motion.button
+                        <button
                             onClick={() => setShowForm(!showForm)}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-sm font-medium transition-colors"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                            className="btn-primary flex items-center gap-2"
                         >
                             <Plus size={16} />
                             New Build
-                        </motion.button>
+                        </button>
                     </div>
 
                     {/* Build Form */}
@@ -192,43 +159,43 @@ const BuildsPage: React.FC = () => {
                                 className="overflow-hidden"
                                 onSubmit={handleSubmit}
                             >
-                                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-6 space-y-4">
+                                <div className="card p-6 space-y-5">
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1.5">Image Tag</label>
+                                        <label className="block text-[13px] font-medium text-dds-text-primary mb-1.5">Image Tag</label>
                                         <input
                                             type="text"
                                             value={tag}
                                             onChange={(e) => setTag(e.target.value)}
                                             placeholder="e.g. my-app:v1.0"
-                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-slate-100 text-sm placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-colors"
+                                            className="input"
                                             maxLength={128}
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1.5">Dockerfile</label>
+                                        <label className="block text-[13px] font-medium text-dds-text-primary mb-1.5">Dockerfile</label>
                                         <textarea
                                             value={dockerfile}
                                             onChange={(e) => setDockerfile(e.target.value)}
                                             rows={10}
-                                            className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 text-sm font-mono placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-colors resize-y"
+                                            className="input font-mono text-[13px] resize-y"
                                             placeholder="FROM ubuntu:latest&#10;RUN apt-get update"
                                             spellCheck={false}
                                         />
                                     </div>
 
                                     {formError && (
-                                        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2.5">
-                                            <XCircle size={14} />
+                                        <div className="flex items-start gap-2 text-[13px] text-dds-red bg-dds-red/10 border border-dds-red/20 rounded-md p-3">
+                                            <XCircle size={14} className="mt-0.5 shrink-0" />
                                             {formError}
                                         </div>
                                     )}
 
-                                    <div className="flex items-center gap-3 pt-1">
+                                    <div className="flex items-center gap-3 pt-2">
                                         <button
                                             type="submit"
                                             disabled={triggerBuild.isPending}
-                                            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-600/50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors"
+                                            className="btn-primary flex items-center gap-2"
                                         >
                                             {triggerBuild.isPending ? (
                                                 <><Loader2 size={14} className="animate-spin" /> Starting…</>
@@ -239,7 +206,7 @@ const BuildsPage: React.FC = () => {
                                         <button
                                             type="button"
                                             onClick={() => { setShowForm(false); setFormError(''); }}
-                                            className="px-4 py-2.5 text-slate-400 hover:text-slate-200 text-sm transition-colors"
+                                            className="btn-secondary"
                                         >
                                             Cancel
                                         </button>
@@ -250,33 +217,45 @@ const BuildsPage: React.FC = () => {
                     </AnimatePresence>
 
                     {/* Build List */}
-                    {isLoading ? (
-                        <div className="flex items-center justify-center py-20">
-                            <Loader2 size={24} className="animate-spin text-slate-500" />
-                        </div>
-                    ) : builds.length === 0 ? (
-                        <div className="text-center py-20">
-                            <Hammer size={48} className="mx-auto text-slate-700 mb-4" />
-                            <p className="text-slate-500 text-lg">No builds yet</p>
-                            <p className="text-slate-600 text-sm mt-1">Create your first image build to get started</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-2">
-                            {filteredBuilds.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <p className="text-slate-500">No {activeFilter.toLowerCase()} builds</p>
-                                </div>
-                            ) : (
-                                filteredBuilds.map((build) => (
-                                    <BuildRow
-                                        key={build._id}
-                                        build={build}
-                                        onClick={() => navigate(`/builds/${build._id}`)}
-                                    />
-                                ))
-                            )}
-                        </div>
-                    )}
+                    <div className="card overflow-hidden">
+                        {isLoading ? (
+                            <div className="flex items-center justify-center py-20">
+                                <Loader2 size={24} className="animate-spin text-dds-text-muted" />
+                            </div>
+                        ) : builds.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-center">
+                                <Hammer size={40} className="text-dds-text-muted mb-4" />
+                                <h3 className="text-lg font-medium text-dds-text-primary mb-1">No builds yet</h3>
+                                <p className="text-sm text-dds-text-secondary max-w-sm">
+                                    Create your first image build to get started
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse whitespace-nowrap">
+                                    <thead>
+                                        <tr className="border-b border-dds-border bg-dds-muted/50">
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Image Tag</th>
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Status</th>
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Duration</th>
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Size</th>
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Layers</th>
+                                            <th className="py-3 px-4 w-10"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {builds.map((build) => (
+                                            <BuildRow
+                                                key={build._id}
+                                                build={build}
+                                                onClick={() => navigate(`/builds/${build._id}`)}
+                                            />
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </main>
         </div>

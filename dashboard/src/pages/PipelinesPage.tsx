@@ -20,9 +20,6 @@ import {
     PauseCircle,
     PlayCircle,
 } from 'lucide-react';
-import Header from '../components/Header';
-import type { FilterItem } from '../components/Header';
-import ResourceNav from '../components/ResourceNav';
 import RefreshButton from '../components/RefreshButton';
 import ConfirmModal from '../components/ConfirmModal';
 import CreatePipelineModal from '../components/CreatePipelineModal';
@@ -31,8 +28,7 @@ import { useAppDispatch } from '../store/hooks';
 import { addToast } from '../store/toastSlice';
 import type { Pipeline, PipelineRepo } from '../api';
 
-// Helpers 
-
+// Helpers
 function formatRelativeTime(dateString: string): string {
     const diffMs = Date.now() - new Date(dateString).getTime();
     const diffSec = Math.floor(diffMs / 1000);
@@ -65,23 +61,21 @@ function getRepoId(repo: PipelineRepo | string | null): string {
 }
 
 const EXEC_STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; icon: React.ReactNode; label: string }> = {
-    pending: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', icon: <Clock size={12} />, label: 'Pending' },
-    running: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30', icon: <Loader2 size={12} className="animate-spin" />, label: 'Running' },
-    success: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: <CheckCircle2 size={12} />, label: 'Success' },
-    failed: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', icon: <XCircle size={12} />, label: 'Failed' },
+    pending: { color: 'text-dds-yellow', bg: 'bg-dds-yellow/10', border: 'border-dds-yellow/30', icon: <Clock size={12} />, label: 'Pending' },
+    running: { color: 'text-dds-blue', bg: 'bg-dds-blue/10', border: 'border-dds-blue/30', icon: <Loader2 size={12} className="animate-spin" />, label: 'Running' },
+    success: { color: 'text-dds-green', bg: 'bg-dds-green/10', border: 'border-dds-green/30', icon: <CheckCircle2 size={12} />, label: 'Success' },
+    failed: { color: 'text-dds-red', bg: 'bg-dds-red/10', border: 'border-dds-red/30', icon: <XCircle size={12} />, label: 'Failed' },
 };
 
 function StatusBadge({ status }: { status: string }) {
     const config = EXEC_STATUS_CONFIG[status] || EXEC_STATUS_CONFIG.pending;
     return (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${config.color} ${config.bg} border ${config.border}`}>
+        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-mono tracking-wide ${config.color} ${config.bg} border ${config.border}`}>
             {config.icon}
             {config.label}
         </span>
     );
 }
-
-//  Action Menu (renders via portal to escape overflow-hidden)
 
 function ActionMenu({
     onView,
@@ -103,15 +97,11 @@ function ActionMenu({
     const menuRef = useRef<HTMLDivElement>(null);
     const [pos, setPos] = useState({ top: 0, left: 0 });
 
-    // Calculate position when opening
     const handleOpen = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         if (btnRef.current) {
             const rect = btnRef.current.getBoundingClientRect();
-            setPos({
-                top: rect.bottom + 4,
-                left: rect.right - 176, // w-44 = 176px, align right edge
-            });
+            setPos({ top: rect.bottom + 4, left: rect.right - 176 });
         }
         setOpen(prev => !prev);
     }, []);
@@ -141,7 +131,7 @@ function ActionMenu({
             <button
                 ref={btnRef}
                 onClick={handleOpen}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors"
+                className="p-1.5 rounded-md text-dds-text-muted hover:text-dds-text-primary hover:bg-dds-muted transition-colors"
             >
                 <MoreVertical size={16} />
             </button>
@@ -153,33 +143,33 @@ function ActionMenu({
                     exit={{ opacity: 0, scale: 0.95, y: -4 }}
                     transition={{ duration: 0.1 }}
                     style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
-                    className="w-44 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl shadow-black/50 overflow-hidden"
+                    className="w-44 bg-dds-elevated border border-dds-border rounded-lg shadow-2xl shadow-black/50 overflow-hidden"
                 >
                     <button
                         onClick={(e) => { e.stopPropagation(); setOpen(false); onView(); }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors"
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-dds-text-secondary hover:bg-dds-muted hover:text-dds-text-primary transition-colors"
                     >
                         <Eye size={14} /> View
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); setOpen(false); onRun(); }}
                         disabled={isRunning || !isActive}
-                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-dds-text-secondary hover:bg-dds-muted hover:text-dds-text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
                         Run
                     </button>
                     <button
                         onClick={(e) => { e.stopPropagation(); setOpen(false); onToggle(); }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-slate-100 transition-colors"
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-dds-text-secondary hover:bg-dds-muted hover:text-dds-text-primary transition-colors"
                     >
-                        {isActive ? <PauseCircle size={14} className="text-amber-400" /> : <PlayCircle size={14} className="text-emerald-400" />}
+                        {isActive ? <PauseCircle size={14} className="text-dds-orange" /> : <PlayCircle size={14} className="text-dds-green" />}
                         {isActive ? 'Pause' : 'Resume'}
                     </button>
-                    <div className="border-t border-slate-700" />
+                    <div className="border-t border-dds-border" />
                     <button
                         onClick={(e) => { e.stopPropagation(); setOpen(false); onDelete(); }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-dds-red hover:bg-dds-red/10 transition-colors"
                     >
                         <Trash2 size={14} /> Delete
                     </button>
@@ -190,27 +180,29 @@ function ActionMenu({
     );
 }
 
-// Skeleton 
-
 function TableSkeleton() {
     return (
-        <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-4 bg-slate-800/30 rounded-xl border border-slate-800/50">
-                    <div className="w-9 h-9 rounded-lg bg-slate-800 animate-pulse" />
-                    <div className="flex-1 space-y-2">
-                        <div className="h-3.5 bg-slate-800 rounded animate-pulse w-40" />
-                        <div className="h-2.5 bg-slate-800/60 rounded animate-pulse w-56" />
-                    </div>
-                    <div className="h-6 w-20 bg-slate-800 rounded-lg animate-pulse" />
-                    <div className="h-3 w-16 bg-slate-800/60 rounded animate-pulse" />
-                </div>
-            ))}
+        <div className="card overflow-hidden">
+            <table className="w-full text-left border-collapse">
+                <tbody>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                        <tr key={i} className="border-b border-dds-border">
+                            <td className="py-4 px-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-md bg-dds-muted animate-pulse" />
+                                    <div className="space-y-2">
+                                        <div className="h-3.5 bg-dds-muted rounded animate-pulse w-40" />
+                                        <div className="h-2.5 bg-dds-muted/60 rounded animate-pulse w-56" />
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
     );
 }
-
-//  Page 
 
 const PipelinesPage: React.FC = () => {
     const navigate = useNavigate();
@@ -226,7 +218,6 @@ const PipelinesPage: React.FC = () => {
     const [runConfirm, setRunConfirm] = useState<{ open: boolean; pipeline: Pipeline | null }>({ open: false, pipeline: null });
     const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; pipeline: Pipeline | null }>({ open: false, pipeline: null });
 
-    // Unique repos for filter dropdown
     const uniqueRepos = useMemo(() => {
         const map = new Map<string, string>();
         pipelines.forEach(p => {
@@ -237,7 +228,6 @@ const PipelinesPage: React.FC = () => {
         return Array.from(map.entries());
     }, [pipelines]);
 
-    // Filtered pipelines
     const filtered = useMemo(() => {
         let result = pipelines;
         if (search.trim()) {
@@ -298,65 +288,48 @@ const PipelinesPage: React.FC = () => {
         }
     };
 
-    // Filter items for header
-    const filterItems: FilterItem[] = useMemo(() => [
-        { key: 'all', label: 'All', count: pipelines.length, color: 'text-slate-100', activeBg: 'bg-slate-700', activeBorder: 'border-slate-600', icon: <GitMerge size={15} className="text-slate-400" /> },
-    ], [pipelines]);
-
     return (
-        <div className="min-h-screen flex flex-col bg-slate-950">
-            <Header filterItems={filterItems} />
-            <ResourceNav />
-
-            <main className="flex-1 p-6 lg:p-8">
-                <div className="max-w-5xl mx-auto">
+        <div className="h-full flex flex-col bg-dds-bg text-dds-text-primary overflow-hidden">
+            <main className="flex-1 overflow-y-auto scrollbar-hide p-6 lg:p-8">
+                <div className="max-w-7xl mx-auto space-y-6">
                     {/* Page header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
-                                <GitMerge size={20} className="text-white" />
-                            </div>
-                            <div>
-                                <h1 className="text-xl font-bold text-slate-100">Pipelines</h1>
-                                <p className="text-slate-500 text-sm">
-                                    {isLoading ? 'Loading…' : error ? 'Unable to load' : `${pipelines.length} pipeline${pipelines.length === 1 ? '' : 's'}`}
-                                </p>
-                            </div>
+                            <GitMerge size={24} className="text-dds-text-primary" />
+                            <h1 className="text-2xl font-semibold text-dds-text-primary tracking-tight">Pipelines</h1>
                         </div>
                         <div className="flex items-center gap-2.5">
-                            <RefreshButton onRefresh={() => { refetch(); }} isFetching={isFetching} size="md" />
-                            <motion.button
+                            <RefreshButton onRefresh={() => { refetch(); }} isLoading={isFetching} size="md" />
+                            <button
                                 onClick={() => setCreateModalOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white text-sm font-semibold shadow-lg shadow-violet-500/20 transition-all"
-                                whileHover={{ scale: 1.02 }}
-                                whileTap={{ scale: 0.98 }}
+                                className="btn-primary flex items-center gap-2"
                             >
                                 <Plus size={16} />
                                 Create Pipeline
-                            </motion.button>
+                            </button>
                         </div>
                     </div>
 
                     {/* Search + Filter bar */}
                     {!isLoading && !error && pipelines.length > 0 && (
-                        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                        <div className="flex flex-col sm:flex-row gap-3">
                             <div className="relative flex-1">
-                                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dds-text-muted" />
                                 <input
                                     type="text"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     placeholder="Search pipelines…"
-                                    className="w-full bg-slate-800/50 border border-slate-700/50 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/25 transition-colors"
+                                    className="input pl-10"
                                 />
                             </div>
                             {uniqueRepos.length > 1 && (
                                 <div className="relative">
-                                    <Filter size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                                    <Filter size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dds-text-muted" />
                                     <select
                                         value={repoFilter}
                                         onChange={(e) => setRepoFilter(e.target.value)}
-                                        className="bg-slate-800/50 border border-slate-700/50 rounded-xl pl-9 pr-8 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-blue-500/50 appearance-none cursor-pointer"
+                                        className="input pl-9 pr-8 appearance-none cursor-pointer"
                                     >
                                         <option value="all">All repositories</option>
                                         {uniqueRepos.map(([id, name]) => (
@@ -378,51 +351,45 @@ const PipelinesPage: React.FC = () => {
                             <motion.div
                                 key="error"
                                 className="flex flex-col items-center justify-center py-20 text-center"
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                initial={{ opacity: 0, scale: 0.97 }}
+                                animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0 }}
                             >
-                                <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
-                                    <AlertCircle size={24} className="text-red-400" />
+                                <div className="w-14 h-14 rounded-2xl bg-dds-red/10 border border-dds-red/30 flex items-center justify-center mb-4">
+                                    <AlertCircle size={24} className="text-dds-red" />
                                 </div>
-                                <h3 className="text-slate-200 font-semibold mb-2">Failed to load pipelines</h3>
-                                <p className="text-slate-500 text-sm mb-5 max-w-xs">
+                                <h3 className="text-dds-text-primary font-semibold mb-2">Failed to load pipelines</h3>
+                                <p className="text-dds-text-secondary text-[13px] mb-5 max-w-xs">
                                     {(error as any)?.response?.data?.message ?? 'Could not reach the server.'}
                                 </p>
-                                <motion.button
+                                <button
                                     onClick={() => { refetch(); }}
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700 hover:border-slate-600 text-sm font-medium transition-all"
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
+                                    className="btn-secondary"
                                 >
                                     <RotateCw size={14} />
                                     Try Again
-                                </motion.button>
+                                </button>
                             </motion.div>
                         ) : pipelines.length === 0 ? (
                             <motion.div
                                 key="empty"
-                                className="text-center py-20"
-                                initial={{ opacity: 0, y: 8 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                className="flex flex-col items-center justify-center py-20 text-center"
+                                initial={{ opacity: 0, scale: 0.97 }}
+                                animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0 }}
                             >
-                                <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700/50 flex items-center justify-center mx-auto mb-5">
-                                    <GitMerge size={28} className="text-slate-600" />
-                                </div>
-                                <h3 className="text-slate-200 text-lg font-semibold mb-2">No pipelines yet</h3>
-                                <p className="text-slate-500 text-sm mb-6 max-w-sm mx-auto">
+                                <GitMerge size={40} className="text-dds-text-muted mb-4" />
+                                <h3 className="text-lg font-medium text-dds-text-primary mb-1">No pipelines yet</h3>
+                                <p className="text-sm text-dds-text-secondary max-w-sm mx-auto mb-6">
                                     Create your first CI/CD pipeline to automate builds, tests, and deployments.
                                 </p>
-                                <motion.button
+                                <button
                                     onClick={() => setCreateModalOpen(true)}
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 text-white text-sm font-semibold shadow-lg shadow-violet-500/20 transition-all"
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
+                                    className="btn-primary"
                                 >
                                     <Plus size={16} />
                                     Create Pipeline
-                                </motion.button>
+                                </button>
                             </motion.div>
                         ) : filtered.length === 0 ? (
                             <motion.div
@@ -432,92 +399,101 @@ const PipelinesPage: React.FC = () => {
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                             >
-                                <Search size={32} className="mx-auto text-slate-700 mb-3" />
-                                <p className="text-slate-500">No pipelines match your search</p>
+                                <Search size={32} className="mx-auto text-dds-text-muted mb-3" />
+                                <p className="text-dds-text-secondary">No pipelines match your search</p>
                             </motion.div>
                         ) : (
                             <motion.div
                                 key="list"
-                                className="bg-slate-900/40 border border-slate-800 rounded-2xl overflow-hidden"
+                                className="card overflow-x-auto"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
                             >
-                                {/* Table header */}
-                                <div className="hidden sm:grid grid-cols-[1fr_140px_120px_100px_44px] gap-4 px-5 py-3 border-b border-slate-800 text-xs font-medium text-slate-500 uppercase tracking-wider">
-                                    <span>Pipeline</span>
-                                    <span>Last Run</span>
-                                    <span>Updated</span>
-                                    <span>Steps</span>
-                                    <span />
-                                </div>
+                                <table className="w-full text-left border-collapse whitespace-nowrap">
+                                    <thead>
+                                        <tr className="border-b border-dds-border bg-dds-muted/50">
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Pipeline</th>
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Last Run</th>
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Updated</th>
+                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Steps</th>
+                                            <th className="py-3 px-4 w-10"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filtered.map((pipeline) => (
+                                            <tr
+                                                key={pipeline.id}
+                                                onClick={() => navigate(`/pipelines/${pipeline.id}`)}
+                                                className="group border-b border-dds-border last:border-0 hover:bg-dds-muted/50 cursor-pointer transition-colors"
+                                            >
+                                                {/* Name + Repo */}
+                                                <td className="py-3 px-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <GitMerge size={16} className="text-dds-text-muted" />
+                                                        <div>
+                                                            <div className="text-[13px] font-medium text-dds-text-primary group-hover:text-white transition-colors">
+                                                                {pipeline.name}
+                                                            </div>
+                                                            <div className="text-[11px] font-mono text-dds-text-secondary">
+                                                                {getRepoFullName(pipeline.repo)}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </td>
 
-                                {/* Rows */}
-                                {filtered.map((pipeline) => (
-                                    <div
-                                        key={pipeline.id}
-                                        onClick={() => navigate(`/pipelines/${pipeline.id}`)}
-                                        className="grid grid-cols-1 sm:grid-cols-[1fr_140px_120px_100px_44px] gap-3 sm:gap-4 items-center px-5 py-4 border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30 transition-colors cursor-pointer group"
-                                    >
-                                        {/* Name + Repo */}
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500/20 to-blue-500/20 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
-                                                <GitMerge size={15} className="text-violet-400" />
-                                            </div>
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-semibold text-slate-100 truncate group-hover:text-white transition-colors">
-                                                    {pipeline.name}
-                                                </p>
-                                                <p className="text-xs text-slate-500 truncate">
-                                                    {getRepoFullName(pipeline.repo)}
-                                                </p>
-                                            </div>
-                                        </div>
+                                                {/* Last Run — status + time */}
+                                                <td className="py-3 px-4">
+                                                    <div className="flex flex-col gap-1 items-start">
+                                                        {pipeline.status === 'inactive' ? (
+                                                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium text-dds-text-secondary bg-dds-muted border border-dds-border">
+                                                                <PauseCircle size={12} />
+                                                                Paused
+                                                            </span>
+                                                        ) : pipeline.lastRun ? (
+                                                            <>
+                                                                <StatusBadge status={pipeline.lastRun.status} />
+                                                                {pipeline.lastRun.startedAt && (
+                                                                    <span className="text-[10px] font-mono text-dds-text-muted flex items-center gap-1">
+                                                                        <Clock size={10} />
+                                                                        {formatRelativeTime(pipeline.lastRun.startedAt)}
+                                                                    </span>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-[11px] text-dds-text-muted italic">No runs yet</span>
+                                                        )}
+                                                    </div>
+                                                </td>
 
-                                        {/* Last Run — status + time */}
-                                        <div className="flex flex-col gap-1 items-start">
-                                            {pipeline.status === 'inactive' ? (
-                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-400 bg-slate-500/10 border border-slate-500/30">
-                                                    <PauseCircle size={12} />
-                                                    Paused
-                                                </span>
-                                            ) : pipeline.lastRun ? (
-                                                <>
-                                                    <StatusBadge status={pipeline.lastRun.status} />
-                                                    {pipeline.lastRun.startedAt && (
-                                                        <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                                                            <Clock size={10} />
-                                                            {formatRelativeTime(pipeline.lastRun.startedAt)}
-                                                        </span>
-                                                    )}
-                                                </>
-                                            ) : (
-                                                <span className="text-xs text-slate-500 italic">No runs yet</span>
-                                            )}
-                                        </div>
+                                                {/* Updated */}
+                                                <td className="py-3 px-4">
+                                                    <span className="text-[12px] font-mono text-dds-text-secondary flex items-center gap-1.5">
+                                                        <Clock size={12} className="text-dds-text-muted" />
+                                                        {formatRelativeTime(pipeline.updatedAt)}
+                                                    </span>
+                                                </td>
 
-                                        {/* Updated */}
-                                        <span className="text-xs text-slate-500 flex items-center gap-1">
-                                            <Clock size={11} />
-                                            {formatRelativeTime(pipeline.updatedAt)}
-                                        </span>
+                                                {/* Steps count */}
+                                                <td className="py-3 px-4 text-[12px] font-mono text-dds-text-secondary">
+                                                    {pipeline.steps?.length || 0}
+                                                </td>
 
-                                        {/* Steps count */}
-                                        <span className="text-xs text-slate-500">
-                                            {pipeline.steps?.length || 0} step{(pipeline.steps?.length || 0) !== 1 ? 's' : ''}
-                                        </span>
-
-                                        {/* ⋮ Menu  */}
-                                        <ActionMenu
-                                            onView={() => navigate(`/pipelines/${pipeline.id}`)}
-                                            onRun={() => setRunConfirm({ open: true, pipeline })}
-                                            onDelete={() => setDeleteConfirm({ open: true, pipeline })}
-                                            onToggle={() => handleToggle(pipeline)}
-                                            isRunning={runPipeline.isPending}
-                                            isActive={pipeline.status === 'active'}
-                                        />
-                                    </div>
-                                ))}
+                                                {/* ⋮ Menu */}
+                                                <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                                                    <ActionMenu
+                                                        onView={() => navigate(`/pipelines/${pipeline.id}`)}
+                                                        onRun={() => setRunConfirm({ open: true, pipeline })}
+                                                        onDelete={() => setDeleteConfirm({ open: true, pipeline })}
+                                                        onToggle={() => handleToggle(pipeline)}
+                                                        isRunning={runPipeline.isPending}
+                                                        isActive={pipeline.status === 'active'}
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </motion.div>
                         )}
                     </AnimatePresence>

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, GitCommit, GitBranch, Box, Clock, Tag } from 'lucide-react';
 import type { Deployment } from '../api';
@@ -34,18 +35,17 @@ const DeploymentDetailModal: React.FC<DeploymentDetailModalProps> = ({ deploymen
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [deployment, onClose]);
 
-  if (!deployment) return null;
-
-  return (
+  return createPortal(
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      {deployment && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 lg:p-8">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         />
 
         {/* Modal Window */}
@@ -53,76 +53,82 @@ const DeploymentDetailModal: React.FC<DeploymentDetailModalProps> = ({ deploymen
           initial={{ opacity: 0, y: 20, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
-          className="relative flex flex-col w-full max-w-6xl h-full max-h-[90vh] bg-slate-900 border border-slate-700 shadow-2xl rounded-2xl overflow-hidden"
+          className="relative flex flex-col w-full max-w-6xl h-full max-h-[90vh] bg-dds-bg border border-dds-border shadow-2xl rounded-xl overflow-hidden"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-900 shrink-0">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-dds-border bg-dds-surface/50 shrink-0">
             <div className="flex items-center gap-4">
-              <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-                <Box size={20} className="text-blue-400" />
-                Deployment Details
-              </h2>
-              <div className="h-6 w-px bg-slate-700" />
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-dds-primary/10 border border-dds-primary/20 flex items-center justify-center shadow-inner">
+                  <Box size={18} className="text-dds-primary" />
+                </div>
+                <h2 className="text-base font-semibold text-dds-text-primary">
+                  Deployment Details
+                </h2>
+              </div>
+              <div className="h-6 w-px bg-dds-border" />
+              <div className="flex items-center gap-2.5">
                 <StatusBadge status={deployment.status} />
                 <EnvironmentBadge environment={deployment.environment} />
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-1.5 text-dds-text-muted hover:text-dds-white hover:bg-dds-surface rounded-lg transition-colors"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
 
           {/* Metadata Bar */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 px-6 py-4 bg-slate-800/30 border-b border-slate-800 shrink-0">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 px-6 py-5 bg-dds-surface border-b border-dds-border shrink-0">
             <div>
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">ID</p>
-              <p className="text-sm font-mono text-slate-300 truncate" title={deployment._id}>
+              <p className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-1.5">ID</p>
+              <p className="text-[13px] font-mono text-dds-text-primary truncate" title={deployment._id}>
                 {deployment._id.slice(-8)}
               </p>
             </div>
             <div>
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Commit</p>
-              <p className="text-sm font-mono text-slate-300 flex items-center gap-1.5 truncate">
-                <GitCommit size={14} className="text-slate-500" />
+              <p className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-1.5">Commit</p>
+              <p className="text-[13px] font-mono text-dds-text-primary flex items-center gap-1.5 truncate">
+                <GitCommit size={13} className="text-dds-text-muted" />
                 {deployment.build?.commitHash?.slice(0, 7) || 'N/A'}
               </p>
             </div>
             <div>
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Branch</p>
-              <p className="text-sm font-mono text-slate-300 flex items-center gap-1.5 truncate">
-                <GitBranch size={14} className="text-slate-500" />
+              <p className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-1.5">Branch</p>
+              <p className="text-[13px] font-mono text-dds-text-primary flex items-center gap-1.5 truncate">
+                <GitBranch size={13} className="text-dds-text-muted" />
                 {deployment.build?.branch || 'N/A'}
               </p>
             </div>
             {deployment.imageTag && (
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Image Tag</p>
-                <p className="text-sm font-mono text-slate-300 flex items-center gap-1.5 truncate">
-                  <Tag size={14} className="text-slate-500" />
+                <p className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-1.5">Image Tag</p>
+                <p className="text-[13px] font-mono text-dds-text-primary flex items-center gap-1.5 truncate">
+                  <Tag size={13} className="text-dds-text-muted" />
                   {deployment.imageTag}
                 </p>
               </div>
             )}
             <div>
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Created</p>
-              <p className="text-sm text-slate-300 flex items-center gap-1.5 truncate">
-                <Clock size={14} className="text-slate-500" />
+              <p className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-1.5">Created</p>
+              <p className="text-[13px] font-mono text-dds-text-primary flex items-center gap-1.5 truncate">
+                <Clock size={13} className="text-dds-text-muted" />
                 {formatRelativeTime(deployment.createdAt)}
               </p>
             </div>
           </div>
 
           {/* Logs Area */}
-          <div className="flex-1 min-h-0 p-4 bg-slate-900 border-t border-slate-950 shadow-inner">
+          <div className="flex-1 min-h-0 p-4 bg-dds-bg">
             <DeploymentLogsViewer deploymentId={deployment._id} />
           </div>
         </motion.div>
       </div>
-    </AnimatePresence>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 };
 

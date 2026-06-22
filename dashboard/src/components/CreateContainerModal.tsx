@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Trash2, Loader2, Package, PenLine, Cpu, HardDrive, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useAppDispatch } from '../store/hooks';
@@ -169,7 +170,7 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
         }
     };
 
-    return (
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
                 <>
@@ -188,51 +189,51 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                             initial={{ opacity: 0, scale: 0.95, y: 20 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+                            className="bg-dds-bg border border-dds-border rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden"
                         >
                             {/* Header */}
-                            <div className="flex items-center justify-between p-6 border-b border-slate-700">
-                                <h2 className="text-xl font-semibold text-white">Create Container</h2>
+                            <div className="flex items-center justify-between p-6 border-b border-dds-border bg-dds-surface/50">
+                                <h2 className="text-xl font-semibold text-dds-text-primary">Create Container</h2>
                                 <button
                                     onClick={handleClose}
                                     disabled={isSubmitting}
-                                    className="text-slate-400 hover:text-white transition-colors disabled:opacity-50"
+                                    className="text-dds-text-muted hover:text-dds-white hover:bg-dds-surface p-1.5 rounded-lg transition-colors disabled:opacity-50"
                                 >
                                     <X size={20} />
                                 </button>
                             </div>
 
                             {/* Form */}
-                            <form onSubmit={handleSubmit} className="overflow-y-auto max-h-[calc(90vh-140px)]">
-                                <div className="p-6 space-y-6">
+                            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col">
+                                <div className="p-6 space-y-6 flex-1">
                                     {/* Error Message */}
                                     {error && (
-                                        <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm">
+                                        <div className="bg-dds-red/10 border border-dds-red/30 text-dds-red px-4 py-3 rounded-lg text-sm">
                                             {error}
                                         </div>
                                     )}
 
                                     {/* Image Selection */}
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                                            Image <span className="text-red-400">*</span>
+                                        <label className="block text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-2">
+                                            Image <span className="text-dds-red">*</span>
                                         </label>
 
                                         {/* Source tabs */}
-                                        <div className="flex gap-1 mb-3 bg-slate-800/50 rounded-lg p-1">
+                                        <div className="flex gap-1 mb-3 bg-dds-surface rounded-lg p-1 border border-dds-border/50">
                                             <button
                                                 type="button"
                                                 onClick={() => { setImageSource('built'); setImage(''); }}
                                                 disabled={isSubmitting}
                                                 className={`flex items-center gap-1.5 flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${imageSource === 'built'
-                                                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                                                    : 'text-slate-400 hover:text-slate-300'
+                                                    ? 'bg-dds-primary/10 text-dds-primary border border-dds-primary/30'
+                                                    : 'text-dds-text-muted hover:text-dds-text-primary'
                                                     }`}
                                             >
                                                 <Package size={13} />
                                                 My Images
                                                 {builtImages.length > 0 && (
-                                                    <span className="ml-auto text-[10px] bg-slate-700/60 px-1.5 py-0.5 rounded-full">
+                                                    <span className="ml-auto text-[10px] bg-dds-bg/80 border border-dds-border/50 px-1.5 py-0.5 rounded-full text-dds-text-secondary">
                                                         {builtImages.length}
                                                     </span>
                                                 )}
@@ -242,8 +243,8 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                                 onClick={() => { setImageSource('custom'); setImage(''); }}
                                                 disabled={isSubmitting}
                                                 className={`flex items-center gap-1.5 flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${imageSource === 'custom'
-                                                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                                                    : 'text-slate-400 hover:text-slate-300'
+                                                    ? 'bg-dds-primary/10 text-dds-primary border border-dds-primary/30'
+                                                    : 'text-dds-text-muted hover:text-dds-text-primary'
                                                     }`}
                                             >
                                                 <PenLine size={13} />
@@ -255,11 +256,11 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                         {imageSource === 'built' && (
                                             <>
                                                 {imagesLoading ? (
-                                                    <div className="flex items-center gap-2 text-slate-500 text-sm py-2">
+                                                    <div className="flex items-center gap-2 text-dds-text-muted text-sm py-2">
                                                         <Loader2 size={14} className="animate-spin" /> Loading images…
                                                     </div>
                                                 ) : builtImages.length === 0 ? (
-                                                    <div className="text-sm text-slate-500 bg-slate-800/40 border border-slate-700/50 rounded-lg px-4 py-3">
+                                                    <div className="text-sm text-dds-text-muted bg-dds-surface border border-dds-border rounded-lg px-4 py-3">
                                                         No built images yet. Build an image first or use a custom image name.
                                                     </div>
                                                 ) : (
@@ -267,12 +268,12 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                                         value={image}
                                                         onChange={(e) => setImage(e.target.value)}
                                                         disabled={isSubmitting}
-                                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 appearance-none cursor-pointer"
+                                                        className="w-full bg-dds-surface border border-dds-border rounded-md px-4 py-2.5 text-[13px] text-dds-text-primary focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 disabled:opacity-50 appearance-none cursor-pointer"
                                                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
                                                     >
-                                                        <option value="" className="bg-slate-800 text-slate-400">Select a built image…</option>
+                                                        <option value="" className="bg-dds-surface text-dds-text-muted">Select a built image…</option>
                                                         {builtImages.map(img => (
-                                                            <option key={img._id} value={img.tag} className="bg-slate-800 text-white">
+                                                            <option key={img._id} value={img.tag} className="bg-dds-surface text-dds-text-primary">
                                                                 {img.tag} — {img.sizeMB.toFixed(1)} MB, {img.layerCount} layers
                                                             </option>
                                                         ))}
@@ -289,15 +290,15 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                                 onChange={(e) => setImage(e.target.value)}
                                                 placeholder="e.g., nginx:latest"
                                                 disabled={isSubmitting}
-                                                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                className="w-full bg-dds-surface border border-dds-border rounded-md px-4 py-2.5 text-[13px] text-dds-text-primary placeholder-dds-text-muted focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 disabled:opacity-50"
                                             />
                                         )}
                                     </div>
 
                                     {/* Container Name */}
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">
-                                            Container Name (optional)
+                                        <label className="block text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-2">
+                                            Container Name <span className="text-dds-text-muted lowercase tracking-normal text-[10px] ml-1 font-sans">(optional)</span>
                                         </label>
                                         <input
                                             type="text"
@@ -305,21 +306,21 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                             onChange={(e) => setName(e.target.value)}
                                             placeholder="e.g., my-nginx"
                                             disabled={isSubmitting}
-                                            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                            className="w-full bg-dds-surface border border-dds-border rounded-md px-4 py-2.5 text-[13px] text-dds-text-primary placeholder-dds-text-muted focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 disabled:opacity-50"
                                         />
                                     </div>
 
                                     {/* Port Mappings */}
                                     <div>
                                         <div className="flex items-center justify-between mb-2">
-                                            <label className="block text-sm font-medium text-slate-300">
+                                            <label className="block text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider">
                                                 Port Mappings
                                             </label>
                                             <button
                                                 type="button"
                                                 onClick={handleAddPort}
                                                 disabled={isSubmitting}
-                                                className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
+                                                className="flex items-center gap-1 text-sm text-dds-primary hover:text-dds-primary/80 transition-colors disabled:opacity-50 font-medium"
                                             >
                                                 <Plus size={16} />
                                                 Add Port
@@ -334,22 +335,22 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                                         onChange={(e) => handlePortChange(port.id, 'containerPort', e.target.value)}
                                                         placeholder="Container port"
                                                         disabled={isSubmitting}
-                                                        className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                        className="flex-1 bg-dds-surface border border-dds-border rounded-md px-3 py-2 text-[13px] text-dds-text-primary placeholder-dds-text-muted focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 disabled:opacity-50"
                                                     />
-                                                    <span className="text-slate-500">→</span>
+                                                    <span className="text-dds-text-muted">→</span>
                                                     <input
                                                         type="text"
                                                         value={port.hostPort}
                                                         onChange={(e) => handlePortChange(port.id, 'hostPort', e.target.value)}
                                                         placeholder="Host port"
                                                         disabled={isSubmitting}
-                                                        className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                        className="flex-1 bg-dds-surface border border-dds-border rounded-md px-3 py-2 text-[13px] text-dds-text-primary placeholder-dds-text-muted focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 disabled:opacity-50"
                                                     />
                                                     <button
                                                         type="button"
                                                         onClick={() => handleRemovePort(port.id)}
                                                         disabled={isSubmitting}
-                                                        className="text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                                                        className="text-dds-red hover:text-dds-red/80 transition-colors disabled:opacity-50 p-1.5 rounded-md hover:bg-dds-red/10"
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
@@ -361,14 +362,14 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                     {/* Environment Variables */}
                                     <div>
                                         <div className="flex items-center justify-between mb-2">
-                                            <label className="block text-sm font-medium text-slate-300">
+                                            <label className="block text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider">
                                                 Environment Variables
                                             </label>
                                             <button
                                                 type="button"
                                                 onClick={handleAddEnvVar}
                                                 disabled={isSubmitting}
-                                                className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-50"
+                                                className="flex items-center gap-1 text-sm text-dds-primary hover:text-dds-primary/80 transition-colors disabled:opacity-50 font-medium"
                                             >
                                                 <Plus size={16} />
                                                 Add Variable
@@ -383,22 +384,22 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                                         onChange={(e) => handleEnvVarChange(envVar.id, 'key', e.target.value)}
                                                         placeholder="KEY"
                                                         disabled={isSubmitting}
-                                                        className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                        className="flex-1 bg-dds-surface border border-dds-border rounded-md px-3 py-2 text-[13px] text-dds-text-primary placeholder-dds-text-muted focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 disabled:opacity-50"
                                                     />
-                                                    <span className="text-slate-500">=</span>
+                                                    <span className="text-dds-text-muted">=</span>
                                                     <input
                                                         type="text"
                                                         value={envVar.value}
                                                         onChange={(e) => handleEnvVarChange(envVar.id, 'value', e.target.value)}
                                                         placeholder="value"
                                                         disabled={isSubmitting}
-                                                        className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                        className="flex-1 bg-dds-surface border border-dds-border rounded-md px-3 py-2 text-[13px] text-dds-text-primary placeholder-dds-text-muted focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 disabled:opacity-50"
                                                     />
                                                     <button
                                                         type="button"
                                                         onClick={() => handleRemoveEnvVar(envVar.id)}
                                                         disabled={isSubmitting}
-                                                        className="text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                                                        className="text-dds-red hover:text-dds-red/80 transition-colors disabled:opacity-50 p-1.5 rounded-md hover:bg-dds-red/10"
                                                     >
                                                         <Trash2 size={16} />
                                                     </button>
@@ -408,27 +409,27 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                     </div>
 
                                     {/* Resource Limits */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-3">
+                                    <div className="pt-2">
+                                        <label className="block text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-3">
                                             Resource Limits
                                         </label>
 
                                         {/* Container limit reached warning */}
                                         {containerFull && (
-                                            <div className="mb-3 flex items-center gap-2 bg-red-500/10 border border-red-500/30 text-red-400 px-3 py-2.5 rounded-lg text-sm">
+                                            <div className="mb-3 flex items-center gap-2 bg-dds-red/10 border border-dds-red/30 text-dds-red px-3 py-2.5 rounded-lg text-sm">
                                                 <AlertTriangle size={14} className="shrink-0" />
                                                 Container limit reached. Remove an existing container to create a new one.
                                             </div>
                                         )}
 
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-2 gap-4">
                                             {/* CPU Limit */}
                                             <div>
                                                 <div className="flex items-center justify-between mb-1.5">
-                                                    <span className="flex items-center gap-1.5 text-xs text-slate-400">
-                                                        <Cpu size={11} /> CPU Limit
+                                                    <span className="flex items-center gap-1.5 text-xs text-dds-text-secondary font-medium">
+                                                        <Cpu size={12} /> CPU Limit
                                                     </span>
-                                                    <span className="text-[10px] text-slate-500">
+                                                    <span className="text-[10px] text-dds-text-muted">
                                                         Optional cap
                                                     </span>
                                                 </div>
@@ -436,7 +437,8 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                                     value={cpuLimit}
                                                     onChange={(e) => setCpuLimit(Number(e.target.value))}
                                                     disabled={isSubmitting}
-                                                    className={`w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50`}
+                                                    className={`w-full bg-dds-surface border border-dds-border rounded-md px-3 py-2 text-dds-text-primary text-[13px] focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 disabled:opacity-50 appearance-none`}
+                                                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
                                                 >
                                                     <option value={0.25}>0.25 cores</option>
                                                     <option value={0.5}>0.5 cores</option>
@@ -448,18 +450,19 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                             {/* Memory Limit */}
                                             <div>
                                                 <div className="flex items-center justify-between mb-1.5">
-                                                    <span className="flex items-center gap-1.5 text-xs text-slate-400">
-                                                        <HardDrive size={11} /> Memory Limit
+                                                    <span className="flex items-center gap-1.5 text-xs text-dds-text-secondary font-medium">
+                                                        <HardDrive size={12} /> Memory Limit
                                                     </span>
-                                                    <span className="text-[10px] text-slate-500">
-                                                        Max container memory
+                                                    <span className="text-[10px] text-dds-text-muted">
+                                                        Max memory
                                                     </span>
                                                 </div>
                                                 <select
                                                     value={memoryLimit}
                                                     onChange={(e) => setMemoryLimit(Number(e.target.value))}
                                                     disabled={isSubmitting}
-                                                    className={`w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50`}
+                                                    className={`w-full bg-dds-surface border border-dds-border rounded-md px-3 py-2 text-dds-text-primary text-[13px] focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 disabled:opacity-50 appearance-none`}
+                                                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
                                                 >
                                                     <option value={64}>64 MB</option>
                                                     <option value={128}>128 MB</option>
@@ -473,25 +476,26 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                     </div>
 
                                     {/* Restart Policy */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-1.5">
+                                    <div className="pt-2">
+                                        <label className="block text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-3 flex items-center gap-1.5">
                                             <RefreshCw size={13} />
                                             Restart Policy
                                         </label>
-                                        <div className="grid grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <select
                                                     value={restartPolicy}
                                                     onChange={(e) => setRestartPolicy(e.target.value)}
                                                     disabled={isSubmitting}
-                                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                    className="w-full bg-dds-surface border border-dds-border rounded-md px-3 py-2 text-[13px] text-dds-text-primary focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 disabled:opacity-50 appearance-none"
+                                                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
                                                 >
                                                     <option value="no">None (default)</option>
                                                     <option value="always">Always</option>
                                                     <option value="unless-stopped">Unless Stopped</option>
                                                     <option value="on-failure">On Failure</option>
                                                 </select>
-                                                <p className="text-xs text-slate-600 mt-1">
+                                                <p className="text-[10px] text-dds-text-muted mt-1.5">
                                                     {restartPolicy === 'always' && 'Restarts on any exit, including manual stops.'}
                                                     {restartPolicy === 'unless-stopped' && 'Restarts unless explicitly stopped by the user.'}
                                                     {restartPolicy === 'on-failure' && 'Restarts only on non-zero exit codes.'}
@@ -500,7 +504,7 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                             </div>
                                             {restartPolicy !== 'no' && (
                                                 <div>
-                                                    <label className="block text-xs text-slate-400 mb-1.5">Max Retries</label>
+                                                    <label className="block text-xs font-medium text-dds-text-secondary mb-1.5">Max Retries</label>
                                                     <input
                                                         type="number"
                                                         min={1}
@@ -508,48 +512,48 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                                                         value={maxRetryCount}
                                                         onChange={(e) => setMaxRetryCount(Number(e.target.value))}
                                                         disabled={isSubmitting}
-                                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                                        className="w-full bg-dds-surface border border-dds-border rounded-md px-3 py-2 text-[13px] text-dds-text-primary focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 disabled:opacity-50"
                                                     />
-                                                    <p className="text-xs text-slate-600 mt-1">Max restart attempts before stopping</p>
+                                                    <p className="text-[10px] text-dds-text-muted mt-1.5">Max restart attempts before stopping</p>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
 
                                     {/* Auto Start */}
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 pt-2">
                                         <input
                                             type="checkbox"
                                             id="autoStart"
                                             checked={autoStart}
                                             onChange={(e) => setAutoStart(e.target.checked)}
                                             disabled={isSubmitting}
-                                            className="w-4 h-4 text-blue-500 bg-slate-800 border-slate-700 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                                            className="w-4 h-4 text-dds-primary bg-dds-surface border-dds-border rounded focus:ring-1 focus:ring-dds-primary/50 disabled:opacity-50"
                                         />
-                                        <label htmlFor="autoStart" className="text-sm text-slate-300">
+                                        <label htmlFor="autoStart" className="text-[13px] text-dds-text-secondary">
                                             Start container automatically after creation
                                         </label>
                                     </div>
                                 </div>
 
                                 {/* Footer */}
-                                <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-700 bg-slate-900/50">
+                                <div className="flex items-center justify-end gap-3 p-6 border-t border-dds-border bg-dds-surface/50 mt-auto">
                                     <button
                                         type="button"
                                         onClick={handleClose}
                                         disabled={isSubmitting}
-                                        className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors disabled:opacity-50"
+                                        className="btn-secondary"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="submit"
                                         disabled={isSubmitting || !image.trim() || containerFull}
-                                        className="flex items-center gap-2 px-6 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="btn-primary"
                                     >
                                         {isSubmitting ? (
                                             <>
-                                                <Loader2 size={16} className="animate-spin" />
+                                                <Loader2 size={16} className="animate-spin mr-2 inline" />
                                                 Creating...
                                             </>
                                         ) : (
@@ -562,7 +566,8 @@ const CreateContainerModal: React.FC<CreateContainerModalProps> = ({ isOpen, onC
                     </div>
                 </>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 };
 

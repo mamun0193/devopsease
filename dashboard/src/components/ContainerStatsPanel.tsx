@@ -22,7 +22,6 @@ interface ContainerStatsProps {
   } | null;
 }
 
-
 const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, containerState, resourceLimits }) => {
   const isRunning = containerState === 'running';
   const [selectedRange, setSelectedRange] = React.useState<TimeRange>('1m');
@@ -64,29 +63,29 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
 
   if (!containerId) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 bg-slate-900/50 rounded-lg border border-slate-800">
-        <Activity size={48} className="text-slate-600 mb-4" />
-        <h3 className="text-lg font-medium text-slate-300">No Container Selected</h3>
-        <p className="text-slate-500">Select a container to view resource usage</p>
+      <div className="flex flex-col items-center justify-center py-12 bg-dds-surface/50 rounded-xl border border-dds-border shadow-sm">
+        <Activity size={48} className="text-dds-text-muted mb-4" />
+        <h3 className="text-[15px] font-medium text-dds-text-primary">No Container Selected</h3>
+        <p className="text-[13px] text-dds-text-secondary mt-1">Select a container to view resource usage</p>
       </div>
     );
   }
 
   if (!isRunning) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 bg-slate-900/50 rounded-lg border border-slate-800">
-        <Activity size={48} className="text-slate-600 mb-4" />
-        <h3 className="text-lg font-medium text-slate-300">Container Not Running</h3>
-        <p className="text-slate-500">Stats are only available for running containers</p>
+      <div className="flex flex-col items-center justify-center py-12 bg-dds-surface/50 rounded-xl border border-dds-border shadow-sm">
+        <Activity size={48} className="text-dds-text-muted mb-4" />
+        <h3 className="text-[15px] font-medium text-dds-text-primary">Container Not Running</h3>
+        <p className="text-[13px] text-dds-text-secondary mt-1">Stats are only available for running containers</p>
       </div>
     );
   }
 
   if (!latestStats && dataPoints.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 bg-slate-900/50 rounded-lg border border-slate-800">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
-        <p className="text-slate-400">Connecting to metrics stream...</p>
+      <div className="flex flex-col items-center justify-center py-12 bg-dds-surface/50 rounded-xl border border-dds-border shadow-sm">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-dds-primary mb-4" />
+        <p className="text-[13px] text-dds-text-secondary">Connecting to metrics stream...</p>
       </div>
     );
   }
@@ -96,19 +95,17 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Activity size={20} className="text-blue-400" />
-          <h3 className="text-lg font-semibold text-slate-100">Resource Usage</h3>
+          <Activity size={18} className="text-dds-primary" />
+          <h3 className="text-[15px] font-semibold text-dds-text-primary uppercase tracking-wider">Resource Usage</h3>
         </div>
         <div className="flex items-center gap-2">
           {isStreaming ? (
-            <span className="flex items-center gap-1.5 text-xs text-emerald-400">
-              <Wifi size={12} />
-              Live
+            <span className="flex items-center gap-1.5 text-[11px] font-mono font-medium tracking-wider text-dds-green bg-dds-green/10 border border-dds-green/30 px-2 py-0.5 rounded">
+              <Wifi size={12} /> LIVE
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-xs text-yellow-400">
-              <WifiOff size={12} />
-              Polling
+            <span className="flex items-center gap-1.5 text-[11px] font-mono font-medium tracking-wider text-dds-orange bg-dds-orange/10 border border-dds-orange/30 px-2 py-0.5 rounded">
+              <WifiOff size={12} /> POLLING
             </span>
           )}
         </div>
@@ -117,69 +114,73 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* CPU */}
-        <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-          <div className="flex items-center gap-2 mb-2">
-            <Cpu size={16} className="text-purple-400" />
-            <span className="text-sm font-medium text-slate-300">CPU</span>
+        <div className="bg-dds-surface rounded-xl p-5 border border-dds-border shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <Cpu size={16} className="text-dds-primary" />
+            <span className="text-[13px] font-medium text-dds-text-secondary uppercase tracking-wide">CPU</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-100">
+            <span className="text-3xl font-bold text-dds-text-primary font-mono tracking-tight">
               {latestStats?.cpuPercent?.toFixed(1) ?? '0.0'}
             </span>
-            <span className="text-sm text-slate-400">%</span>
+            <span className="text-[13px] text-dds-text-muted font-medium">%</span>
           </div>
           {resourceLimits?.cpuCores && (
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-[11px] text-dds-text-muted mt-1 font-mono">
               {((latestStats?.cpuPercent ?? 0) * resourceLimits.cpuCores / 100).toFixed(2)} / {resourceLimits.cpuCores} cores
             </p>
           )}
-          <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden">
+          <div className="w-full bg-dds-bg rounded-full h-1 mt-4 overflow-hidden">
             <div
-              className="bg-gradient-to-r from-purple-500 to-pink-500 h-1.5 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-dds-primary to-dds-blue h-1 rounded-full transition-all duration-500"
               style={{ width: `${Math.min(latestStats?.cpuPercent ?? 0, 100)}%` }}
             />
           </div>
         </div>
 
         {/* Memory */}
-        <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-          <div className="flex items-center gap-2 mb-2">
-            <HardDrive size={16} className="text-blue-400" />
-            <span className="text-sm font-medium text-slate-300">Memory</span>
+        <div className="bg-dds-surface rounded-xl p-5 border border-dds-border shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <HardDrive size={16} className="text-dds-blue" />
+            <span className="text-[13px] font-medium text-dds-text-secondary uppercase tracking-wide">Memory</span>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-slate-100">
+            <span className="text-3xl font-bold text-dds-text-primary font-mono tracking-tight">
               {latestStats?.memoryUsedMB ?? 0}
             </span>
-            <span className="text-sm text-slate-400">MB</span>
+            <span className="text-[13px] text-dds-text-muted font-medium">MB</span>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-[11px] text-dds-text-muted mt-1 font-mono">
             / {resourceLimits?.memoryMB || latestStats?.memoryLimitMB || '—'} MB limit
           </p>
-          <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden">
+          <div className="w-full bg-dds-bg rounded-full h-1 mt-4 overflow-hidden">
             <div
-              className="bg-gradient-to-r from-blue-500 to-cyan-500 h-1.5 rounded-full transition-all duration-500"
+              className="bg-gradient-to-r from-dds-blue to-dds-green h-1 rounded-full transition-all duration-500"
               style={{ width: `${Math.min(latestStats?.memoryPercent ?? 0, 100)}%` }}
             />
           </div>
         </div>
 
         {/* Network */}
-        <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-          <div className="flex items-center gap-2 mb-2">
-            <Network size={16} className="text-emerald-400" />
-            <span className="text-sm font-medium text-slate-300">Network I/O</span>
+        <div className="bg-dds-surface rounded-xl p-5 border border-dds-border shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <Network size={16} className="text-dds-green" />
+            <span className="text-[13px] font-medium text-dds-text-secondary uppercase tracking-wide">Network I/O</span>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 mt-1">
             <div>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide">RX</p>
-              <span className="text-lg font-bold text-slate-100">{latestStats?.networkRxMB?.toFixed(2) ?? '0'}</span>
-              <span className="text-xs text-slate-400 ml-1">MB</span>
+              <p className="text-[10px] text-dds-text-muted uppercase tracking-wider mb-1 font-medium">RX</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-dds-text-primary font-mono tracking-tight">{latestStats?.networkRxMB?.toFixed(2) ?? '0'}</span>
+                <span className="text-[10px] text-dds-text-muted">MB</span>
+              </div>
             </div>
             <div>
-              <p className="text-[10px] text-slate-500 uppercase tracking-wide">TX</p>
-              <span className="text-lg font-bold text-slate-100">{latestStats?.networkTxMB?.toFixed(2) ?? '0'}</span>
-              <span className="text-xs text-slate-400 ml-1">MB</span>
+              <p className="text-[10px] text-dds-text-muted uppercase tracking-wider mb-1 font-medium">TX</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-dds-text-primary font-mono tracking-tight">{latestStats?.networkTxMB?.toFixed(2) ?? '0'}</span>
+                <span className="text-[10px] text-dds-text-muted">MB</span>
+              </div>
             </div>
           </div>
         </div>
@@ -187,18 +188,18 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
 
       {/* Charts */}
       {(chartData.length > 1 || loadingHistory) && (
-        <div>
+        <div className="mt-8">
           {/* Time range selector */}
-          <div className="flex items-center gap-2 mb-4">
-            <Clock size={14} className="text-slate-500" />
-            <div className="flex gap-1">
+          <div className="flex items-center gap-3 mb-4">
+            <Clock size={14} className="text-dds-text-muted" />
+            <div className="flex gap-1.5">
               {RANGE_LABELS.map(({ key, label }) => (
                 <button
                   key={key}
                   onClick={() => setSelectedRange(key)}
-                  className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${selectedRange === key
-                    ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
-                    : 'bg-slate-800/50 text-slate-400 border border-slate-700 hover:bg-slate-800 hover:text-slate-300'
+                  className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-all ${selectedRange === key
+                    ? 'bg-dds-primary text-white shadow-sm'
+                    : 'bg-dds-surface text-dds-text-secondary border border-dds-border hover:bg-dds-surface/80 hover:text-dds-text-primary'
                     }`}
                 >
                   {label}
@@ -206,20 +207,20 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
               ))}
             </div>
             {selectedRange !== '1m' && historicalData.length > 0 && (
-              <span className="text-[10px] text-slate-500 ml-auto">{historicalData.length} data points</span>
+              <span className="text-[11px] text-dds-text-muted ml-auto font-mono">{historicalData.length} data points</span>
             )}
           </div>
 
           {loadingHistory ? (
-            <div className="flex items-center justify-center py-12 bg-slate-900/50 rounded-lg border border-slate-800">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+            <div className="flex items-center justify-center py-16 bg-dds-surface/50 rounded-xl border border-dds-border shadow-sm">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-dds-primary" />
             </div>
           ) : chartData.length > 1 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* CPU Chart */}
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <h4 className="text-sm font-medium text-slate-300 mb-3">CPU Usage %</h4>
-                <ResponsiveContainer width="100%" height={160}>
+              <div className="bg-dds-surface rounded-xl p-5 border border-dds-border shadow-sm">
+                <h4 className="text-[14px] font-medium text-dds-text-primary mb-5">CPU Usage %</h4>
+                <ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={chartData}>
                     <ChartGradients />
                     <XAxis
@@ -275,9 +276,9 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
               </div>
 
               {/* Memory Chart */}
-              <div className="bg-slate-900 rounded-lg p-4 border border-slate-800">
-                <h4 className="text-sm font-medium text-slate-300 mb-3">Memory Usage (MB)</h4>
-                <ResponsiveContainer width="100%" height={160}>
+              <div className="bg-dds-surface rounded-xl p-5 border border-dds-border shadow-sm">
+                <h4 className="text-[14px] font-medium text-dds-text-primary mb-5">Memory Usage (MB)</h4>
+                <ResponsiveContainer width="100%" height={180}>
                   <AreaChart data={chartData}>
                     <ChartGradients />
                     <XAxis
@@ -333,9 +334,9 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 bg-slate-900/50 rounded-lg border border-slate-800">
-              <p className="text-sm text-slate-500">No historical data for this range yet</p>
-              <p className="text-xs text-slate-600 mt-1">Metrics are stored every 30 seconds</p>
+            <div className="flex flex-col items-center justify-center py-12 bg-dds-surface/50 rounded-xl border border-dds-border shadow-sm">
+              <p className="text-[13px] text-dds-text-secondary">No historical data for this range yet</p>
+              <p className="text-[11px] text-dds-text-muted mt-1">Metrics are stored every 30 seconds</p>
             </div>
           )}
         </div>
@@ -346,4 +347,3 @@ const ContainerStatsPanel: React.FC<ContainerStatsProps> = ({ containerId, conta
 };
 
 export default ContainerStatsPanel;
-

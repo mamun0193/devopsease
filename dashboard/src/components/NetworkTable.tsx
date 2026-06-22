@@ -5,15 +5,15 @@ import type { Network as NetworkType } from '../api';
 
 const STATUS_CONFIG = {
     ACTIVE: {
-        color: 'text-emerald-400',
-        bg: 'bg-emerald-500/10',
-        border: 'border-emerald-500/30',
+        color: 'text-dds-green',
+        bg: 'bg-dds-green/10',
+        border: 'border-dds-green/30',
         label: 'Active',
     },
     UNUSED: {
-        color: 'text-yellow-400',
-        bg: 'bg-yellow-500/10',
-        border: 'border-yellow-500/30',
+        color: 'text-dds-yellow',
+        bg: 'bg-dds-yellow/10',
+        border: 'border-dds-yellow/30',
         label: 'Unused',
     },
 } as const;
@@ -22,7 +22,7 @@ function StatusBadge({ status }: { status: 'ACTIVE' | 'UNUSED' }) {
     const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.UNUSED;
     return (
         <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${cfg.color} ${cfg.bg} border ${cfg.border}`}
+            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-mono tracking-wide ${cfg.color} ${cfg.bg} border ${cfg.border}`}
         >
             {cfg.label}
         </span>
@@ -58,10 +58,10 @@ const NetworkTable: React.FC<NetworkTableProps> = ({
 }) => {
     if (networks.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <Network size={48} className="text-slate-700" />
-                <p className="text-slate-500 text-lg">No networks found</p>
-                <p className="text-slate-600 text-sm">
+            <div className="card flex flex-col items-center justify-center py-20 gap-3">
+                <Network size={40} className="text-dds-text-muted" />
+                <p className="text-dds-text-primary text-[14px] font-medium">No networks found</p>
+                <p className="text-dds-text-secondary text-[13px]">
                     Networks created by projects will appear here
                 </p>
             </div>
@@ -69,24 +69,24 @@ const NetworkTable: React.FC<NetworkTableProps> = ({
     }
 
     return (
-        <div className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden">
+        <div className="card overflow-hidden">
             <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-left border-collapse whitespace-nowrap">
                     <thead>
-                        <tr className="border-b border-slate-800">
-                            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                        <tr className="border-b border-dds-border bg-dds-muted/50">
+                            <th className="px-5 py-3.5 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">
                                 Name
                             </th>
-                            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            <th className="px-5 py-3.5 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">
                                 Project
                             </th>
-                            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            <th className="px-5 py-3.5 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">
                                 Status
                             </th>
-                            <th className="text-left px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            <th className="px-5 py-3.5 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">
                                 Created At
                             </th>
-                            <th className="px-5 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">
+                            <th className="px-5 py-3.5 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider text-right">
                                 Actions
                             </th>
                         </tr>
@@ -95,46 +95,41 @@ const NetworkTable: React.FC<NetworkTableProps> = ({
                         {networks.map((net, idx) => (
                             <motion.tr
                                 key={net.id}
-                                className="border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30 transition-colors"
+                                className="border-b border-dds-border last:border-0 hover:bg-dds-muted/50 transition-colors"
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: idx * 0.03 }}
                             >
-                                {/* Name */}
                                 <td className="px-5 py-3.5">
-                                    <div className="flex items-center gap-2.5">
-                                        <div className="w-7 h-7 rounded-md bg-slate-700/50 flex items-center justify-center shrink-0">
-                                            <Network size={13} className="text-slate-400" />
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-7 h-7 rounded-md bg-dds-muted flex items-center justify-center shrink-0">
+                                            <Network size={13} className="text-dds-text-muted" />
                                         </div>
-                                        <span className="font-medium text-slate-200 font-mono truncate max-w-[220px]">
+                                        <span className="text-[13px] font-medium text-dds-text-primary max-w-[220px] truncate">
                                             {net.name}
                                         </span>
                                     </div>
                                 </td>
 
-                                {/* Project */}
-                                <td className="px-5 py-3.5 text-slate-400">
+                                <td className="px-5 py-3.5">
                                     {net.projectName ? (
-                                        <span className="truncate max-w-[140px] block">{net.projectName}</span>
+                                        <span className="text-[13px] text-dds-text-secondary truncate max-w-[140px] block">{net.projectName}</span>
                                     ) : (
-                                        <span className="text-slate-600">—</span>
+                                        <span className="text-[13px] text-dds-text-muted">—</span>
                                     )}
                                 </td>
 
-                                {/* Status */}
                                 <td className="px-5 py-3.5">
                                     <StatusBadge status={net.status} />
                                 </td>
 
-                                {/* Created At */}
-                                <td className="px-5 py-3.5 text-slate-500">
-                                    <span className="flex items-center gap-1.5">
-                                        <Clock size={12} className="text-slate-600 shrink-0" />
+                                <td className="px-5 py-3.5">
+                                    <span className="flex items-center gap-1.5 text-[12px] font-mono text-dds-text-secondary">
+                                        <Clock size={12} className="text-dds-text-muted shrink-0" />
                                         {formatDate(net.createdAt)}
                                     </span>
                                 </td>
 
-                                {/* Actions */}
                                 <td className="px-5 py-3.5 text-right">
                                     <button
                                         onClick={() => onDelete(net.id)}
@@ -144,10 +139,10 @@ const NetworkTable: React.FC<NetworkTableProps> = ({
                                                 ? 'Cannot delete an active network'
                                                 : 'Delete network'
                                         }
-                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
+                                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all
                       ${net.status === 'UNUSED'
-                                                ? 'bg-red-500/10 text-red-400 border border-red-500/25 hover:bg-red-500/20'
-                                                : 'bg-slate-800/40 text-slate-600 border border-slate-700/40 cursor-not-allowed'
+                                                ? 'bg-dds-red/10 text-dds-red hover:bg-dds-red/20'
+                                                : 'bg-dds-muted/50 text-dds-text-muted cursor-not-allowed'
                                             }
                       disabled:opacity-40 disabled:cursor-not-allowed`}
                                     >

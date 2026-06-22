@@ -1,16 +1,11 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Rocket,
   AlertCircle,
   Loader2,
-  ArrowLeft,
-  GitCommitHorizontal,
-  GitBranch,
   Clock,
-  Tag,
   CheckCircle2,
   XCircle,
   ScrollText,
@@ -20,11 +15,11 @@ import {
   Trash2,
   Play,
   ExternalLink,
+  Search,
+  GitBranch,
+  GitCommit,
 } from 'lucide-react';
 import RefreshButton from '../components/RefreshButton';
-import Header from '../components/Header';
-import type { FilterItem } from '../components/Header';
-import ResourceNav from '../components/ResourceNav';
 import { useAppDispatch } from '../store/hooks';
 import { addToast } from '../store/toastSlice';
 import { useDeployments } from '../hooks/useDeployments';
@@ -33,8 +28,6 @@ import { deploymentApi } from '../api';
 import type { Deployment } from '../api';
 import DeploymentDetailModal from '../components/DeploymentDetailModal';
 import ConfirmModal from '../components/ConfirmModal';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatRelativeTime(dateString: string): string {
   const diffMs = Date.now() - new Date(dateString).getTime();
@@ -49,218 +42,34 @@ function formatRelativeTime(dateString: string): string {
   return new Date(dateString).toLocaleDateString();
 }
 
-const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; dot: string; label: string }> = {
-  running:   { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', dot: 'bg-emerald-400',              label: 'Running'   },
-  deploying: { color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-500/30',   dot: 'bg-amber-400 animate-pulse',  label: 'Deploying' },
-  failed:    { color: 'text-red-400',     bg: 'bg-red-500/10',     border: 'border-red-500/30',     dot: 'bg-red-400',                  label: 'Failed'    },
-  stopped:   { color: 'text-slate-400',   bg: 'bg-slate-500/10',   border: 'border-slate-600/30',   dot: 'bg-slate-500',                label: 'Stopped'   },
-};
-
-const ENV_CONFIG: Record<string, { color: string; bg: string; border: string }> = {
-  dev:        { color: 'text-blue-400',   bg: 'bg-blue-500/10',   border: 'border-blue-500/25'   },
-  staging:    { color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/25' },
-  production: { color: 'text-rose-400',   bg: 'bg-rose-500/10',   border: 'border-rose-500/25'   },
-};
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function SummaryCard({
-  icon: Icon, label, value, color,
-}: { icon: React.ElementType; label: string; value: number; color: string }) {
+function SummaryCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: number }) {
   return (
-    <motion.div
-      className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-    >
-      <div className="flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-lg ${color} flex items-center justify-center`}>
-          <Icon size={16} className="text-white" />
-        </div>
-        <div>
-          <p className="text-xs text-slate-500 uppercase tracking-wide">{label}</p>
-          <p className="text-lg font-bold text-slate-100">{value}</p>
-        </div>
+    <div className="card p-4 flex flex-col justify-between hover:bg-dds-surface/80 transition-colors">
+      <div className="flex items-center gap-2 text-[11px] font-medium text-dds-text-muted uppercase tracking-wider mb-2">
+        <Icon size={14} className="text-dds-text-secondary" />
+        {label}
       </div>
-    </motion.div>
-  );
-}
-
-function ActionButton({
-  icon: Icon,
-  label,
-  onClick,
-  disabled,
-  variant = 'default',
-}: {
-  icon: React.ElementType;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  variant?: 'default' | 'danger' | 'warning';
-}) {
-  const variantClasses = {
-    default: 'text-slate-400 bg-slate-800 hover:bg-slate-700 hover:text-slate-200 border-slate-700 hover:border-slate-600',
-    danger:  'text-red-400/80 bg-red-500/5 hover:bg-red-500/15 hover:text-red-300 border-red-500/20 hover:border-red-500/40',
-    warning: 'text-amber-400/80 bg-amber-500/5 hover:bg-amber-500/15 hover:text-amber-300 border-amber-500/20 hover:border-amber-500/40',
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${variantClasses[variant]}`}
-    >
-      {disabled ? <Loader2 size={12} className="animate-spin" /> : <Icon size={12} />}
-      {label}
-    </button>
-  );
-}
-
-function DeploymentRow({
-  deployment,
-  onViewLogs,
-  onStart,
-  onStop,
-  onRemove,
-  onRollback,
-  loadingAction,
-}: {
-  deployment: Deployment;
-  onViewLogs: (id: string) => void;
-  onStart: (id: string) => void;
-  onStop: (id: string) => void;
-  onRemove: (id: string) => void;
-  onRollback: (id: string) => void;
-  loadingAction: string | null;
-}) {
-  const status = STATUS_CONFIG[deployment.status] ?? STATUS_CONFIG.stopped;
-  const env = ENV_CONFIG[deployment.environment] ?? ENV_CONFIG.dev;
-  const shortHash = deployment.build.commitHash?.slice(0, 7) ?? '-------';
-  const isThisLoading = (action: string) => loadingAction === `${action}:${deployment._id}`;
-
-  return (
-    <div className="flex items-center justify-between gap-4 px-5 py-3.5 border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30 transition-colors">
-      {/* Left */}
-      <div className="flex items-center gap-3 min-w-0">
-        <div className="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center shrink-0">
-          <Rocket size={14} className="text-slate-400" />
-        </div>
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium border ${status.color} ${status.bg} ${status.border}`}>
-              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${status.dot}`} />
-              {status.label}
-            </span>
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wide border ${env.color} ${env.bg} ${env.border}`}>
-              {deployment.environment}
-            </span>
-          </div>
-          <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 flex-wrap">
-            <span className="flex items-center gap-1 font-mono">
-              <GitCommitHorizontal size={11} />
-              {shortHash}
-            </span>
-            <span className="flex items-center gap-1">
-              <GitBranch size={11} />
-              <span className="truncate max-w-[120px]">{deployment.build.branch}</span>
-            </span>
-            {deployment.imageTag && (
-              <span className="hidden sm:flex items-center gap-1">
-                <Tag size={11} />
-                <span className="truncate max-w-[100px]">{deployment.imageTag}</span>
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Right */}
-      <div className="flex items-center gap-2 shrink-0">
-        <span className="hidden sm:flex items-center gap-1 text-xs text-slate-500">
-          <Clock size={11} />
-          {formatRelativeTime(deployment.createdAt)}
-        </span>
-        <button
-          onClick={() => onViewLogs(deployment._id)}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 bg-slate-800 hover:bg-slate-700 hover:text-slate-200 border border-slate-700 hover:border-slate-600 transition-all"
-        >
-          <ScrollText size={12} />
-          Logs
-        </button>
-
-        {deployment.port && deployment.status === 'running' && (
-          <a
-            href={`http://localhost:${deployment.port}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 hover:text-blue-300 border border-blue-500/20 hover:border-blue-500/40 transition-all"
-          >
-            <ExternalLink size={12} />
-            Open
-          </a>
-        )}
-
-        {deployment.status === 'running' && (
-          <ActionButton
-            icon={Square}
-            label="Stop"
-            onClick={() => onStop(deployment._id)}
-            disabled={isThisLoading('stop')}
-            variant="warning"
-          />
-        )}
-
-        {['stopped', 'failed'].includes(deployment.status) && (
-          <ActionButton
-            icon={Play}
-            label="Start"
-            onClick={() => onStart(deployment._id)}
-            disabled={isThisLoading('start')}
-            variant="success"
-          />
-        )}
-
-        {['running', 'stopped', 'failed'].includes(deployment.status) && (
-          <ActionButton
-            icon={Trash2}
-            label="Remove"
-            onClick={() => onRemove(deployment._id)}
-            disabled={isThisLoading('remove')}
-            variant="danger"
-          />
-        )}
-
-        <ActionButton
-          icon={RotateCcw}
-          label="Rollback"
-          onClick={() => onRollback(deployment._id)}
-          disabled={isThisLoading('rollback')}
-        />
-      </div>
+      <div className="text-2xl font-mono text-dds-white font-medium">{value}</div>
     </div>
   );
 }
 
-// Filter tab config 
-
 type FilterStatus = 'all' | 'running' | 'deploying' | 'failed' | 'stopped';
 
-const FILTER_TABS: { key: FilterStatus; label: string; activeClass: string }[] = [
-  { key: 'all',       label: 'All',       activeClass: 'bg-slate-700 text-slate-100 border-slate-600'       },
-  { key: 'running',   label: 'Running',   activeClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' },
-  { key: 'deploying', label: 'Deploying', activeClass: 'bg-amber-500/20 text-amber-400 border-amber-500/50'    },
-  { key: 'failed',    label: 'Failed',    activeClass: 'bg-red-500/20 text-red-400 border-red-500/50'          },
-  { key: 'stopped',   label: 'Stopped',   activeClass: 'bg-slate-600/30 text-slate-400 border-slate-500/50'    },
+const FILTER_TABS: { key: FilterStatus; label: string }[] = [
+  { key: 'all',       label: 'All' },
+  { key: 'running',   label: 'Running' },
+  { key: 'deploying', label: 'Deploying' },
+  { key: 'failed',    label: 'Failed' },
+  { key: 'stopped',   label: 'Stopped' },
 ];
-
-// ── Page ──────────────────────────────────────────────────────────────────────
 
 const DeploymentsPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('all');
+  const [search, setSearch] = useState('');
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [selectedDeployment, setSelectedDeployment] = useState<Deployment | null>(null);
   const [rollbackModal, setRollbackModal] = useState<{ open: boolean; deploymentId: string | null }>({
@@ -269,7 +78,7 @@ const DeploymentsPage: React.FC = () => {
   });
   const [rollbackReason, setRollbackReason] = useState('');
 
-  const { data: deployments = [], isLoading, refetch, isFetching, error } = useDeployments();
+  const { data: deployments = [], isLoading, refetch, isFetching } = useDeployments();
 
   // Real-time updates via WebSocket
   useDeploymentSocket();
@@ -318,7 +127,7 @@ const DeploymentsPage: React.FC = () => {
     onMutate: ({ id }) => setLoadingAction(`rollback:${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deployments'] });
-      dispatch(addToast({ message: 'Rollback initiated — new deployment created', type: 'info', duration: 4000 }));
+      dispatch(addToast({ message: 'Rollback initiated', type: 'info', duration: 4000 }));
     },
     onError: (err: any) => {
       dispatch(addToast({ message: err?.response?.data?.message ?? 'Rollback failed', type: 'error', duration: 5000 }));
@@ -332,30 +141,18 @@ const DeploymentsPage: React.FC = () => {
   };
 
   const confirmRollback = () => {
-    if (!rollbackModal.deploymentId) {
-      return;
-    }
-
-    const reason = rollbackReason.trim();
+    if (!rollbackModal.deploymentId) return;
     rollbackMutation.mutate({
       id: rollbackModal.deploymentId,
-      reason: reason || undefined,
+      reason: rollbackReason.trim() || undefined,
     });
     setRollbackModal({ open: false, deploymentId: null });
-    setRollbackReason('');
   };
 
   const closeRollbackModal = () => {
     setRollbackModal({ open: false, deploymentId: null });
     setRollbackReason('');
   };
-
-  const handleViewLogs = useCallback((id: string) => {
-    const deployment = deployments.find(d => d._id === id);
-    if (deployment) {
-      setSelectedDeployment(deployment);
-    }
-  }, [deployments]);
 
   const counts = useMemo(() => ({
     all:       deployments.length,
@@ -365,148 +162,195 @@ const DeploymentsPage: React.FC = () => {
     stopped:   deployments.filter(d => d.status === 'stopped').length,
   }), [deployments]);
 
-  const filterItems: FilterItem[] = useMemo(() => [
-    { key: 'all',       label: 'All',       count: counts.all,       color: 'text-slate-100',   activeBg: 'bg-slate-700',          activeBorder: 'border-slate-600',          icon: <Rocket size={15} className="text-slate-400" /> },
-    { key: 'running',   label: 'Running',   count: counts.running,   color: 'text-emerald-400', activeBg: 'bg-emerald-500/20',     activeBorder: 'border-emerald-500/50',     dot: 'bg-emerald-500 animate-pulse' },
-    { key: 'deploying', label: 'Deploying', count: counts.deploying, color: 'text-amber-400',   activeBg: 'bg-amber-500/20',       activeBorder: 'border-amber-500/50',       dot: 'bg-amber-500 animate-pulse' },
-    { key: 'failed',    label: 'Failed',    count: counts.failed,    color: 'text-red-400',     activeBg: 'bg-red-500/20',         activeBorder: 'border-red-500/50',         icon: <AlertCircle size={15} className="text-red-400" /> },
-    { key: 'stopped',   label: 'Stopped',   count: counts.stopped,   color: 'text-slate-400',   activeBg: 'bg-slate-600/30',       activeBorder: 'border-slate-500/50',       icon: <XCircle size={15} className="text-slate-400" /> },
-  ], [counts]);
+  const filtered = useMemo(() => {
+    let res = activeFilter === 'all' ? deployments : deployments.filter(d => d.status === activeFilter);
+    if (search) {
+      res = res.filter(d => d.build.branch.toLowerCase().includes(search.toLowerCase()) || d.environment.toLowerCase().includes(search.toLowerCase()));
+    }
+    return res;
+  }, [deployments, activeFilter, search]);
 
-  const filtered = useMemo(() =>
-    activeFilter === 'all' ? deployments : deployments.filter(d => d.status === activeFilter),
-    [deployments, activeFilter],
-  );
+  const isActionLoading = (id: string) => loadingAction?.includes(id);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950">
-      {/* Plain header — no filter items so the center stays clean */}
-      <Header onFilterChange={(f) => setActiveFilter(f as FilterStatus)} activeFilter={activeFilter} filterItems={filterItems} />
-      <ResourceNav />
-
-      <main className="flex-1 p-6 lg:p-8">
-        <div className="max-w-5xl mx-auto">
-
-          {/* ── Page header ────────────────────────────────────────────── */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="text-slate-400 hover:text-slate-200 transition-colors"
-              >
-                <ArrowLeft size={20} />
-              </button>
-              <h1 className="text-2xl font-bold text-slate-100">Deployments</h1>
+    <div className="h-full flex flex-col bg-dds-bg text-dds-white overflow-hidden relative">
+      <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-lg bg-dds-surface border border-dds-border flex items-center justify-center">
+                <Rocket size={18} className="text-dds-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-dds-white">Deployments</h1>
+                <p className="text-[13px] text-dds-text-secondary mt-1">Manage and monitor live application deployments</p>
+              </div>
             </div>
-            <RefreshButton
-              onRefresh={refetch}
-              isFetching={isFetching}
-              isLoading={isLoading}
-              size="md"
-            />
+            <div className="flex items-center gap-3">
+              <RefreshButton onRefresh={() => { refetch(); }} isFetching={isFetching} isLoading={isLoading} size="md" />
+              <button 
+                onClick={() => navigate('/deployments/new')}
+                className="btn-primary"
+              >
+                <Rocket size={14} /> New Deployment
+              </button>
+            </div>
           </div>
 
-          {/* ── Loading ────────────────────────────────────────────────── */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 size={24} className="animate-spin text-slate-500" />
-            </div>
-          ) : error ? (
-            /* ── Error state ─────────────────────────────────────────── */
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
-                <AlertCircle size={24} className="text-red-400" />
-              </div>
-              <h3 className="text-slate-200 font-semibold mb-2">Failed to load deployments</h3>
-              <p className="text-slate-500 text-sm mb-5 max-w-xs">
-                {(error as any)?.response?.data?.message ?? 'Could not reach the server.'}
-              </p>
-              <RefreshButton onRefresh={refetch} size="md" />
-            </div>
-          ) : (
-            <>
-              {/* ── Summary cards ───────────────────────────────────────── */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
-                <SummaryCard icon={Rocket}        label="Total"     value={counts.all}       color="bg-violet-600/20"  />
-                <SummaryCard icon={CheckCircle2}  label="Running"   value={counts.running}   color="bg-emerald-600/20" />
-                <SummaryCard icon={AlertTriangle} label="Deploying" value={counts.deploying} color="bg-amber-600/20"   />
-                <SummaryCard icon={AlertCircle}   label="Failed"    value={counts.failed}    color="bg-red-600/20"     />
-                <SummaryCard icon={XCircle}       label="Stopped"   value={counts.stopped}   color="bg-slate-600/30"   />
-              </div>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <SummaryCard icon={Rocket} label="Total" value={counts.all} />
+            <SummaryCard icon={CheckCircle2} label="Running" value={counts.running} />
+            <SummaryCard icon={AlertTriangle} label="Deploying" value={counts.deploying} />
+            <SummaryCard icon={AlertCircle} label="Failed" value={counts.failed} />
+            <SummaryCard icon={XCircle} label="Stopped" value={counts.stopped} />
+          </div>
 
-              {/* ── Inline filter tabs ──────────────────────────────────── */}
-              <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+          {/* Table Container */}
+          <div className="card flex flex-col">
+            <div className="p-4 border-b border-dds-border flex flex-col sm:flex-row items-center justify-between gap-4">
+              
+              {/* Tabs */}
+              <div className="flex items-center gap-2">
                 {FILTER_TABS.map(tab => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveFilter(tab.key)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                    className={`px-3 py-1.5 rounded-[6px] text-[12px] font-medium transition-all ${
                       activeFilter === tab.key
-                        ? tab.activeClass
-                        : 'text-slate-500 border-slate-800 hover:text-slate-300 hover:border-slate-700'
+                        ? 'bg-dds-elevated text-dds-white border border-dds-border shadow-sm'
+                        : 'text-dds-text-muted hover:text-dds-text-secondary border border-transparent'
                     }`}
                   >
-                    {tab.label}
-                    <span className={`text-[10px] ${activeFilter === tab.key ? 'opacity-80' : 'opacity-50'}`}>
-                      {counts[tab.key]}
-                    </span>
+                    {tab.label} <span className="opacity-50 ml-1">({counts[tab.key]})</span>
                   </button>
                 ))}
               </div>
 
-              {/* ── List ─────────────────────────────────────────────────── */}
-              <AnimatePresence mode="wait">
-                {filtered.length === 0 ? (
-                  <motion.div
-                    key="empty"
-                    className="text-center py-20"
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <Rocket size={48} className="mx-auto text-slate-700 mb-4" />
-                    <p className="text-slate-500 text-lg">No deployments yet</p>
-                    <p className="text-slate-600 text-sm mt-1">
-                      {activeFilter !== 'all'
-                        ? `No ${activeFilter} deployments found`
-                        : 'Deployments will appear here once your pipelines run'}
-                    </p>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="list"
-                    className="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    {filtered.map(deployment => (
-                      <DeploymentRow
-                        key={deployment._id}
-                        deployment={deployment}
-                        onViewLogs={(id) => {
-                          const d = deployments.find(x => x._id === id);
-                          if (d) setSelectedDeployment(d);
-                        }}
-                        onStart={(id) => startMutation.mutate(id)}
-                        onStop={(id) => stopMutation.mutate(id)}
-                        onRemove={(id) => removeMutation.mutate(id)}
-                        onRollback={handleRollback}
-                        loadingAction={loadingAction}
-                      />
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </>
-          )}
+              {/* Search */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-dds-text-muted" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Filter deployments..."
+                  className="pl-9 pr-4 py-1.5 bg-dds-bg border border-dds-border rounded-[6px] text-[12px] text-dds-white placeholder:text-dds-text-muted outline-none focus:border-dds-primary transition-colors w-64"
+                />
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-dds-surface/50 border-b border-dds-border text-[10px] font-medium text-dds-text-muted uppercase tracking-wider">
+                    <th className="px-4 py-3 w-[20%]">Repository / Branch</th>
+                    <th className="px-4 py-3 w-[15%]">Environment</th>
+                    <th className="px-4 py-3 w-[15%]">Commit</th>
+                    <th className="px-4 py-3 w-[15%]">Status</th>
+                    <th className="px-4 py-3 w-[15%]">Created</th>
+                    <th className="px-4 py-3 w-[20%] text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="text-[12px]">
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8">
+                        <div className="flex justify-center"><Loader2 size={16} className="animate-spin text-dds-text-muted" /></div>
+                      </td>
+                    </tr>
+                  ) : filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-12 text-center text-dds-text-muted">
+                        No deployments found.
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map(deployment => {
+                      const shortHash = deployment.build.commitHash ? deployment.build.commitHash.slice(0, 7) : '-------';
+                      const repoName = deployment.repositoryName || 'Unknown';
+                      const isBusy = isActionLoading(deployment._id);
+                      
+                      return (
+                        <tr key={deployment._id} className="border-b border-dds-border/50 hover:bg-dds-surface/80 hover:border-l-2 hover:border-l-dds-primary transition-all group">
+                          <td className="px-4 py-3 font-medium text-dds-white">
+                            <div className="flex items-center gap-2">
+                              <GitBranch size={14} className="text-dds-text-muted" />
+                              <span>{repoName}</span>
+                              <span className="text-dds-text-muted">/</span>
+                              <span className="text-dds-text-secondary font-normal">{deployment.build.branch}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="badge badge-queued">{deployment.environment}</span>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-[11px] text-dds-text-secondary">
+                            <div className="flex items-center gap-1.5">
+                              <GitCommit size={14} className="text-dds-text-muted" />
+                              {shortHash}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`badge ${deployment.status === 'running' ? 'badge-running' : deployment.status === 'failed' ? 'badge-failed' : deployment.status === 'deploying' ? 'badge-warning' : ''}`}>
+                              {deployment.status === 'running' && <span className="pulse-dot pulse-dot-blue mr-1" />}
+                              {deployment.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-dds-text-muted flex items-center gap-1.5 h-full mt-1.5">
+                            <Clock size={12} /> {formatRelativeTime(deployment.createdAt)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Logs Action */}
+                              <button onClick={() => setSelectedDeployment(deployment)} className="p-1.5 text-dds-text-muted hover:text-dds-white rounded-[4px] hover:bg-dds-bg transition-all" title="View Logs">
+                                <ScrollText size={14} />
+                              </button>
+                              
+                              {/* Open App */}
+                              {deployment.port && deployment.status === 'running' && (
+                                <a href={`http://localhost:${deployment.port}`} target="_blank" rel="noreferrer" className="p-1.5 text-dds-text-muted hover:text-dds-blue rounded-[4px] hover:bg-dds-bg transition-all" title="Open Application">
+                                  <ExternalLink size={14} />
+                                </a>
+                              )}
+
+                              {/* Stop / Start */}
+                              {deployment.status === 'running' && (
+                                <button disabled={isBusy} onClick={() => stopMutation.mutate(deployment._id)} className="p-1.5 text-dds-text-muted hover:text-dds-warning rounded-[4px] hover:bg-dds-bg transition-all disabled:opacity-50" title="Stop">
+                                  {isBusy && loadingAction === `stop:${deployment._id}` ? <Loader2 size={14} className="animate-spin" /> : <Square size={14} />}
+                                </button>
+                              )}
+                              {['stopped', 'failed'].includes(deployment.status) && (
+                                <button disabled={isBusy} onClick={() => startMutation.mutate(deployment._id)} className="p-1.5 text-dds-text-muted hover:text-dds-green rounded-[4px] hover:bg-dds-bg transition-all disabled:opacity-50" title="Start">
+                                  {isBusy && loadingAction === `start:${deployment._id}` ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                                </button>
+                              )}
+
+                              {/* Remove */}
+                              <button disabled={isBusy} onClick={() => removeMutation.mutate(deployment._id)} className="p-1.5 text-dds-text-muted hover:text-dds-red rounded-[4px] hover:bg-dds-bg transition-all disabled:opacity-50" title="Remove">
+                                {isBusy && loadingAction === `remove:${deployment._id}` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                              </button>
+
+                              {/* Rollback */}
+                              <button disabled={isBusy} onClick={() => handleRollback(deployment._id)} className="p-1.5 text-dds-text-muted hover:text-dds-white rounded-[4px] hover:bg-dds-bg transition-all disabled:opacity-50" title="Rollback">
+                                {isBusy && loadingAction === `rollback:${deployment._id}` ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </main>
 
-      <DeploymentDetailModal
-        deployment={selectedDeployment}
-        onClose={() => setSelectedDeployment(null)}
-      />
+      <DeploymentDetailModal deployment={selectedDeployment} onClose={() => setSelectedDeployment(null)} />
 
       <ConfirmModal
         isOpen={rollbackModal.open}

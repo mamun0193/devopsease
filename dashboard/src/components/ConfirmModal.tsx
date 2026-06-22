@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from '@headlessui/react';
 import { AlertTriangle, X } from 'lucide-react';
@@ -59,62 +58,64 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <DialogPanel className="w-full max-w-md transform overflow-hidden rounded-xl bg-slate-900 border border-slate-800 shadow-2xl transition-all">
+            <DialogPanel className="w-full max-w-md transform overflow-hidden rounded-xl bg-dds-bg border border-dds-border shadow-2xl transition-all flex flex-col">
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+              <div className="flex items-center justify-between px-6 py-5 border-b border-dds-border bg-dds-surface/50">
                 <div className="flex items-center gap-3">
                   {isDangerous && (
-                    <div className="p-2 rounded-lg bg-red-500/10">
-                      <AlertTriangle size={20} className="text-red-400" />
+                    <div className="w-9 h-9 rounded-lg bg-dds-red/10 border border-dds-red/20 flex items-center justify-center shadow-inner">
+                      <AlertTriangle size={18} className="text-dds-red" />
                     </div>
                   )}
-                  <DialogTitle className="text-lg font-semibold text-slate-100">
+                  <DialogTitle className="text-base font-semibold text-dds-text-primary">
                     {title}
                   </DialogTitle>
                 </div>
                 <button
                   onClick={onClose}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                  className="p-1.5 rounded-lg text-dds-text-muted hover:text-dds-white hover:bg-dds-surface transition-colors"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
 
               {/* Body */}
-              <div className="px-5 py-4">
-                <p className="text-slate-300 text-sm leading-relaxed">{message}</p>
+              <div className="px-6 py-5">
+                <p className="text-dds-text-secondary text-[13px] leading-relaxed">{message}</p>
                 {showInput && (
-                  <div className="mt-4">
+                  <div className="mt-5">
                     {inputLabel && (
-                      <label className="block text-xs text-slate-400 mb-2">{inputLabel}</label>
+                      <label className="block text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-2">
+                        {inputLabel}
+                      </label>
                     )}
                     <input
                       type="text"
                       value={inputValue}
                       onChange={(event) => onInputChange?.(event.target.value)}
                       placeholder={inputPlaceholder}
-                      className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-600"
+                      className="w-full bg-dds-surface border border-dds-border rounded-md px-4 py-2.5 text-[13px] text-dds-text-primary placeholder-dds-text-muted focus:outline-none focus:border-dds-primary focus:ring-1 focus:ring-dds-primary/20 transition-colors"
                     />
                   </div>
                 )}
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-end gap-3 px-5 py-4 bg-slate-800/50">
+              <div className="flex items-center justify-end gap-3 px-6 py-5 bg-dds-surface/50 border-t border-dds-border mt-auto">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-slate-100 transition-colors"
+                  className="btn-secondary"
                 >
                   {cancelLabel}
                 </button>
                 <button
                   onClick={onConfirm}
                   className={`
-                    px-4 py-2 text-sm font-medium rounded-lg transition-colors
+                    px-5 py-2.5 text-[13px] font-medium rounded-md transition-all shadow-sm
                     ${
                       isDangerous
-                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                        ? 'bg-dds-red hover:bg-dds-red/90 text-white shadow-dds-red/20'
+                        : 'btn-primary'
                     }
                   `}
                 >
