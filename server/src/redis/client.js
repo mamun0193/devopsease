@@ -3,12 +3,18 @@ import logger from "../utils/logger.js";
 
 const REDIS_HOST = process.env.REDIS_HOST || "localhost";
 const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379", 10);
+const REDIS_ENABLED = process.env.REDIS_ENABLED !== "false";
 
 let redis = null;
 let isRedisAvailable = false;
 
 // Initialize Redis client with resilient connection handling (Redis is optional)
 function createRedisClient() {
+    if (!REDIS_ENABLED) {
+        logger.info("Redis is explicitly disabled via REDIS_ENABLED=false");
+        return null; // Return dummy client or null since isRedisConnected will be false
+    }
+
     const client = new Redis({
         host: REDIS_HOST,
         port: REDIS_PORT,
@@ -76,7 +82,13 @@ export function isRedisConnected() {
 
 // Attempt to connect to Redis (non-blocking, failure-tolerant) - Returns true if connected
 export async function connectRedis() {
+    if (!REDIS_ENABLED) {
+        isRedisAvailable = false;
+        return false;
+    }
     const client = getRedisClient();
+    if (!client) return false;
+    
     try {
         await client.connect();
         // Small delay to allow ready event to fire
@@ -183,6 +195,8 @@ export async function safeLrange(key, start, stop) {
 
 // Rate Limiting Operations - THROW if Redis unavailable (Fail-Closed)
 export async function rateLimitIncr(key) {
+    if (!REDIS_ENABLED) return 1; // Bypass rate limiting if explicitly disabled
+    
     if (!isRedisConnected()) {
         const connected = await connectRedis(); // Try one last reconnect
         if (!connected) throw new Error("Redis unavailable for rate limiting");
@@ -195,6 +209,8 @@ export async function rateLimitIncr(key) {
 }
 
 export async function rateLimitExpire(key, ttlSeconds) {
+    if (!REDIS_ENABLED) return true; // Bypass rate limiting if explicitly disabled
+    
     if (!isRedisConnected()) {
         // Optimistic check, but likely already checked by INCR/caller
         if (!await connectRedis()) throw new Error("Redis unavailable");

@@ -804,6 +804,10 @@ export const systemApi = {
     const response = await api.get<ApiResponse<any>>(`/system/blueprint/${repoId}`);
     return response.data.data;
   },
+  getArtifacts: async (repoId: string): Promise<any> => {
+    const response = await api.get<ApiResponse<any>>(`/system/artifacts/${repoId}`);
+    return response.data.data;
+  },
 };
 
 // CI/CD Pipelines 

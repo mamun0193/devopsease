@@ -33,8 +33,7 @@ const pipelineRunSchema = new mongoose.Schema({
     pipelineId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Pipeline',
-        required: true,
-        index: true
+        required: true
     },
     repositoryId: {
         type: mongoose.Schema.Types.ObjectId,
