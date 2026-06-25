@@ -10,6 +10,7 @@ import { subscribeToMetrics, stopAllStreams } from "./metricsStreamer.js";
 import alertBroadcaster from "./alertBroadcaster.js";
 import eventBroadcaster from "./eventBroadcaster.js";
 import deploymentBroadcaster from "./deploymentBroadcaster.js";
+import { registerClient as executionStreamerRegister } from "./executionStreamer.js";
 import { streamContainerLogs } from "./logStreamer.js";
 import { enforceRateLimit } from "../middlewares/rateLimit.middleware.js";
 import { canPerform, ACTIONS, ROLES } from "../config/permissions.js";
@@ -382,6 +383,36 @@ export function initializeWebSocketServer(server) {
                 }
                 wss.emit("connection", ws, request);
             });
+        } else if (pathname.startsWith("/ws/executions/")) {
+            // Execution streaming
+            const cookieHeader = request.headers.cookie;
+            const token = cookieHeader && cookieHeader.split(';').find(c => c.trim().startsWith('access_token='))?.split('=')[1];
+
+            if (!token) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            let user;
+            try {
+                user = jwt.verify(token, process.env.JWT_SECRET);
+            } catch (err) {
+                socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            request._user = user;
+            request._executionsPath = true;
+
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                if (lifecycle.isShuttingDown) {
+                    ws.close(1001, "Server shutting down");
+                    return;
+                }
+                wss.emit("connection", ws, request);
+            });
         } else {
             socket.destroy();
         }
@@ -475,6 +506,16 @@ export function initializeWebSocketServer(server) {
             const userId = request._user?._id || request._user?.userId || "unknown";
             logger.info("WebSocket pipeline log subscription", { runId, userId });
             pipelineBroadcaster.subscribeToPipeline(runId, ws);
+            return;
+        }
+
+        // Handle execution subscriptions
+        const executionMatch = pathname.match(/^\/ws\/executions\/(.+)$/);
+        if (executionMatch && request._executionsPath) {
+            const executionId = executionMatch[1];
+            const userId = request._user?._id || request._user?.userId || "unknown";
+            logger.info("WebSocket execution log subscription", { executionId, userId });
+            executionStreamerRegister(executionId, ws);
             return;
         }
 

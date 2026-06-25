@@ -55,24 +55,6 @@ const artifactBundleSchema = new mongoose.Schema({
     costEstimate: {
         type: mongoose.Schema.Types.Mixed,
         default: {}
-    },
-    status: {
-        type: String,
-        enum: ['DRAFT', 'DEPLOYED', 'SUPERSEDED'],
-        default: 'DRAFT'
-    },
-    supersededBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'ArtifactBundle',
-        default: null
-    },
-    deploymentReady: {
-        type: Boolean,
-        default: false
-    },
-    createdFromBlueprintVersion: {
-        type: Number,
-        default: 1
     }
 }, {
     timestamps: true

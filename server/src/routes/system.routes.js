@@ -34,7 +34,18 @@ router.get("/metrics", authMiddleware, requireRole(ROLES.ADMIN), (req, res) => {
 router.get("/blueprint/:repoId", authMiddleware, getBlueprint);
 
 // GET /system/artifacts/:repoId — generate deployment artifacts bundle
-import { getArtifacts } from "../controllers/artifact.controller.js";
+import { 
+    getArtifacts, 
+    updateArtifactRevision, 
+    approveArtifactRevision, 
+    getArtifactHistory, 
+    getArtifactDiff 
+} from "../controllers/artifact.controller.js";
+
 router.get("/artifacts/:repoId", authMiddleware, getArtifacts);
+router.put("/artifacts/:id", authMiddleware, updateArtifactRevision);
+router.post("/artifacts/:revisionId/approve", authMiddleware, approveArtifactRevision);
+router.get("/artifacts/:id/history", authMiddleware, getArtifactHistory);
+router.get("/artifacts/:id/diff/:revision", authMiddleware, getArtifactDiff);
 
 export default router;

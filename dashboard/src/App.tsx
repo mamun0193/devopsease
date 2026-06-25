@@ -62,7 +62,8 @@ import { useAuth } from './context/AuthContext';
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import RepositoryBlueprintPage from './pages/RepositoryBlueprintPage';
-import RepositoryArtifactsPage from './pages/RepositoryArtifactsPage';
+import RepositoryArtifactStudioPage from './pages/RepositoryArtifactStudioPage';
+import DeploymentExecutionPage from './pages/DeploymentExecutionPage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -244,7 +245,7 @@ function App() {
                   path="/repositories/:repoId/artifacts"
                   element={
                     <ProtectedRoute>
-                      <RepositoryArtifactsPage />
+                      <RepositoryArtifactStudioPage />
                     </ProtectedRoute>
                   }
                 />
@@ -277,6 +278,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <DeploymentsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/deployments/:executionId"
+                  element={
+                    <ProtectedRoute>
+                      <DeploymentExecutionPage />
                     </ProtectedRoute>
                   }
                 />

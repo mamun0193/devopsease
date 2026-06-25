@@ -23,4 +23,16 @@ router.post('/:id/remove', authMiddleware, rateLimiter('destructive'), removeDep
 router.post('/:id/rollback', authMiddleware, rateLimiter('destructive'), rollbackDeploymentAction);
 router.post('/:id/scale', authMiddleware, rateLimiter('exec'), scaleDeploymentAction);
 
+import {
+    executeDeployment,
+    getExecution,
+    getExecutionLogs,
+    rollbackExecution
+} from '../controllers/execution.controller.js';
+
+router.post('/execute/:artifactRevisionId', authMiddleware, rateLimiter('exec'), executeDeployment);
+router.get('/executions/:id', authMiddleware, getExecution);
+router.get('/executions/:id/logs', authMiddleware, getExecutionLogs);
+router.post('/executions/:id/rollback', authMiddleware, rateLimiter('destructive'), rollbackExecution);
+
 export default router;
