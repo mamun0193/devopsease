@@ -32,9 +32,15 @@ export function validateEnv() {
         logger.warn("WEBHOOK_SECRET is not set — GitHub webhook signature verification will fail");
     }
 
+    // Default GATEWAY_BASE_URL for Application Gateway
+    if (!process.env.GATEWAY_BASE_URL) {
+        process.env.GATEWAY_BASE_URL = 'http://localhost:5173';
+    }
+
     logger.info("Environment validated", {
         nodeEnv: process.env.NODE_ENV,
         dockerSocket: process.env.DOCKER_SOCKET_PATH,
-        tunnelProvider: tunnelProvider || 'none'
+        tunnelProvider: tunnelProvider || 'none',
+        gatewayBaseUrl: process.env.GATEWAY_BASE_URL,
     });
 }

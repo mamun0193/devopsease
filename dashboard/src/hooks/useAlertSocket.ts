@@ -4,8 +4,7 @@ import { addAlert } from '../store/alertSlice';
 import { addToast } from '../store/toastSlice';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Alert } from '../api/alerts';
-
-const WS_BASE = 'ws://localhost:3497';
+import { WS_BASE_URL } from '../config';
 
 const SEVERITY_TOAST_MAP: Record<string, 'error' | 'warning' | 'info'> = {
   CRITICAL: 'error',
@@ -34,7 +33,7 @@ export function useAlertSocket(isAuthenticated = true) {
     function connect() {
       if (!active) return;
 
-      ws = new WebSocket(`${WS_BASE}/ws/alerts`);
+      ws = new WebSocket(`${WS_BASE_URL}/ws/alerts`);
 
       ws.onopen = () => {
         if (!active) { ws?.close(); return; }

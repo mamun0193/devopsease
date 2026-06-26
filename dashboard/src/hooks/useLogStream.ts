@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-
-const WS_BASE = 'ws://localhost:3497';
+import { WS_BASE_URL } from '../config';
 
 export interface LogStreamReturn {
     /** Accumulated log lines (most recent at end) */
@@ -15,16 +14,8 @@ export interface LogStreamReturn {
     clearLines: () => void;
 }
 
-/**
- * Hook that streams container logs via WebSocket (/ws/logs/:containerId).
- * Replaces the previous polling-based useContainerLogs hook for live log viewing.
- *
- * Falls back gracefully: if the WebSocket fails to connect, `isStreaming` stays false.
- *
- * @param containerId - The container to stream logs from (null to disable)
- * @param options.tail - Number of initial lines to fetch (default: 200)
- * @param options.since - Unix timestamp to start from
- */
+// Hook that streams container logs via WebSocket (/ws/logs/:containerId).
+
 export function useLogStream(
     containerId: string | null,
     options?: { tail?: number; since?: number }
@@ -51,7 +42,7 @@ export function useLogStream(
         if (options?.tail !== undefined) params.set('tail', String(options.tail));
         if (options?.since !== undefined) params.set('since', String(options.since));
         const qs = params.toString();
-        const url = `${WS_BASE}/ws/logs/${containerId}${qs ? `?${qs}` : ''}`;
+        const url = `${WS_BASE_URL}/ws/logs/${containerId}${qs ? `?${qs}` : ''}`;
 
         const ws = new WebSocket(url);
         wsRef.current = ws;

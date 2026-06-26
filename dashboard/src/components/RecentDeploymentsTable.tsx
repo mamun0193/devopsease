@@ -105,8 +105,8 @@ const RecentDeploymentsTable: React.FC = () => {
                         <button className="p-1 hover:text-dds-white text-dds-text-secondary transition-colors" title="View Logs">
                           <ScrollText size={14} />
                         </button>
-                        {d.port && d.status === 'running' && (
-                          <a href={`http://localhost:${d.port}`} target="_blank" rel="noreferrer" className="p-1 hover:text-dds-blue text-dds-text-secondary transition-colors" title="Open App">
+                        {d.status === 'running' && d.applicationSlug && (
+                          <a href={`/apps/${d.applicationSlug}`} target="_blank" rel="noreferrer" className="p-1 hover:text-dds-blue text-dds-text-secondary transition-colors" title="Open App">
                             <ExternalLink size={14} />
                           </a>
                         )}

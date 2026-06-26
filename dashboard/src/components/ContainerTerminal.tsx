@@ -3,6 +3,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { X, Terminal as TerminalIcon, ChevronDown, Minimize2, Maximize2, RefreshCw, AlertTriangle, Power, Clock } from 'lucide-react';
+import { buildWsUrl } from '../config';
 
 interface ContainerTerminalProps {
     containerId: string;
@@ -256,7 +257,7 @@ const TerminalContent: React.FC<TerminalContentProps> = ({
 
         // Defer WS creation so React StrictMode cleanup cancels it before any WS opens
         const wsConnectTimer = window.setTimeout(() => {
-            const ws = new WebSocket(`ws://localhost:3497/ws/exec/${containerId}`);
+            const ws = new WebSocket(buildWsUrl(`/ws/exec/${containerId}`));
             wsRef.current = ws;
 
             ws.onopen = () => {

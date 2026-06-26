@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { buildWsUrl } from '../config';
 
 interface UseBuildSocketOptions {
     buildId: string;
@@ -24,9 +25,7 @@ export function useBuildSocket({ buildId, enabled }: UseBuildSocketOptions): Use
     const connect = useCallback(() => {
         if (!buildId || !enabled || finalStatus) return;
 
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = 'localhost:3497';
-        const url = `${protocol}//${host}/ws/build/${buildId}`;
+        const url = buildWsUrl(`/ws/build/${buildId}`);
 
         const ws = new WebSocket(url);
         wsRef.current = ws;

@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import { useDispatch } from 'react-redux';
 import { addToast } from '../store/toastSlice';
+import { API_BASE_URL } from '../config';
 
 const LoginPage: React.FC = () => {
     const [searchParams] = useSearchParams();
@@ -26,10 +27,8 @@ const LoginPage: React.FC = () => {
         }
     }, [isAuthenticated, navigate, from]);
 
-    const API_BASE = 'http://localhost:3497';
-
     const handleOAuthLogin = (provider: 'github' | 'google') => {
-        window.location.href = `${API_BASE}/auth/${provider}`;
+        window.location.href = `${API_BASE_URL}/auth/${provider}`;
     };
 
     const loginMutation = useMutation({

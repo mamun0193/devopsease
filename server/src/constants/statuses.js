@@ -49,3 +49,20 @@ export const CONTAINER_STATUS = Object.freeze({
     CREATED: 'created',
     EXITED:  'exited',
 });
+
+// Application Statuses
+export const APPLICATION_STATUS = Object.freeze({
+    RUNNING:   'running',
+    STARTING:  'starting',
+    STOPPING:  'stopping',
+    UNHEALTHY: 'unhealthy',
+    STOPPED:   'stopped',
+});
+
+// Application Providers
+export const APPLICATION_PROVIDERS = Object.freeze({
+    DOCKER:     'docker',
+    KUBERNETES: 'kubernetes',
+    ECS:        'ecs',
+    SSH:        'ssh',
+});

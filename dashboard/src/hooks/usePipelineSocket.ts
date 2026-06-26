@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { buildWsUrl } from '../config';
 
 interface UsePipelineSocketOptions {
     runId: string;
@@ -31,9 +32,7 @@ export function usePipelineSocket({ runId, enabled }: UsePipelineSocketOptions):
     const connect = useCallback(() => {
         if (!runId || !enabled || finalStatus || wsUnavailable) return;
 
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = 'localhost:3497';
-        const url = `${protocol}//${host}/ws/pipeline/${runId}`;
+        const url = buildWsUrl(`/ws/pipeline/${runId}`);
 
         const ws = new WebSocket(url);
         wsRef.current = ws;

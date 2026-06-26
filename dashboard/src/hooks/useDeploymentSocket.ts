@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-
-const WS_BASE = 'ws://localhost:3497';
+import { WS_BASE_URL } from '../config';
 
 interface UseDeploymentSocketOptions {
   isAuthenticated?: boolean;
@@ -31,7 +30,7 @@ export function useDeploymentSocket({
     function connect() {
       if (!active) return;
 
-      ws = new WebSocket(`${WS_BASE}/ws/deployments`);
+      ws = new WebSocket(`${WS_BASE_URL}/ws/deployments`);
 
       ws.onopen = () => {
         if (!active) { ws?.close(); return; }

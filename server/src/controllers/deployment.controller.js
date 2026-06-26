@@ -1,6 +1,7 @@
 import Deployment from '../models/deployment.model.js';
 import Repository from '../models/repository.model.js';
 import Build from '../models/build.model.js';
+import Application from '../models/application.model.js';
 import docker from '../docker/client.js';
 import {
     startDeployment,
@@ -37,10 +38,19 @@ export const getDeployments = async (req, res, next) => {
         const pipelineRuns = await PipelineRun.find({ buildId: { $in: buildIds } }).select('buildId commitHash branch').lean();
         const pipelineRunMap = Object.fromEntries(pipelineRuns.map(pr => [pr.buildId?.toString(), pr]));
 
+        // Look up Applications for slug mapping
+        const applications = await Application.find({
+            repositoryId: { $in: repoIds }
+        }).select('repositoryId slug').lean();
+        const appByRepoId = Object.fromEntries(
+            applications.map(a => [a.repositoryId?.toString(), a])
+        );
+
         const shaped = deployments.map(d => {
             const build = buildMap[d.buildId?.toString()] ?? {};
             const pr = pipelineRunMap[d.buildId?.toString()] || {};
             const repo = repoMap[d.repoId?.toString()] || {};
+            const app = appByRepoId[d.repoId?.toString()];
             const branch = pr.branch || repo.defaultBranch || 'main';
             const repoName = repo.repoName || 'Unknown';
             const rawEnv = d.environment ?? 'development';
@@ -57,6 +67,8 @@ export const getDeployments = async (req, res, next) => {
                 port: d.port,
                 createdAt: d.createdAt,
                 repositoryName: repoName,
+                applicationId: app?._id?.toString() || null,
+                applicationSlug: app?.slug || null,
                 build: {
                     commitHash: build.commitHash || pr.commitHash || null,
                     branch,

@@ -1,5 +1,7 @@
 import Deployment from '../models/deployment.model.js';
 import Repository from '../models/repository.model.js';
+import applicationService from './application.service.js';
+import gatewayEvents from '../gateway/gateway.events.js';
 import { assertEnvironmentExists } from './env.service.js';
 import { getDecryptedSecretsMap } from './secret.service.js';
 import {
@@ -274,6 +276,20 @@ export async function deployFromBuild(build, { replicas = 1 } = {}) {
 
         // Reconcile will spin up desiredReplicas containers
         deployment = await reconcileDeployment(deployment._id);
+
+        // Gateway integration: ensure Application exists and set as current deployment
+        try {
+            await applicationService.ensureApplicationForDeployment(deployment);
+            gatewayEvents.emit('deployment:finished', {
+                deploymentId: String(deployment._id),
+                repoId: String(deployment.repoId),
+            });
+        } catch (gwErr) {
+            logger.warn('Gateway integration: failed to create/update application', {
+                deploymentId: String(deployment._id),
+                error: gwErr.message,
+            });
+        }
 
         return deployment;
     } catch (error) {
@@ -583,6 +599,12 @@ export async function rollbackDeployment(deploymentId, options = {}) {
         });
 
         deploymentBroadcaster.broadcast(rollbackDeploymentRecord);
+
+        // Gateway integration: emit rollback event for cache invalidation
+        gatewayEvents.emit('deployment:rollback', {
+            deploymentId: String(rollbackDeploymentRecord._id),
+            repoId: String(rollbackDeploymentRecord.repoId),
+        });
 
         return rollbackDeploymentRecord;
     } catch (error) {

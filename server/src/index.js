@@ -55,6 +55,9 @@ import metricsAggregator from "./services/metricsAggregator.service.js";
 import globalMetricsCollector from "./services/globalMetricsCollector.js";
 import collectorWatchdog from "./services/collectorWatchdog.service.js";
 import systemRoutes from "./routes/system.routes.js";
+import applicationRoutes from "./routes/application.routes.js";
+import gatewayRoutes from "./routes/gateway.routes.js";
+import gatewayService from "./gateway/gateway.service.js";
 
 // 1. Validate Environment immediately
 validateEnv();
@@ -118,6 +121,7 @@ app.use("/api/k8s", k8sRoutes);
 app.use("/api/pipelines", pipelineRoutes);
 app.use("/api/pipeline-runs", pipelineRunRoutes);
 app.use("/api/secrets", secretRoutes);
+app.use("/api/applications", applicationRoutes);
 
 // ─── Backward-compat aliases (old bare paths → same routers) ─────────────────
 // These keep existing frontend and CLI working without changes.
@@ -141,6 +145,9 @@ app.use("/dockerhub", dockerHubRoutes);
 app.use("/tunnels", tunnelRoutes);
 app.use("/quota", quotaRoutes);
 app.use("/system", systemRoutes);
+
+// Application Gateway (proxy) 
+app.use("/apps", gatewayRoutes);
 
 app.use(errorHandler);
 
@@ -199,7 +206,17 @@ async function startServer() {
 
     server = http.createServer(app);
     initializeWebSocketServer(server);
-    logger.info("Docker + WebSocket ready");
+
+    // Gateway WebSocket upgrade handler for /apps/:slug/* paths
+    server.on('upgrade', (req, socket, head) => {
+      if (req.url && req.url.startsWith('/apps/')) {
+        gatewayService.handleWsUpgrade(req, socket, head);
+        return;
+      }
+      // Other WS upgrades are handled by the existing WS server
+    });
+
+    logger.info("Docker + WebSocket + Gateway ready");
 
     server.listen(PORT, () => {
       logger.info(`DevOpsEase server running on http://localhost:${PORT}`);

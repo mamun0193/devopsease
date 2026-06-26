@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:3497';
+import { API_BASE_URL } from '../config';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -965,6 +964,8 @@ export interface Deployment {
   containerId?: string | null;
   containerName?: string | null;
   repositoryName?: string;
+  applicationId?: string | null;
+  applicationSlug?: string | null;
   createdAt: string;
   build: {
     commitHash: string;
@@ -1138,3 +1139,126 @@ export default api;
 export { alertsApi } from './alerts';
 export type { Alert, AlertsResponse } from './alerts';
 
+// Application Gateway 
+
+export interface Application {
+  _id: string;
+  userId: string;
+  repositoryId: string;
+  name: string;
+  slug: string;
+  description: string;
+  status: 'running' | 'starting' | 'stopping' | 'unhealthy' | 'stopped';
+  provider: 'docker' | 'kubernetes' | 'ecs' | 'ssh';
+  currentDeploymentId: string | null;
+  defaultDomain: string;
+  customDomains: string[];
+  visibility: 'public' | 'private';
+  health: 'running' | 'starting' | 'stopping' | 'unhealthy' | 'stopped';
+  createdAt: string;
+  updatedAt: string;
+  // Populated fields
+  gatewayUrl?: string;
+  currentDeployment?: Deployment | null;
+  repository?: { repoName: string; owner: string; provider: string } | null;
+  runtime?: {
+    endpoint: string | null;
+    provider: string;
+    protocol: string;
+    healthy: boolean;
+    version: string | null;
+    capabilities: string[];
+    metadata: {
+      containerId?: string;
+      containerName?: string;
+      containerIds?: string[];
+      port?: number;
+      replicaCount?: number;
+      [key: string]: unknown;
+    };
+    deploymentId?: string;
+    applicationId?: string;
+  } | null;
+}
+
+export interface ApplicationGatewayMetrics {
+  requests: number;
+  errors: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+  p99LatencyMs: number;
+  activeConnections: number;
+  bytesTransferred: number;
+  statusCodes: Record<number, number>;
+}
+
+export interface GatewayDashboardMetrics {
+  totalRequests: number;
+  totalErrors: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+  p99LatencyMs: number;
+  requestsPerSecond: number;
+  activeConnections: number;
+  connectedApps: number;
+  healthyApps: number;
+  bytesTransferred: number;
+  gatewayUptime: number;
+  recentRequests: Array<{ slug: string; status: number; latencyMs: number; timestamp: string }>;
+  topResponseCodes: Array<{ code: number; count: number }>;
+  topRequestedUrls: Array<{ url: string; count: number }>;
+  topErrors: Array<{ error: string; count: number }>;
+}
+
+export interface CreateApplicationPayload {
+  repositoryId: string;
+  name: string;
+  slug?: string;
+  description?: string;
+}
+
+export const applicationApi = {
+  list: async (): Promise<Application[]> => {
+    const response = await api.get<{ applications: Application[] }>('/api/applications');
+    return response.data.applications;
+  },
+
+  getById: async (id: string): Promise<Application> => {
+    const response = await api.get<{ application: Application }>(`/api/applications/${id}`);
+    return response.data.application;
+  },
+
+  create: async (payload: CreateApplicationPayload): Promise<Application> => {
+    const response = await api.post<{ application: Application }>('/api/applications', payload);
+    return response.data.application;
+  },
+
+  update: async (id: string, data: Partial<Pick<Application, 'name' | 'description' | 'visibility'>>): Promise<Application> => {
+    const response = await api.patch<{ application: Application }>(`/api/applications/${id}`, data);
+    return response.data.application;
+  },
+
+  remove: async (id: string): Promise<void> => {
+    await api.delete(`/api/applications/${id}`);
+  },
+
+  getDeployments: async (id: string): Promise<Deployment[]> => {
+    const response = await api.get<{ deployments: Deployment[] }>(`/api/applications/${id}/deployments`);
+    return response.data.deployments;
+  },
+
+  getDomains: async (id: string): Promise<{ default: string; custom: string[] }> => {
+    const response = await api.get<{ domains: { default: string; custom: string[] } }>(`/api/applications/${id}/domains`);
+    return response.data.domains;
+  },
+
+  getMetrics: async (id: string): Promise<ApplicationGatewayMetrics> => {
+    const response = await api.get<{ metrics: ApplicationGatewayMetrics }>(`/api/applications/${id}/metrics`);
+    return response.data.metrics;
+  },
+
+  getGatewayMetrics: async (): Promise<GatewayDashboardMetrics> => {
+    const response = await api.get<{ metrics: GatewayDashboardMetrics }>('/api/applications/gateway-metrics');
+    return response.data.metrics;
+  },
+};

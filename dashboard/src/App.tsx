@@ -64,6 +64,8 @@ import { useLocation } from 'react-router-dom';
 import RepositoryBlueprintPage from './pages/RepositoryBlueprintPage';
 import RepositoryArtifactStudioPage from './pages/RepositoryArtifactStudioPage';
 import DeploymentExecutionPage from './pages/DeploymentExecutionPage';
+import ApplicationsPage from './pages/ApplicationsPage';
+import ApplicationDetailPage from './pages/ApplicationDetailPage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -278,6 +280,22 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <DeploymentsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/applications"
+                  element={
+                    <ProtectedRoute>
+                      <ApplicationsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/applications/:id"
+                  element={
+                    <ProtectedRoute>
+                      <ApplicationDetailPage />
                     </ProtectedRoute>
                   }
                 />

@@ -1,15 +1,9 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { WS_BASE_URL } from '../config';
 
-const WS_BASE = 'ws://localhost:3497';
+// Event types emitted by the backend via /ws/events:
 
-/**
- * Event types emitted by the backend via /ws/events:
- * - container_update           → refetch containers, containerInspect, containerAnalysis
- * - action_history_updated     → refetch actions, actionStats
- * - container_health_updated   → refetch containerHealth, containerHealthBatch
- * - failure_analysis_updated   → refetch failureAnalysis, containerAnalysis
- */
 
 type EventType =
     | 'container_update'
@@ -27,13 +21,9 @@ interface ServerEvent {
     };
 }
 
-/**
- * Hook that connects to the /ws/events WebSocket and invalidates
- * React Query caches when backend events arrive — replacing polling
- * for container list, inspect, analysis, actions, and health queries.
- *
- * Usage: Call once in a top-level layout component (e.g. App or LandingLayout).
- */
+// Hook that connects to the /ws/events WebSocket and invalidates
+// React Query caches when backend events arrive — replacing polling
+// for container list, inspect, analysis, actions, and health queries.
 export function useContainerEvents(isAuthenticated = true) {
     const queryClient = useQueryClient();
     const backoffRef = useRef(1000);
@@ -99,7 +89,7 @@ export function useContainerEvents(isAuthenticated = true) {
         function connect() {
             if (!active) return;
 
-            ws = new WebSocket(`${WS_BASE}/ws/events`);
+            ws = new WebSocket(`${WS_BASE_URL}/ws/events`);
 
             ws.onopen = () => {
                 if (!active) {

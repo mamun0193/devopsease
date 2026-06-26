@@ -310,8 +310,8 @@ const DeploymentsPage: React.FC = () => {
                               </button>
                               
                               {/* Open App */}
-                              {deployment.port && deployment.status === 'running' && (
-                                <a href={`http://localhost:${deployment.port}`} target="_blank" rel="noreferrer" className="p-1.5 text-dds-text-muted hover:text-dds-blue rounded-[4px] hover:bg-dds-bg transition-all" title="Open Application">
+                              {deployment.status === 'running' && deployment.applicationSlug && (
+                                <a href={`/apps/${deployment.applicationSlug}`} target="_blank" rel="noreferrer" className="p-1.5 text-dds-text-muted hover:text-dds-blue rounded-[4px] hover:bg-dds-bg transition-all" title="Open Application">
                                   <ExternalLink size={14} />
                                 </a>
                               )}

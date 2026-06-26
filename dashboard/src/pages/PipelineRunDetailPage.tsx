@@ -22,6 +22,7 @@ import {
     WifiOff,
     SkipForward,
     ScrollText,
+    Activity,
 } from 'lucide-react';
 import { usePipelineRun } from '../hooks/usePipelines';
 import { usePipelineSocket } from '../hooks/usePipelineSocket';
