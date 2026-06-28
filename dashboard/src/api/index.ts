@@ -1262,3 +1262,216 @@ export const applicationApi = {
     return response.data.metrics;
   },
 };
+
+// ── Environment & Secrets Management ──────────────────────────────────────────
+
+export interface ConfigEntry {
+  id: string;
+  repositoryId: string;
+  environmentId: string;
+  name: string;
+  type: 'variable' | 'secret';
+  encrypted: boolean;
+  description: string;
+  source: 'manual' | 'detected' | 'imported' | 'scanner';
+  version: number;
+  value: string;
+  lastRotatedAt: string | null;
+  lastRotatedBy: string | null;
+  detection: {
+    sourceFile: string | null;
+    lineNumber: number | null;
+    language: string | null;
+    framework: string | null;
+    confidence: number | null;
+    heuristic: string | null;
+    defaultValue: string | null;
+    requiredBy: string[];
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConfigVersion {
+  id: string;
+  configEntryId: string;
+  version: number;
+  changedBy: string;
+  changeType: 'created' | 'updated' | 'rotated' | 'rolled_back' | 'imported';
+  reason: string | null;
+  deploymentId: string | null;
+  rollbackFromVersion: number | null;
+  createdAt: string;
+}
+
+export interface DetectedVariable {
+  name: string;
+  confidence: number;
+  isSecret: boolean;
+  source: string;
+  requiredBy: string[];
+  defaultValue: string | null;
+  heuristic: string;
+  sourceFile: string;
+  lineNumber: number;
+}
+
+export interface ReadinessScores {
+  security: number;
+  configuration: number;
+  deployment: number;
+  environment: number;
+  overall: number;
+}
+
+export interface ReadinessSuggestion {
+  type: string;
+  severity: 'error' | 'warning' | 'info';
+  key: string;
+  message: string;
+  action: string;
+  confidence?: number;
+  requiredBy?: string[];
+  defaultValue?: string | null;
+  currentType?: string;
+  suggestedType?: string;
+}
+
+export interface ReadinessReport {
+  detected: DetectedVariable[];
+  configured: { name: string; type: string; version: number; source: string; lastUpdated: string }[];
+  missing: { name: string; isSecret: boolean; requiredBy: string[]; confidence: number; defaultValue: string | null }[];
+  unused: { name: string; type: string; source: string }[];
+  misclassified: { name: string; currentType: string; suggestedType: string; reason: string }[];
+  scores: ReadinessScores;
+  deploymentReady: boolean;
+  warnings: string[];
+  errors: string[];
+  suggestions: ReadinessSuggestion[];
+  scanMetadata: { scannedAt: string | null; durationMs?: number; filesScanned?: number; servicesDetected?: string[] };
+}
+
+export interface ScanResult {
+  variables: DetectedVariable[];
+  metadata: { scannedAt: string; durationMs: number; filesScanned: number; servicesDetected: string[] };
+}
+
+export interface ConfigSnapshotEntry {
+  name: string;
+  type: string;
+  version: number;
+  valueHash: string;
+  encrypted: boolean;
+}
+
+export interface ConfigSnapshot {
+  _id: string;
+  deploymentId: string;
+  repositoryId: string;
+  environmentId: string;
+  entries: ConfigSnapshotEntry[];
+  generatedAt: string;
+  generatedBy: string;
+}
+
+export interface SnapshotDiff {
+  from: { deploymentId: string; generatedAt: string };
+  to: { deploymentId: string; generatedAt: string };
+  added: { name: string; type: string; version: number }[];
+  removed: { name: string; type: string; version: number }[];
+  changed: { name: string; type: string; fromVersion: number; toVersion: number; valueChanged: boolean }[];
+  unchanged: { name: string; type: string; version: number }[];
+  summary: { totalFrom: number; totalTo: number; addedCount: number; removedCount: number; changedCount: number; unchangedCount: number };
+}
+
+export interface BulkUpsertResult {
+  created: number;
+  updated: number;
+  unchanged: number;
+  errors: { name: string; error: string }[];
+}
+
+export const configApi = {
+  // CRUD
+  getEntries: async (repositoryId: string, environmentId?: string, type?: string): Promise<ConfigEntry[]> => {
+    const params = new URLSearchParams({ repositoryId });
+    if (environmentId) params.append('environmentId', environmentId);
+    if (type) params.append('type', type);
+    const response = await api.get<{ entries: ConfigEntry[] }>(`/api/config/entries?${params}`);
+    return response.data.entries;
+  },
+
+  createEntry: async (payload: {
+    repositoryId: string; name: string; value: string; type: string; environmentId: string; description?: string;
+  }): Promise<ConfigEntry> => {
+    const response = await api.post<{ entry: ConfigEntry }>('/api/config/entries', payload);
+    return response.data.entry;
+  },
+
+  updateEntry: async (entryId: string, payload: { value?: string; description?: string; reason?: string }): Promise<ConfigEntry> => {
+    const response = await api.put<{ entry: ConfigEntry }>(`/api/config/entries/${entryId}`, payload);
+    return response.data.entry;
+  },
+
+  deleteEntry: async (entryId: string): Promise<void> => {
+    await api.delete(`/api/config/entries/${entryId}`);
+  },
+
+  // Versioning
+  getVersions: async (entryId: string): Promise<ConfigVersion[]> => {
+    const response = await api.get<{ versions: ConfigVersion[] }>(`/api/config/entries/${entryId}/versions`);
+    return response.data.versions;
+  },
+
+  rollbackEntry: async (entryId: string, payload: { targetVersion: number; reason?: string }): Promise<ConfigEntry> => {
+    const response = await api.post<{ entry: ConfigEntry }>(`/api/config/entries/${entryId}/rollback`, payload);
+    return response.data.entry;
+  },
+
+  // Bulk
+  bulkUpsert: async (repositoryId: string, environmentId: string, entries: { name: string; value: string; type: string }[]): Promise<BulkUpsertResult> => {
+    const response = await api.post<{ result: BulkUpsertResult }>('/api/config/entries/bulk', { repositoryId, environmentId, entries });
+    return response.data.result;
+  },
+
+  // Import / Export
+  importConfig: async (repositoryId: string, environmentId: string, content: string, format?: string): Promise<BulkUpsertResult> => {
+    const response = await api.post<{ result: BulkUpsertResult }>('/api/config/import', { repositoryId, environmentId, content, format });
+    return response.data.result;
+  },
+
+  exportConfig: async (repositoryId: string, environmentId: string, format: string): Promise<string> => {
+    const params = new URLSearchParams({ repositoryId, environmentId });
+    const response = await api.get(`/api/config/export/${format}?${params}`, { responseType: 'text' });
+    return response.data as string;
+  },
+
+  // Scanner
+  scanRepository: async (repositoryId: string): Promise<ScanResult> => {
+    const response = await api.post<{ scan: ScanResult }>(`/api/config/scan/${repositoryId}`);
+    return response.data.scan;
+  },
+
+  getScanResults: async (repositoryId: string): Promise<ScanResult> => {
+    const response = await api.get<{ scan: ScanResult }>(`/api/config/scan/${repositoryId}`);
+    return response.data.scan;
+  },
+
+  // Readiness
+  getReadiness: async (repositoryId: string, environmentId: string): Promise<ReadinessReport> => {
+    const response = await api.get<{ report: ReadinessReport }>(`/api/config/readiness/${repositoryId}/${environmentId}`);
+    return response.data.report;
+  },
+
+  // Snapshots
+  getSnapshot: async (deploymentId: string): Promise<ConfigSnapshot> => {
+    const response = await api.get<{ snapshot: ConfigSnapshot }>(`/api/config/snapshots/${deploymentId}`);
+    return response.data.snapshot;
+  },
+
+  compareSnapshots: async (fromDeploymentId: string, toDeploymentId: string): Promise<SnapshotDiff> => {
+    const params = new URLSearchParams({ from: fromDeploymentId, to: toDeploymentId });
+    const response = await api.get<{ diff: SnapshotDiff }>(`/api/config/snapshots/compare?${params}`);
+    return response.data.diff;
+  },
+};

@@ -11,6 +11,7 @@ import { detectBuildContext } from './buildContextDetector.js';
 import { detectRuntime, detectPort } from './runtimeDetector.js';
 import { detectDatabase, detectDependencies } from './databaseDetector.js';
 import { buildDependencyGraph } from './dependencyGraph.js';
+import { scanEnvironmentVariables } from './envScanner.js';
 import logger from '../utils/logger.js';
 
 const analysisCache = new Map();
@@ -90,9 +91,20 @@ export async function analyzeRepository(repoId) {
   // 4. Build Dependency Graph
   const dependencyGraph = buildDependencyGraph(services);
 
+  // 5. Environment Variable Detection
+  let environmentVariables = { variables: [], metadata: {} };
+  try {
+    environmentVariables = await scanEnvironmentVariables(workspacePath, detectedServices);
+  } catch (envScanErr) {
+    logger.warn('Env scanner failed during analysis — skipping', {
+      repoId: String(repoId),
+      error: envScanErr.message,
+    });
+  }
+
   const durationMs = Date.now() - startTime;
 
-  // 5. Construct Normalized Object
+  // 6. Construct Normalized Object
   let analysis = {
     metadata: {
       analysisVersion: 1,
@@ -102,7 +114,8 @@ export async function analyzeRepository(repoId) {
       warnings: []
     },
     services,
-    dependencyGraph
+    dependencyGraph,
+    environmentVariables,
   };
 
   // 6. AI Post-Processing Hook

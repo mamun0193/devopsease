@@ -1,0 +1,19 @@
+{
+  "name": "Express",
+  "variables": [
+    {
+      "name": "PORT",
+      "type": "variable",
+      "required": false,
+      "defaultValue": "3000",
+      "description": "Port the server listens on."
+    },
+    {
+      "name": "NODE_ENV",
+      "type": "variable",
+      "required": false,
+      "defaultValue": "production",
+      "description": "The current environment."
+    }
+  ]
+}

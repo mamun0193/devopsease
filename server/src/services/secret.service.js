@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import Secret, { SECRET_ENVIRONMENTS, SECRET_NAME_REGEX } from '../models/secret.model.js';
+import Secret, { SECRET_NAME_REGEX, ENVIRONMENT_NAME_REGEX } from '../models/secret.model.js';
 import { encrypt, decrypt } from '../utils/encryption.js';
 
 const MAX_SECRET_VALUE_LENGTH = 8192;
@@ -12,8 +12,8 @@ function validateObjectId(id, fieldName) {
 
 function normalizeEnvironment(environment = '') {
     const normalized = String(environment).trim().toLowerCase();
-    if (!SECRET_ENVIRONMENTS.includes(normalized)) {
-        throw Object.assign(new Error('Invalid environment. Allowed: development, staging, production'), {
+    if (!ENVIRONMENT_NAME_REGEX.test(normalized)) {
+        throw Object.assign(new Error('Invalid environment name. Must be 2-32 chars, start with a letter, use [a-z0-9_-]'), {
             statusCode: 400,
             errorCode: 'INVALID_ENVIRONMENT',
         });

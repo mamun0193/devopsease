@@ -1,9 +1,13 @@
 import Deployment from '../models/deployment.model.js';
 import Repository from '../models/repository.model.js';
+import Application from '../models/application.model.js';
 import applicationService from './application.service.js';
 import gatewayEvents from '../gateway/gateway.events.js';
 import { assertEnvironmentExists } from './env.service.js';
 import { getDecryptedSecretsMap } from './secret.service.js';
+import { resolveConfiguration, createConfigSnapshot } from './configResolver.service.js';
+import { adaptForDocker, checkProviderReadiness } from './configAdapter.service.js';
+import Environment from '../models/env.model.js';
 import {
     createReplica,
     destroyReplica,
@@ -47,14 +51,49 @@ async function resolveResourceLimits(repoId) {
     }
 }
 
-async function resolveDeploymentSecretEnv(deployment) {
+async function resolveDeploymentConfig(deployment) {
     const repo = await Repository.findById(deployment.repoId).select('userId').lean();
     if (!repo?.userId) {
-        return {};
+        return { dockerConfig: {}, resolvedConfig: null, environmentId: null };
     }
 
-    return getDecryptedSecretsMap(repo.userId, deployment.environment || 'development');
+    // Check if an Environment exists (new system)
+    const env = await Environment.findOne({
+        repositoryId: deployment.repoId,
+        slug: deployment.environment || 'development'
+    }).select('_id').lean();
+
+    if (env) {
+        try {
+            const resolved = await resolveConfiguration(
+                deployment.repoId,
+                env._id,
+                {} // overrides
+            );
+            
+            const readiness = checkProviderReadiness(resolved, 'docker');
+            if (!readiness.ready) {
+                throw new Error(`Deployment blocked by provider readiness: ${readiness.errors.join('; ')}`);
+            }
+
+            const dockerConfig = await adaptForDocker(resolved);
+            return { dockerConfig, resolvedConfig: resolved, environmentId: env._id };
+        } catch (err) {
+            logger.warn('Config resolution failed, falling back to legacy secrets', {
+                deploymentId: String(deployment._id),
+                error: err.message,
+            });
+            throw err;
+        }
+    }
+
+    // Legacy fallback — user-scoped secrets
+    const legacy = await getDecryptedSecretsMap(repo.userId, deployment.environment || 'development');
+    return { dockerConfig: legacy, resolvedConfig: null, environmentId: null };
 }
+
+// @deprecated — alias for backward compatibility
+const resolveDeploymentSecretEnv = resolveDeploymentConfig;
 
 // Reconciliation engine: compare desired replica count against actual running containers and create/remove containers to reach the desired state.
 
@@ -74,7 +113,7 @@ export async function reconcileDeployment(deploymentId) {
 
     const desired = deployment.desiredReplicas;
     const repoName = deployment.imageTag?.split(':')[0] || 'app';
-    const runtimeSecretEnv = await resolveDeploymentSecretEnv(deployment);
+    const { dockerConfig: runtimeSecretEnv } = await resolveDeploymentConfig(deployment);
     const resourceLimits = await resolveResourceLimits(deployment.repoId);
 
     //  1. Discover actual running containers 
@@ -288,6 +327,29 @@ export async function deployFromBuild(build, { replicas = 1 } = {}) {
             logger.warn('Gateway integration: failed to create/update application', {
                 deploymentId: String(deployment._id),
                 error: gwErr.message,
+            });
+        }
+
+        // Configuration snapshot: capture config used for this deployment
+        try {
+            const { resolvedConfig, environmentId } = await resolveDeploymentConfig(deployment);
+            if (resolvedConfig && environmentId) {
+                await createConfigSnapshot({
+                    deploymentId: deployment._id,
+                    repositoryId: deployment.repoId,
+                    environmentId: environmentId,
+                    resolvedConfig,
+                    generatedBy: deployUserId
+                });
+                logger.info('ConfigSnapshot created for deployment', {
+                    deploymentId: String(deployment._id)
+                });
+            }
+        } catch (snapErr) {
+            // Non-fatal — deployment succeeds even if snapshot fails
+            logger.warn('Failed to create config snapshot', {
+                deploymentId: String(deployment._id),
+                error: snapErr.message,
             });
         }
 
@@ -539,7 +601,7 @@ export async function rollbackDeployment(deploymentId, options = {}) {
     }
 
     const repoName = previous.imageTag?.split(':')[0] || 'app';
-    const runtimeSecretEnv = await resolveDeploymentSecretEnv(previous);
+    const { dockerConfig: runtimeSecretEnv } = await resolveDeploymentConfig(previous);
     let rollbackDeploymentRecord = null;
     let containerId = null;
 

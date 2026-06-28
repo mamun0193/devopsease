@@ -1,0 +1,25 @@
+{
+  "name": "Flask",
+  "variables": [
+    {
+      "name": "FLASK_APP",
+      "type": "variable",
+      "required": true,
+      "defaultValue": "app.py",
+      "description": "The application to load."
+    },
+    {
+      "name": "FLASK_ENV",
+      "type": "variable",
+      "required": false,
+      "defaultValue": "production",
+      "description": "The environment Flask is running in (development or production)."
+    },
+    {
+      "name": "SECRET_KEY",
+      "type": "secret",
+      "required": false,
+      "description": "Used to sign session cookies for protection against data tampering."
+    }
+  ]
+}

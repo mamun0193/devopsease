@@ -1,0 +1,37 @@
+{
+  "name": "SpringBoot",
+  "variables": [
+    {
+      "name": "SERVER_PORT",
+      "type": "variable",
+      "required": false,
+      "defaultValue": "8080",
+      "description": "Server HTTP port."
+    },
+    {
+      "name": "SPRING_PROFILES_ACTIVE",
+      "type": "variable",
+      "required": false,
+      "defaultValue": "prod",
+      "description": "Comma-separated list of active Spring profiles."
+    },
+    {
+      "name": "SPRING_DATASOURCE_URL",
+      "type": "secret",
+      "required": false,
+      "description": "JDBC URL of the database."
+    },
+    {
+      "name": "SPRING_DATASOURCE_USERNAME",
+      "type": "variable",
+      "required": false,
+      "description": "Login username of the database."
+    },
+    {
+      "name": "SPRING_DATASOURCE_PASSWORD",
+      "type": "secret",
+      "required": false,
+      "description": "Login password of the database."
+    }
+  ]
+}

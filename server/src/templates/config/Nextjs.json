@@ -1,0 +1,33 @@
+{
+  "name": "Next.js",
+  "variables": [
+    {
+      "name": "NODE_ENV",
+      "type": "variable",
+      "required": false,
+      "defaultValue": "production",
+      "description": "The current environment."
+    },
+    {
+      "name": "NEXT_PUBLIC_API_URL",
+      "type": "variable",
+      "required": false,
+      "defaultValue": "",
+      "description": "The base URL for the API."
+    },
+    {
+      "name": "NEXTAUTH_SECRET",
+      "type": "secret",
+      "required": false,
+      "defaultValue": "",
+      "description": "Secret used to encrypt session data in NextAuth."
+    },
+    {
+      "name": "NEXTAUTH_URL",
+      "type": "variable",
+      "required": false,
+      "defaultValue": "",
+      "description": "The canonical URL of the NextAuth application."
+    }
+  ]
+}

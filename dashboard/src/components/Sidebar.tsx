@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Server, Hammer, Rocket, Layers, FolderKanban, Network, HardDrive,
-  Globe, GitBranch, GitMerge, Cloud, Box, Settings, Users, ChevronDown, ChevronRight, Activity, TerminalSquare
+  Globe, GitBranch, GitMerge, Cloud, Box, Settings, Users, ChevronDown, ChevronRight, Activity, TerminalSquare, KeyRound
 } from 'lucide-react';
 
 type NavGroup = {
@@ -30,6 +30,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Runtime',
     items: [
       { label: 'Applications', path: '/applications', icon: Globe },
+      { label: 'Environments', path: '/environments', icon: KeyRound },
       { label: 'Deployments', path: '/deployments', icon: Rocket },
       { label: 'Containers', path: '/containers', icon: Server },
       { label: 'Pods', path: '/pods', icon: Box },

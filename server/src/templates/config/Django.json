@@ -1,0 +1,31 @@
+{
+  "name": "Django",
+  "variables": [
+    {
+      "name": "SECRET_KEY",
+      "type": "secret",
+      "required": true,
+      "description": "Cryptographic signing key for Django."
+    },
+    {
+      "name": "DJANGO_SETTINGS_MODULE",
+      "type": "variable",
+      "required": false,
+      "description": "Path to the settings module (e.g. myproject.settings)."
+    },
+    {
+      "name": "DEBUG",
+      "type": "variable",
+      "required": false,
+      "defaultValue": "False",
+      "description": "Turn on debug mode (never use True in production)."
+    },
+    {
+      "name": "ALLOWED_HOSTS",
+      "type": "variable",
+      "required": false,
+      "defaultValue": "*",
+      "description": "A list of strings representing the host/domain names that this Django site can serve."
+    }
+  ]
+}

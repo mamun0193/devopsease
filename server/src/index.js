@@ -28,6 +28,7 @@ import k8sRoutes from "./routes/k8s.routes.js";
 import pipelineRoutes from "./routes/pipeline.routes.js";
 import pipelineRunRoutes from "./routes/pipelineRun.routes.js";
 import secretRoutes from "./routes/secret.routes.js";
+import envManagementRoutes from "./routes/envManagement.routes.js";
 import intelligenceRoutes from "./routes/intelligence.routes.js";
 import errorHandler from "./middlewares/errorHandler.js";
 import readinessMiddleware from "./middlewares/readinessMiddleware.js";
@@ -121,6 +122,7 @@ app.use("/api/k8s", k8sRoutes);
 app.use("/api/pipelines", pipelineRoutes);
 app.use("/api/pipeline-runs", pipelineRunRoutes);
 app.use("/api/secrets", secretRoutes);
+app.use("/api/config", envManagementRoutes);
 app.use("/api/applications", applicationRoutes);
 
 // ─── Backward-compat aliases (old bare paths → same routers) ─────────────────

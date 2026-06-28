@@ -193,7 +193,7 @@ export default function ApplicationsPage() {
   ];
 
   return (
-    <DashboardLayout>
+    <>
       <div className="p-6 max-w-[1400px] mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -271,6 +271,6 @@ export default function ApplicationsPage() {
           </div>
         </AnimatePresence>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

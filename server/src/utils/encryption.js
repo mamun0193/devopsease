@@ -1,51 +1,26 @@
-import crypto from 'crypto';
+//Encryption Facade
+// Thin wrapper that delegates to the active EncryptionProvider.
 
-const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 16;
-const AUTH_TAG_LENGTH = 16;
+import { LocalEncryptionProvider } from '../services/providers/localEncryption.provider.js';
 
-// Startup guard — fail fast if ENCRYPTION_KEY is invalid
-const rawKey = process.env.ENCRYPTION_KEY;
-if (!rawKey || rawKey.length !== 64) {
-    throw new Error('Invalid ENCRYPTION_KEY. Must be 32-byte hex string (64 hex chars).');
-}
-const KEY = Buffer.from(rawKey, 'hex');
+// Singleton — instantiated once at startup, reused for all encrypt/decrypt calls.
+const provider = new LocalEncryptionProvider();
 
-/**
- * Encrypt plaintext using AES-256-GCM.
- * Returns a string in the format: iv:authTag:ciphertext (all hex-encoded).
- * @param {string} text - The plaintext to encrypt
- * @returns {string} Encrypted string
- */
+//Encrypt plaintext using AES-256-GCM.
+
 export function encrypt(text) {
-    const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv(ALGORITHM, KEY, iv);
-
-    let encrypted = cipher.update(text, 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-
-    const authTag = cipher.getAuthTag().toString('hex');
-
-    return `${iv.toString('hex')}:${authTag}:${encrypted}`;
+    return provider.encrypt(text);
 }
 
-/**
- * Decrypt an AES-256-GCM encrypted string.
- * Input format: iv:authTag:ciphertext (all hex-encoded).
- * NEVER log the return value.
- * @param {string} encryptedText - The encrypted string to decrypt
- * @returns {string} Decrypted plaintext
- */
+//Decrypt an AES-256-GCM encrypted string.
+
 export function decrypt(encryptedText) {
-    const [ivHex, authTagHex, ciphertext] = encryptedText.split(':');
+    return provider.decrypt(encryptedText);
+}
 
-    const iv = Buffer.from(ivHex, 'hex');
-    const authTag = Buffer.from(authTagHex, 'hex');
-    const decipher = crypto.createDecipheriv(ALGORITHM, KEY, iv);
-    decipher.setAuthTag(authTag);
-
-    let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-
-    return decrypted;
+//Returns the active provider name for diagnostics.
+ * @returns {string}
+ */
+export function getProviderName() {
+    return provider.providerName;
 }

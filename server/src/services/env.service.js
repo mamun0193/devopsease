@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import Environment, { ENVIRONMENT_NAME_REGEX } from '../models/env.model.js';
+import Environment, { ENVIRONMENT_SLUG_REGEX } from '../models/env.model.js';
 
 const DEFAULT_ENVIRONMENTS = ['development', 'staging', 'production'];
 const MAX_ENV_VARIABLE_KEYS = 50;
@@ -42,7 +42,7 @@ function validateObjectId(id, fieldName) {
 
 function validateName(name) {
     const normalized = normalizeName(name);
-    if (!ENVIRONMENT_NAME_REGEX.test(normalized)) {
+    if (!ENVIRONMENT_SLUG_REGEX.test(normalized)) {
         throw Object.assign(new Error('Invalid environment name'), { statusCode: 400 });
     }
     return normalized;

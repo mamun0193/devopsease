@@ -1,0 +1,12 @@
+{
+  "name": "Prisma",
+  "variables": [
+    {
+      "name": "DATABASE_URL",
+      "type": "secret",
+      "required": true,
+      "defaultValue": "",
+      "description": "Connection string for the database (e.g., PostgreSQL, MySQL)."
+    }
+  ]
+}

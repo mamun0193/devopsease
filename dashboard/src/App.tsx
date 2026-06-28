@@ -66,6 +66,7 @@ import RepositoryArtifactStudioPage from './pages/RepositoryArtifactStudioPage';
 import DeploymentExecutionPage from './pages/DeploymentExecutionPage';
 import ApplicationsPage from './pages/ApplicationsPage';
 import ApplicationDetailPage from './pages/ApplicationDetailPage';
+import EnvironmentManagementPage from './pages/EnvironmentManagementPage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -296,6 +297,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ApplicationDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/environments"
+                  element={
+                    <ProtectedRoute>
+                      <EnvironmentManagementPage />
                     </ProtectedRoute>
                   }
                 />

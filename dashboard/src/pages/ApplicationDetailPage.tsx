@@ -392,24 +392,24 @@ export default function ApplicationDetailPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
+      <>
         <div className="flex items-center justify-center h-[60vh]">
           <Loader2 size={28} className="text-dds-primary animate-spin" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (error || !app) {
     return (
-      <DashboardLayout>
+      <>
         <div className="flex flex-col items-center justify-center h-[60vh]">
           <AlertTriangle size={32} className="text-red-400 mb-4" />
           <h2 className="text-lg font-semibold text-dds-white mb-2">Application Not Found</h2>
           <button onClick={() => navigate('/applications')}
             className="text-sm text-dds-primary hover:underline">Back to Applications</button>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -417,7 +417,7 @@ export default function ApplicationDetailPage() {
   const gatewayUrl = app.gatewayUrl || app.defaultDomain || `/apps/${app.slug}`;
 
   return (
-    <DashboardLayout>
+    <>
       <div className="p-6 max-w-[1200px] mx-auto">
         {/* Back button */}
         <button onClick={() => navigate('/applications')}
@@ -485,6 +485,6 @@ export default function ApplicationDetailPage() {
           {activeTab === 'settings' && <SettingsTab app={app} />}
         </motion.div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }
