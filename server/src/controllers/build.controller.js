@@ -1,7 +1,10 @@
 import buildService from '../services/build.service.js';
+import Repository from '../models/repository.model.js';
 import Image from '../models/image.js';
 import Build from '../models/build.model.js';
+import BuildManifest from '../models/buildManifest.model.js';
 import { createLogReadStream } from '../services/buildLog.service.js';
+import { runBuildPipeline } from '../services/build.service.js';
 import logger from '../utils/logger.js';
 
 export const triggerBuild = async (req, res, next) => {
@@ -113,6 +116,80 @@ export const listImages = async (req, res, next) => {
             .sort({ createdAt: -1 })
             .lean();
         res.json({ images });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getBuildManifest = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user._id;
+
+        const build = await Build.findOne({ _id: id, userId });
+        if (!build) return res.status(404).json({ message: 'Build not found' });
+        if (!build.manifestId) return res.status(404).json({ message: 'No Build Manifest found for this build' });
+
+        const manifest = await BuildManifest.findById(build.manifestId).lean();
+        if (!manifest) return res.status(404).json({ message: 'Manifest document missing' });
+
+        res.json({ manifest });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getCacheAnalytics = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        
+        const manifests = await BuildManifest.find({ userId, strategy: { $ne: 'UNKNOWN' } }).lean();
+        
+        const totalBuilds = manifests.length;
+        const cacheHits = manifests.filter(m => m.strategy === 'FULL_REUSE').length;
+        const partialHits = manifests.filter(m => m.strategy === 'PARTIAL_REUSE').length;
+        
+        let totalSavedTimeMs = 0;
+        manifests.forEach(m => {
+            totalSavedTimeMs += (m.estimatedSavedTimeMs || 0);
+        });
+
+        res.json({
+            analytics: {
+                totalBuilds,
+                cacheHits,
+                partialHits,
+                hitRatePercentage: totalBuilds > 0 ? ((cacheHits + partialHits) / totalBuilds) * 100 : 0,
+                totalSavedTimeMs
+            }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const deleteBuild = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user._id;
+
+        const build = await Build.findOneAndDelete({ _id: id, userId });
+        if (!build) return res.status(404).json({ message: 'Build not found' });
+
+        // Optionally, we could clean up associated manifest/image here
+        // but for now, just removing the build record is fine.
+
+        res.json({ message: 'Build deleted successfully' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const deleteAllBuilds = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
+        await Build.deleteMany({ userId });
+        res.json({ message: 'All builds deleted successfully' });
     } catch (error) {
         next(error);
     }

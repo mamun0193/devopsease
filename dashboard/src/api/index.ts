@@ -444,6 +444,45 @@ export interface BuiltImage {
   createdAt: string;
 }
 
+export interface BuildManifest {
+  _id: string;
+  repoId: string;
+  branch: string;
+  commitSha: string;
+  contextHash: string;
+  dependencyFingerprint: string;
+  dockerfileFingerprint: string;
+  buildFingerprint: string;
+  strategy: 'FULL_REUSE' | 'PARTIAL_REUSE' | 'FULL_REBUILD' | 'UNKNOWN';
+  invalidationReason: string | null;
+  estimatedSavedTimeMs: number;
+  layers: {
+    layerId: string;
+    instructionHash: string;
+    instruction: string;
+    layerType: 'DEPENDENCY' | 'SOURCE' | 'SYSTEM' | 'RUNTIME' | 'UNKNOWN';
+    cacheStatus: 'HIT' | 'MISS' | 'UNKNOWN';
+    cacheKey: string | null;
+    cacheability: 'CACHEABLE' | 'UNCACHEABLE' | 'VOLATILE' | 'UNKNOWN';
+    reason: string | null;
+  }[];
+  comparison: {
+    previousBuildId: string | null;
+    dependencyChanges: boolean;
+    dockerfileChanges: boolean;
+    contextChanged: boolean;
+  };
+  createdAt: string;
+}
+
+export interface CacheAnalytics {
+  totalBuilds: number;
+  cacheHits: number;
+  partialHits: number;
+  hitRatePercentage: number;
+  totalSavedTimeMs: number;
+}
+
 export const buildApi = {
   triggerBuild: async (tag: string, dockerfile: string): Promise<TriggerBuildResponse> => {
     const response = await api.post<TriggerBuildResponse>('/builds', { tag, dockerfile });
@@ -464,6 +503,24 @@ export const buildApi = {
     const response = await api.get<{ images: BuiltImage[] }>('/builds/images');
     return response.data.images;
   },
+
+  getBuildManifest: async (buildId: string): Promise<BuildManifest> => {
+    const response = await api.get<{ manifest: BuildManifest }>(`/builds/${buildId}/manifest`);
+    return response.data.manifest;
+  },
+
+  getCacheAnalytics: async (): Promise<CacheAnalytics> => {
+    const response = await api.get<{ analytics: CacheAnalytics }>('/builds/cache/analytics');
+    return response.data.analytics;
+  },
+  deleteBuild: async (id: string): Promise<void> => {
+    const res = await api.delete(`/builds/${id}`);
+    return res.data;
+  },
+  deleteAllBuilds: async (): Promise<void> => {
+    const res = await api.delete('/builds');
+    return res.data;
+  }
 };
 
 // Image Observability API

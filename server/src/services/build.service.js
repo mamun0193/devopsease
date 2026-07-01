@@ -17,6 +17,7 @@ import { recordImageEvent, transitionImageStatus } from './imageLifecycle.servic
 import { logBuildEvent, BUILD_EVENTS } from './build.audit.js';
 import { broadcastBuildLog, broadcastBuildComplete } from '../websocket/build.socket.js';
 import { analyzeBuildFailure } from './buildIntelligence.service.js';
+import { orchestrateBuildIntelligence } from './build/buildIntelligence.orchestrator.js';
 import resourceService from '../resources/resource.service.js';
 import { RESOURCE_TYPES } from '../resources/resourceTypes.js';
 import { pullLatest } from './git.service.js';
@@ -209,6 +210,31 @@ export async function runBuildPipeline(repo, payload = {}) {
                 await ensureGeneratedDockerfile(detection.type, workspacePath);
                 pushLine(`[dockerfile] generated default Dockerfile for ${detection.type} (if missing)`);
             }
+            
+            // Generate Build Intelligence Manifest
+            let dockerfileContent = '';
+            try {
+                const fsPromises = await import('fs/promises');
+                dockerfileContent = await fsPromises.readFile(join(workspacePath, 'Dockerfile'), 'utf8');
+            } catch (err) {}
+            
+            pushLine(`[build-intelligence] Analyzing build context and planning cache strategy...`);
+            const manifest = await orchestrateBuildIntelligence(
+                repo._id, 
+                repo.userId, 
+                workspacePath, 
+                repo.defaultBranch || 'main', 
+                commitHash, 
+                dockerfileContent
+            );
+            
+            pushLine(`[build-intelligence] Strategy: ${manifest.strategy}`);
+            
+            build.manifestId = manifest._id;
+            if (dockerfileContent) {
+                build.dockerfileContent = dockerfileContent;
+            }
+            await build.save();
 
             await runDockerCommand('docker', ['build', '-t', imageTag, '.'], {
                 cwd: workspacePath,

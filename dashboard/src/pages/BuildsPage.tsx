@@ -12,8 +12,12 @@ import {
     Layers,
     Plus,
     ChevronRight,
+    Trash2,
+    Trash
 } from 'lucide-react';
-import { useBuilds, useTriggerBuild } from '../hooks/useBuilds';
+import { useBuilds, useTriggerBuild, useDeleteBuild, useDeleteAllBuilds } from '../hooks/useBuilds';
+import CacheAnalyticsPanel from '../components/builds/CacheAnalyticsPanel';
+import ConfirmModal from '../components/ConfirmModal';
 import type { Build } from '../api';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; icon: React.ReactNode; label: string }> = {
@@ -51,7 +55,7 @@ function formatSize(bytes?: number): string {
     return mb >= 1000 ? `${(mb / 1024).toFixed(2)} GB` : `${mb.toFixed(1)} MB`;
 }
 
-function BuildRow({ build, onClick }: { build: Build; onClick: () => void }) {
+function BuildRow({ build, onClick, onDelete }: { build: Build; onClick: () => void; onDelete: (e: React.MouseEvent) => void }) {
     return (
         <tr
             onClick={onClick}
@@ -96,7 +100,21 @@ function BuildRow({ build, onClick }: { build: Build; onClick: () => void }) {
                 ) : <span className="text-dds-text-muted">—</span>}
             </td>
             <td className="py-3 px-4 text-right">
-                <ChevronRight size={16} className="text-dds-text-muted group-hover:text-dds-text-primary transition-colors ml-auto" />
+                <div className="flex items-center justify-end gap-2">
+                    <button 
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onDelete(e);
+                        }}
+                        className="p-1.5 rounded text-dds-text-muted hover:text-dds-red hover:bg-dds-red/10 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remove Build"
+                    >
+                        <Trash size={15} />
+                    </button>
+                    <ChevronRight size={16} className="text-dds-text-muted group-hover:text-dds-text-primary transition-colors" />
+                </div>
             </td>
         </tr>
     );
@@ -111,6 +129,30 @@ const BuildsPage: React.FC = () => {
     const [tag, setTag] = useState('');
     const [dockerfile, setDockerfile] = useState('FROM alpine:latest\nRUN echo "Hello from DevOpsEase"');
     const [formError, setFormError] = useState('');
+    
+    const [deleteBuildId, setDeleteBuildId] = useState<string | null>(null);
+    const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
+    const deleteBuild = useDeleteBuild();
+    const deleteAllBuilds = useDeleteAllBuilds();
+
+    const handleDeleteBuild = async () => {
+        if (!deleteBuildId) return;
+        try {
+            await deleteBuild.mutateAsync(deleteBuildId);
+            setDeleteBuildId(null);
+        } catch (err) {
+            console.error('Failed to delete build', err);
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        try {
+            await deleteAllBuilds.mutateAsync();
+            setShowDeleteAllConfirm(false);
+        } catch (err) {
+            console.error('Failed to delete all builds', err);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -140,14 +182,27 @@ const BuildsPage: React.FC = () => {
                             <Hammer size={24} className="text-dds-text-primary" />
                             <h1 className="text-2xl font-semibold text-dds-text-primary tracking-tight">Image Builds</h1>
                         </div>
-                        <button
-                            onClick={() => setShowForm(!showForm)}
-                            className="btn-primary flex items-center gap-2"
-                        >
-                            <Plus size={16} />
-                            New Build
-                        </button>
+                        <div className="flex items-center gap-3">
+                            {builds.length > 0 && (
+                                <button
+                                    onClick={() => setShowDeleteAllConfirm(true)}
+                                    className="btn-secondary flex items-center gap-2 border-dds-red/30 text-dds-red hover:bg-dds-red/10"
+                                >
+                                    <Trash2 size={16} />
+                                    Remove All
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setShowForm(!showForm)}
+                                className="btn-primary flex items-center gap-2"
+                            >
+                                <Plus size={16} />
+                                New Build
+                            </button>
+                        </div>
                     </div>
+
+                    <CacheAnalyticsPanel />
 
                     {/* Build Form */}
                     <AnimatePresence>
@@ -238,17 +293,21 @@ const BuildsPage: React.FC = () => {
                                             <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Image Tag</th>
                                             <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Status</th>
                                             <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Duration</th>
-                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Size</th>
-                                            <th className="py-3 px-4 text-[11px] font-mono text-dds-text-muted uppercase tracking-wider">Layers</th>
-                                            <th className="py-3 px-4 w-10"></th>
+                                            <th className="text-left text-[11px] font-semibold text-dds-text-secondary uppercase tracking-wider py-4 px-4 hidden lg:table-cell w-20">Size</th>
+                                            <th className="text-left text-[11px] font-semibold text-dds-text-secondary uppercase tracking-wider py-4 px-4 hidden sm:table-cell w-20">Layers</th>
+                                            <th className="py-4 px-4 w-20 text-right"></th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        {builds.map((build) => (
-                                            <BuildRow
-                                                key={build._id}
-                                                build={build}
-                                                onClick={() => navigate(`/builds/${build._id}`)}
+                                    <tbody className="divide-y divide-dds-border">
+                                        {builds.map(build => (
+                                            <BuildRow 
+                                                key={build._id} 
+                                                build={build} 
+                                                onClick={() => navigate(`/builds/${build._id}`)} 
+                                                onDelete={(e) => {
+                                                    e.stopPropagation();
+                                                    setDeleteBuildId(build._id);
+                                                }}
                                             />
                                         ))}
                                     </tbody>
@@ -258,6 +317,26 @@ const BuildsPage: React.FC = () => {
                     </div>
                 </div>
             </main>
+
+            <ConfirmModal
+                isOpen={!!deleteBuildId}
+                onClose={() => setDeleteBuildId(null)}
+                onConfirm={handleDeleteBuild}
+                title="Remove Build"
+                message="Are you sure you want to remove this build history? The actual image will remain in the registry."
+                confirmLabel="Remove Build"
+                isDangerous={true}
+            />
+
+            <ConfirmModal
+                isOpen={showDeleteAllConfirm}
+                onClose={() => setShowDeleteAllConfirm(false)}
+                onConfirm={handleDeleteAll}
+                title="Remove All Builds"
+                message="Are you sure you want to remove all build histories? This action cannot be undone."
+                confirmLabel="Remove All"
+                isDangerous={true}
+            />
         </div>
     );
 };

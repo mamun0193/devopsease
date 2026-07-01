@@ -19,6 +19,7 @@ import {
 import { useBuild } from '../hooks/useBuilds';
 import { useBuildSocket } from '../hooks/useBuildSocket';
 import BuildFailurePanel from '../components/BuildFailurePanel';
+import BuildIntelligencePanel from '../components/builds/BuildIntelligencePanel';
 
 const STATUS_CONFIG: Record<string, { badgeClass: string; icon: React.ReactNode; label: string }> = {
     pending: { badgeClass: 'badge badge-queued', icon: <Clock size={14} />, label: 'Pending' },
@@ -205,6 +206,8 @@ const BuildDetailPage: React.FC = () => {
                             </p>
                         </div>
                     </div>
+
+                    <BuildIntelligencePanel buildId={buildId!} />
 
                     {/* Error display */}
                     {build.error && (

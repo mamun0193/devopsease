@@ -9,6 +9,12 @@ const buildSchema = new mongoose.Schema({
         default: null,
         index: true
     },
+    manifestId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'BuildManifest',
+        default: null,
+        index: true
+    },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

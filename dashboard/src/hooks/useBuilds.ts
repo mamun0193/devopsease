@@ -35,3 +35,25 @@ export function useTriggerBuild() {
         },
     });
 }
+
+export function useDeleteBuild() {
+    const queryClient = useQueryClient();
+    return useMutation<void, Error, string>({
+        mutationFn: (id) => buildApi.deleteBuild(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['builds'] });
+            queryClient.invalidateQueries({ queryKey: ['cache-analytics'] });
+        },
+    });
+}
+
+export function useDeleteAllBuilds() {
+    const queryClient = useQueryClient();
+    return useMutation<void, Error, void>({
+        mutationFn: () => buildApi.deleteAllBuilds(),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['builds'] });
+            queryClient.invalidateQueries({ queryKey: ['cache-analytics'] });
+        },
+    });
+}
