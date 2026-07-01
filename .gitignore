@@ -1,5 +1,8 @@
+.vscode/
+.github/
 node_modules
 .env
 projectoverview.md
 workspace/
 server/DEVOPSEASE_STORAGE/
+graphify-out/

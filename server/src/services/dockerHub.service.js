@@ -1,7 +1,6 @@
-import DockerHubCredential from '../models/dockerHub.model.js';
+import { saveDockerHubCredentials, getDockerHubCredentials, deleteDockerHubCredentials } from './dockerHubAuth.service.js';
 import Image from '../models/image.js';
 import docker from '../docker/client.js';
-import { encrypt, decrypt } from '../utils/encryption.js';
 import { enforcePullLimit, enforcePushLimit, releasePullSlot, clearUserLimits } from './registryRateLimiter.service.js';
 import { logDockerHubEvent, DOCKERHUB_EVENTS } from './dockerHub.audit.js';
 import imageRegistrationService from './imageRegistration.service.js';
@@ -42,13 +41,7 @@ class DockerHubService {
             );
         }
 
-        const encryptedPassword = encrypt(password);
-
-        const credential = await DockerHubCredential.findOneAndUpdate(
-            { userId },
-            { username, encryptedPassword },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
+        await saveDockerHubCredentials(userId, username, password);
 
         logDockerHubEvent({
             event: DOCKERHUB_EVENTS.DOCKERHUB_CONNECT,
@@ -56,14 +49,14 @@ class DockerHubService {
             metadata: { username }
         });
 
-        return { connected: true, username: credential.username };
+        return { connected: true, username };
     }
 
     /**
      * Disconnect Docker Hub — delete credential + clear rate limiter.
      */
     async disconnectDockerHub(userId) {
-        const result = await DockerHubCredential.deleteOne({ userId });
+        await deleteDockerHubCredentials(userId);
 
         // Clear rate limiter entry to prevent stale blocking after reconnect
         clearUserLimits(userId);
@@ -71,7 +64,7 @@ class DockerHubService {
         logDockerHubEvent({
             event: DOCKERHUB_EVENTS.DOCKERHUB_DISCONNECT,
             userId,
-            metadata: { deleted: result.deletedCount > 0 }
+            metadata: { deleted: true }
         });
 
         return { disconnected: true };
@@ -82,7 +75,7 @@ class DockerHubService {
      * Never returns password.
      */
     async getDockerHubStatus(userId) {
-        const credential = await DockerHubCredential.findOne({ userId }).lean();
+        const credential = await getDockerHubCredentials(userId);
 
         if (!credential) {
             return { connected: false, username: null };
@@ -104,17 +97,14 @@ class DockerHubService {
         enforcePullLimit(userId);
 
         try {
-            // 2. Fetch encrypted credentials (explicitly select encryptedPassword)
-            const credential = await DockerHubCredential.findOne({ userId })
-                .select('+encryptedPassword')
-                .lean();
+            // 2. Fetch encrypted credentials
+            const credential = await getDockerHubCredentials(userId);
 
             if (!credential) {
                 throw new AppError('Docker Hub not connected. Please connect first.', 401, 'NOT_CONNECTED');
             }
 
-            // 3. Decrypt password (NEVER log this)
-            const password = decrypt(credential.encryptedPassword);
+            const password = credential.token;
 
             const authconfig = {
                 username: credential.username,
@@ -237,15 +227,13 @@ class DockerHubService {
         }
 
         // 4. Fetch credentials
-        const credential = await DockerHubCredential.findOne({ userId })
-            .select('+encryptedPassword')
-            .lean();
+        const credential = await getDockerHubCredentials(userId);
 
         if (!credential) {
             throw new AppError('Docker Hub not connected. Please connect first.', 401, 'NOT_CONNECTED');
         }
 
-        const password = decrypt(credential.encryptedPassword);
+        const password = credential.token;
         const authconfig = {
             username: credential.username,
             password,
@@ -262,6 +250,7 @@ class DockerHubService {
 
             // 6. Push image
             const taggedImage = docker.getImage(`${repo}:${tag}`);
+            let digest = null;
             await new Promise((resolve, reject) => {
                 taggedImage.push({ authconfig }, (err, stream) => {
                     if (err) return reject(err);
@@ -272,11 +261,22 @@ class DockerHubService {
                         // Check for error in final output messages
                         const errorMsg = output?.find(o => o.error);
                         if (errorMsg) return reject(new Error(errorMsg.error));
+                        
+                        // Extract digest if available
+                        for (const event of output) {
+                            if (event.aux && event.aux.Digest) {
+                                digest = event.aux.Digest;
+                            }
+                        }
 
                         resolve(output);
                     });
                 });
             });
+
+            // Transition state and record metadata
+            const { markAsPushed } = await import('./imageLifecycle.service.js');
+            await markAsPushed(imageId, repo, tag, digest);
 
             // 7. Audit success
             logDockerHubEvent({

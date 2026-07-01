@@ -254,6 +254,15 @@ export async function reconcileDeployment(deploymentId) {
     }
     await deployment.save();
 
+    if (deployment.status === 'running' && deployment.imageId) {
+        try {
+            const { transitionImageStatus } = await import('./imageLifecycle.service.js');
+            await transitionImageStatus(deployment.imageId, 'DEPLOYED', 'Deployed', { deploymentId: String(deployment._id) });
+        } catch (err) {
+            logger.warn('Failed to transition image lifecycle status', { deploymentId: String(deployment._id), error: err.message });
+        }
+    }
+
     logger.info('Reconciliation complete', {
         deploymentId: String(deployment._id),
         desired,
@@ -289,6 +298,10 @@ export async function deployFromBuild(build, { replicas = 1 } = {}) {
         deployUserId = repo?.userId || null;
     }
 
+    const Image = (await import('../models/image.js')).default;
+    const image = await Image.findOne({ tag: imageTag }).select('_id').lean();
+    const imageId = image ? image._id : null;
+
     let deployment = null;
 
     try {
@@ -300,6 +313,7 @@ export async function deployFromBuild(build, { replicas = 1 } = {}) {
             repoId: build.repoId,
             buildId: build._id,
             imageTag,
+            imageId,
             containerName,
             port,
             environment: deploymentEnvironment,
@@ -614,6 +628,7 @@ export async function rollbackDeployment(deploymentId, options = {}) {
             repoId: previous.repoId,
             buildId: previous.buildId,
             imageTag: previous.imageTag,
+            imageId: previous.imageId,
             containerName,
             port,
             environment: previous.environment,
@@ -651,6 +666,15 @@ export async function rollbackDeployment(deploymentId, options = {}) {
         rollbackDeploymentRecord.containerIds = [containerId];
         rollbackDeploymentRecord.status = 'running';
         await rollbackDeploymentRecord.save();
+
+        if (rollbackDeploymentRecord.imageId) {
+            try {
+                const { transitionImageStatus } = await import('./imageLifecycle.service.js');
+                await transitionImageStatus(rollbackDeploymentRecord.imageId, 'DEPLOYED', 'Rollback Used', { deploymentId: String(rollbackDeploymentRecord._id) });
+            } catch (err) {
+                logger.warn('Failed to transition image lifecycle status on rollback', { rollbackId: String(rollbackDeploymentRecord._id), error: err.message });
+            }
+        }
 
         logger.info('Rollback deployment successful', {
             rollbackId: String(rollbackDeploymentRecord._id),

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
@@ -473,12 +473,32 @@ export interface ImageRecord {
   sizeMB: number;
   layerCount: number;
   imageUsageStatus: 'ACTIVE' | 'UNUSED' | 'DANGLING';
+  lifecycleStatus?: 'BUILDING' | 'READY' | 'DEPLOYED' | 'PUSHED' | 'ARCHIVED' | 'DELETED';
   attachedContainerIds: string[];
   lastUsedAt: string | null;
   pullCount: number;
   pulledFrom: 'DOCKERFILE' | 'REGISTRY';
   dockerImageId: string;
   createdAt: string;
+  
+  // Intelligence Metadata
+  runtime?: string;
+  os?: string;
+  language?: string;
+  framework?: string;
+
+  // Relationships
+  buildId?: string;
+  repoId?: string;
+  
+  // Registry
+  registry?: {
+      provider: string;
+      repository: string;
+      pushedTag: string;
+      pushedDigest: string | null;
+      pushTimestamp: string | null;
+  };
 }
 
 export interface ImageUsageSummary {
@@ -519,6 +539,11 @@ export const imageApi = {
     const response = await api.post('/images/prune-build-cache');
     return response.data;
   },
+
+  deleteImage: async (imageId: string): Promise<{ message: string }> => {
+    const response = await api.delete(`/images/${imageId}`);
+    return response.data;
+  }
 };
 
 // Project API

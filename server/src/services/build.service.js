@@ -11,6 +11,9 @@ import Image from '../models/image.js';
 import User from '../models/User.js';
 import logger from '../utils/logger.js';
 import { createTempBuildDir, cleanupTempDir } from '../utils/tempDir.js';
+import { extractImageMetadata } from './imageMetadata.service.js';
+import { generateFingerprints } from './imageFingerprint.service.js';
+import { recordImageEvent, transitionImageStatus } from './imageLifecycle.service.js';
 import { logBuildEvent, BUILD_EVENTS } from './build.audit.js';
 import { broadcastBuildLog, broadcastBuildComplete } from '../websocket/build.socket.js';
 import { analyzeBuildFailure } from './buildIntelligence.service.js';
@@ -226,19 +229,31 @@ export async function runBuildPipeline(repo, payload = {}) {
         try {
             const imageInspect = await docker.getImage(imageTag).inspect();
             imageSizeBytes = imageInspect.Size || 0;
-            layerCount = imageInspect.RootFS?.Layers?.length || 0;
             dockerImageId = imageInspect.Id;
-            sizeMB = Math.round((imageSizeBytes / (1024 * 1024)) * 100) / 100;
+
+            // Extract rich metadata and fingerprints
+            const metadata = await extractImageMetadata(dockerImageId, repo._id);
+            const fingerprints = await generateFingerprints(workspacePath);
+            
+            sizeMB = metadata.sizeMB;
+            layerCount = metadata.layerCount;
 
             // Create Image record
             const image = await Image.create({
                 userId: repo.userId,
+                repoId: repo._id,
                 tag: imageTag,
                 dockerImageId,
-                sizeMB,
-                layerCount,
-                buildId: build._id
+                buildId: build._id,
+                ...metadata,
+                ...fingerprints,
+                lifecycleStatus: 'READY'
             });
+
+            // Log timeline events
+            await recordImageEvent(image._id, repo.userId, 'Image Built', { buildId: build._id.toString() });
+            await recordImageEvent(image._id, repo.userId, 'Metadata Extracted');
+            await recordImageEvent(image._id, repo.userId, 'Tagged', { tag: imageTag });
 
             // Update User storage
             await User.findByIdAndUpdate(repo.userId, {
@@ -487,19 +502,28 @@ class BuildService {
             // Build succeeded — inspect image
             const imageInspect = await docker.getImage(build.tag).inspect();
             const imageSizeBytes = imageInspect.Size || 0;
-            const layerCount = imageInspect.RootFS?.Layers?.length || 0;
             const dockerImageId = imageInspect.Id;
-            const sizeMB = Math.round((imageSizeBytes / (1024 * 1024)) * 100) / 100;
+
+            const metadata = await extractImageMetadata(dockerImageId, null);
+            const fingerprints = await generateFingerprints(tempDir);
+
+            const sizeMB = metadata.sizeMB;
+            const layerCount = metadata.layerCount;
 
             // Create Image record
             const image = await Image.create({
                 userId: build.userId,
                 tag: build.tag,
                 dockerImageId,
-                sizeMB,
-                layerCount,
-                buildId: build._id
+                buildId: build._id,
+                ...metadata,
+                ...fingerprints,
+                lifecycleStatus: 'READY'
             });
+
+            await recordImageEvent(image._id, build.userId, 'Image Built', { buildId: build._id.toString() });
+            await recordImageEvent(image._id, build.userId, 'Metadata Extracted');
+            await recordImageEvent(image._id, build.userId, 'Tagged', { tag: build.tag });
 
             // Update User storage
             await User.findByIdAndUpdate(build.userId, {

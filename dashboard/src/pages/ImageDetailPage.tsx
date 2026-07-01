@@ -13,17 +13,24 @@ import {
     Box,
     Copy,
     Loader2,
+    Activity,
+    GitCommit,
+    TerminalSquare,
+    Upload,
 } from 'lucide-react';
 import { imageApi } from '../api';
 
 const STATUS_CONFIG: Record<string, { badgeClass: string; label: string }> = {
-    ACTIVE: { badgeClass: 'badge badge-success', label: 'Active' },
-    UNUSED: { badgeClass: 'badge badge-warning', label: 'Unused' },
-    DANGLING: { badgeClass: 'badge badge-failed', label: 'Dangling' },
+    BUILDING: { badgeClass: 'badge badge-queued', label: 'Building' },
+    READY: { badgeClass: 'badge badge-success', label: 'Ready' },
+    DEPLOYED: { badgeClass: 'badge badge-running', label: 'Deployed' },
+    PUSHED: { badgeClass: 'badge badge-warning', label: 'Pushed' },
+    ARCHIVED: { badgeClass: 'badge badge-warning', label: 'Archived' },
+    DELETED: { badgeClass: 'badge badge-failed', label: 'Deleted' },
 };
 
 function StatusBadge({ status }: { status: string }) {
-    const config = STATUS_CONFIG[status] || STATUS_CONFIG.UNUSED;
+    const config = STATUS_CONFIG[status] || STATUS_CONFIG.READY;
     return (
         <span className={config.badgeClass}>
             {config.label}
@@ -74,7 +81,7 @@ const ImageDetailPage: React.FC = () => {
     return (
         <div className="min-h-screen flex flex-col bg-dds-bg">
             <main className="flex-1 p-6 lg:p-8">
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-5xl mx-auto">
                     {/* Back + Title */}
                     <div className="flex items-center gap-4 mb-8">
                         <button onClick={() => navigate('/images')} className="text-dds-text-secondary hover:text-dds-white transition-colors p-1.5 rounded-lg hover:bg-dds-surface">
@@ -88,7 +95,7 @@ const ImageDetailPage: React.FC = () => {
                                 <h1 className="text-base font-semibold text-dds-text-primary">{image?.tag || 'Loading...'}</h1>
                                 {image && <p className="text-[12px] font-mono text-dds-text-muted mt-0.5">Image Details</p>}
                             </div>
-                            {image && <StatusBadge status={image.imageUsageStatus} />}
+                            {image && <StatusBadge status={image.lifecycleStatus || 'READY'} />}
                         </div>
                     </div>
 
@@ -110,107 +117,175 @@ const ImageDetailPage: React.FC = () => {
                             </button>
                         </div>
                     ) : (
-                        <div className="space-y-6">
-                            {/* Overview Card */}
-                            <motion.div
-                                className="bg-dds-surface border border-dds-border rounded-xl p-6 shadow-sm"
-                                initial={{ opacity: 0, y: 12 }}
-                                animate={{ opacity: 1, y: 0 }}
-                            >
-                                <h2 className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-6">Overview</h2>
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                                    <DetailField icon={Hash} label="Docker Image ID">
-                                        <div className="flex items-center gap-2">
-                                            <code className="text-[12px] text-dds-text-primary bg-dds-bg border border-dds-border/50 px-2 py-1 rounded font-mono">
-                                                {cleanId ? cleanId.substring(0, 16) + '...' : '—'}
-                                            </code>
-                                            {cleanId && (
-                                                <button
-                                                    onClick={() => navigator.clipboard.writeText(cleanId)}
-                                                    className="text-dds-text-muted hover:text-dds-white transition-colors p-1"
-                                                    title="Copy full ID"
-                                                >
-                                                    <Copy size={13} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </DetailField>
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2 space-y-6">
+                                {/* Overview Card */}
+                                <motion.div
+                                    className="bg-dds-surface border border-dds-border rounded-xl p-6 shadow-sm"
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                >
+                                    <h2 className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-6 flex items-center gap-2">
+                                        <Hash size={14} /> Identity & Intelligence
+                                    </h2>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <DetailField label="Docker Image ID">
+                                            <div className="flex items-center gap-2">
+                                                <code className="text-[12px] text-dds-text-primary bg-dds-bg border border-dds-border/50 px-2 py-1 rounded font-mono">
+                                                    {cleanId ? cleanId.substring(0, 16) + '...' : '—'}
+                                                </code>
+                                                {cleanId && (
+                                                    <button
+                                                        onClick={() => navigator.clipboard.writeText(cleanId)}
+                                                        className="text-dds-text-muted hover:text-dds-white transition-colors p-1"
+                                                        title="Copy full ID"
+                                                    >
+                                                        <Copy size={13} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </DetailField>
 
-                                    <DetailField icon={HardDrive} label="Size">
-                                        <p className="text-[13px] font-mono font-medium text-dds-text-primary">{formatSize(image.sizeMB)}</p>
-                                    </DetailField>
+                                        <DetailField icon={HardDrive} label="Size & Layers">
+                                            <p className="text-[13px] font-mono font-medium text-dds-text-primary">{formatSize(image.sizeMB)} / {image.layerCount} layers</p>
+                                        </DetailField>
 
-                                    <DetailField icon={Layers} label="Layers">
-                                        <p className="text-[13px] font-mono font-medium text-dds-text-primary">{image.layerCount}</p>
-                                    </DetailField>
+                                        <DetailField icon={TerminalSquare} label="Runtime & OS">
+                                            <p className="text-[13px] font-medium text-dds-text-primary capitalize">{image.runtime || 'Unknown'} / {image.os || 'Unknown'}</p>
+                                        </DetailField>
 
-                                    <DetailField label="Status">
-                                        <StatusBadge status={image.imageUsageStatus} />
-                                    </DetailField>
-                                </div>
-                            </motion.div>
-
-                            {/* Usage & Source Card */}
-                            <motion.div
-                                className="bg-dds-surface border border-dds-border rounded-xl p-6 shadow-sm"
-                                initial={{ opacity: 0, y: 12 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.05 }}
-                            >
-                                <h2 className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-6">Usage & Source</h2>
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                                    <DetailField icon={Download} label="Pull Count">
-                                        <p className="text-[13px] font-mono font-medium text-dds-text-primary">{image.pullCount ?? 0}</p>
-                                    </DetailField>
-
-                                    <DetailField icon={Box} label="Source">
-                                        <span className={`badge ${(image.pulledFrom || 'DOCKERFILE') === 'DOCKERFILE'
-                                                ? 'badge-queued'
-                                                : 'badge-running'
-                                            }`}>
-                                            {image.pulledFrom || 'DOCKERFILE'}
-                                        </span>
-                                    </DetailField>
-
-                                    <DetailField icon={Clock} label="Created">
-                                        <p className="text-[13px] font-mono text-dds-text-secondary">{formatDate(image.createdAt)}</p>
-                                    </DetailField>
-
-                                    <DetailField icon={Clock} label="Last Used">
-                                        <p className="text-[13px] font-mono text-dds-text-secondary">{formatDate(image.lastUsedAt)}</p>
-                                    </DetailField>
-                                </div>
-                            </motion.div>
-
-                            {/* Attached Containers Card */}
-                            <motion.div
-                                className="bg-dds-surface border border-dds-border rounded-xl p-6 shadow-sm"
-                                initial={{ opacity: 0, y: 12 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                            >
-                                <h2 className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-6 flex items-center gap-2">
-                                    <Server size={14} />
-                                    Attached Containers
-                                    <span className="text-[10px] text-dds-text-muted font-normal bg-dds-bg px-1.5 py-0.5 rounded">
-                                        {image.attachedContainerIds.length}
-                                    </span>
-                                </h2>
-                                {image.attachedContainerIds.length > 0 ? (
-                                    <div className="flex flex-wrap gap-2">
-                                        {image.attachedContainerIds.map((cid) => (
-                                            <code
-                                                key={cid}
-                                                className="text-[12px] text-dds-text-primary bg-dds-bg border border-dds-border/50 px-2 py-1 rounded font-mono cursor-default"
-                                            >
-                                                {cid.substring(0, 12)}
-                                            </code>
-                                        ))}
+                                        <DetailField icon={GitCommit} label="Language / Framework">
+                                            <p className="text-[13px] font-medium text-dds-text-primary">
+                                                {image.language || 'N/A'} {image.framework ? `(${image.framework})` : ''}
+                                            </p>
+                                        </DetailField>
                                     </div>
-                                ) : (
-                                    <p className="text-[13px] text-dds-text-muted italic">No containers attached to this image</p>
+                                </motion.div>
+
+                                {/* Registry Card */}
+                                {image.registry?.provider && (
+                                    <motion.div
+                                        className="bg-dds-surface border border-dds-border rounded-xl p-6 shadow-sm"
+                                        initial={{ opacity: 0, y: 12 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.05 }}
+                                    >
+                                        <h2 className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-6 flex items-center gap-2">
+                                            <Upload size={14} /> Registry Info
+                                        </h2>
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <DetailField label="Provider">
+                                                <p className="text-[13px] font-medium text-dds-text-primary">{image.registry.provider}</p>
+                                            </DetailField>
+
+                                            <DetailField label="Pushed Target">
+                                                <p className="text-[13px] font-mono text-dds-text-secondary">{image.registry.repository}:{image.registry.pushedTag}</p>
+                                            </DetailField>
+                                            
+                                            <DetailField label="Pushed At">
+                                                <p className="text-[13px] font-mono text-dds-text-secondary">{formatDate(image.registry.pushTimestamp?.toString() || null)}</p>
+                                            </DetailField>
+                                            
+                                            <DetailField label="Digest">
+                                                <p className="text-[13px] font-mono text-dds-text-secondary truncate max-w-[200px]" title={image.registry.pushedDigest || undefined}>
+                                                    {image.registry.pushedDigest || '—'}
+                                                </p>
+                                            </DetailField>
+                                        </div>
+                                    </motion.div>
                                 )}
-                            </motion.div>
+
+                                {/* Attached Containers Card */}
+                                <motion.div
+                                    className="bg-dds-surface border border-dds-border rounded-xl p-6 shadow-sm"
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.1 }}
+                                >
+                                    <h2 className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-6 flex items-center gap-2">
+                                        <Server size={14} />
+                                        Attached Containers
+                                        <span className="text-[10px] text-dds-text-muted font-normal bg-dds-bg px-1.5 py-0.5 rounded">
+                                            {image.attachedContainerIds.length}
+                                        </span>
+                                    </h2>
+                                    {image.attachedContainerIds.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2">
+                                            {image.attachedContainerIds.map((cid: string) => (
+                                                <code
+                                                    key={cid}
+                                                    className="text-[12px] text-dds-text-primary bg-dds-bg border border-dds-border/50 px-2 py-1 rounded font-mono cursor-default"
+                                                >
+                                                    {cid.substring(0, 12)}
+                                                </code>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-[13px] text-dds-text-muted italic">No containers attached to this image</p>
+                                    )}
+                                </motion.div>
+                            </div>
+
+                            {/* Sidebar / Timeline */}
+                            <div className="space-y-6">
+                                <motion.div
+                                    className="bg-dds-surface border border-dds-border rounded-xl p-6 shadow-sm"
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.15 }}
+                                >
+                                    <h2 className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-6 flex items-center gap-2">
+                                        <Activity size={14} /> Event Timeline
+                                    </h2>
+                                    
+                                    {/* Timeline placeholder - will need API endpoint for fetching history later */}
+                                    <div className="relative border-l border-dds-border/50 ml-3 space-y-6">
+                                        <div className="relative pl-6">
+                                            <span className="absolute left-[-5px] top-1 w-2.5 h-2.5 rounded-full bg-dds-blue ring-4 ring-dds-surface"></span>
+                                            <p className="text-[13px] font-medium text-dds-text-primary">Image Created</p>
+                                            <p className="text-[11px] text-dds-text-muted font-mono mt-1">{formatDate(image.createdAt)}</p>
+                                        </div>
+                                        <div className="relative pl-6">
+                                            <span className="absolute left-[-5px] top-1 w-2.5 h-2.5 rounded-full bg-dds-text-muted ring-4 ring-dds-surface"></span>
+                                            <p className="text-[13px] font-medium text-dds-text-primary">Last Used</p>
+                                            <p className="text-[11px] text-dds-text-muted font-mono mt-1">{formatDate(image.lastUsedAt)}</p>
+                                        </div>
+                                    </div>
+                                    
+                                </motion.div>
+                                
+                                <motion.div
+                                    className="bg-dds-surface border border-dds-border rounded-xl p-6 shadow-sm"
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2 }}
+                                >
+                                    <h2 className="text-[11px] font-mono font-medium text-dds-text-secondary uppercase tracking-wider mb-6 flex items-center gap-2">
+                                        <Box size={14} /> Lineage
+                                    </h2>
+                                    <div className="space-y-4">
+                                        <DetailField label="Build Pipeline">
+                                            {image.buildId ? (
+                                                <button onClick={() => navigate(`/builds/${image.buildId}`)} className="text-[13px] text-dds-blue hover:underline font-mono">
+                                                    {image.buildId.substring(0, 8)}
+                                                </button>
+                                            ) : (
+                                                <p className="text-[13px] text-dds-text-muted italic">No build associated</p>
+                                            )}
+                                        </DetailField>
+                                        
+                                        <DetailField label="Repository">
+                                            {image.repoId ? (
+                                                <button onClick={() => navigate(`/projects/${image.repoId}`)} className="text-[13px] text-dds-blue hover:underline font-mono">
+                                                    {image.repoId.substring(0, 8)}
+                                                </button>
+                                            ) : (
+                                                <p className="text-[13px] text-dds-text-muted italic">No repository associated</p>
+                                            )}
+                                        </DetailField>
+                                    </div>
+                                </motion.div>
+                            </div>
                         </div>
                     )}
                 </div>

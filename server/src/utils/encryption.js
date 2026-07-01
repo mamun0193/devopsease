@@ -18,9 +18,7 @@ export function decrypt(encryptedText) {
     return provider.decrypt(encryptedText);
 }
 
-//Returns the active provider name for diagnostics.
- * @returns {string}
- */
+// Returns the active provider name for diagnostics.
 export function getProviderName() {
     return provider.providerName;
 }

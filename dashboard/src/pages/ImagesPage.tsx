@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch } from 'react-redux';
 import {
@@ -22,18 +22,22 @@ import {
     Download,
 } from 'lucide-react';
 import PushImageModal from '../components/registry/PushImageModal';
+import ConfirmModal from '../components/ConfirmModal';
 import { imageApi } from '../api';
 import { useDockerHubStatus } from '../hooks/useDockerHub';
 import { addToast } from '../store/toastSlice';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; border: string; label: string }> = {
-    ACTIVE: { color: 'text-dds-green', bg: 'bg-dds-green/10', border: 'border-dds-green/30', label: 'Active' },
-    UNUSED: { color: 'text-dds-yellow', bg: 'bg-dds-yellow/10', border: 'border-dds-yellow/30', label: 'Unused' },
-    DANGLING: { color: 'text-dds-red', bg: 'bg-dds-red/10', border: 'border-dds-red/30', label: 'Dangling' },
+    BUILDING: { color: 'text-dds-blue', bg: 'bg-dds-blue/10', border: 'border-dds-blue/30', label: 'Building' },
+    READY: { color: 'text-dds-green', bg: 'bg-dds-green/10', border: 'border-dds-green/30', label: 'Ready' },
+    DEPLOYED: { color: 'text-dds-primary', bg: 'bg-dds-primary/10', border: 'border-dds-primary/30', label: 'Deployed' },
+    PUSHED: { color: 'text-dds-orange', bg: 'bg-dds-orange/10', border: 'border-dds-orange/30', label: 'Pushed' },
+    ARCHIVED: { color: 'text-dds-yellow', bg: 'bg-dds-yellow/10', border: 'border-dds-yellow/30', label: 'Archived' },
+    DELETED: { color: 'text-dds-red', bg: 'bg-dds-red/10', border: 'border-dds-red/30', label: 'Deleted' },
 };
 
 function StatusBadge({ status }: { status: string }) {
-    const config = STATUS_CONFIG[status] || STATUS_CONFIG.UNUSED;
+    const config = STATUS_CONFIG[status] || STATUS_CONFIG.READY;
     return (
         <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-mono tracking-wide ${config.color} ${config.bg} border ${config.border}`}>
             {config.label}
@@ -402,6 +406,7 @@ const ImagesPage: React.FC = () => {
     const [showPruneModal, setShowPruneModal] = useState(false);
     const [showBuildCacheModal, setShowBuildCacheModal] = useState(false);
     const [pushTarget, setPushTarget] = useState<{ imageId: string; imageTag: string } | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<{ imageId: string; imageTag: string } | null>(null);
     const { data: dockerHubStatus } = useDockerHubStatus();
     const isHubConnected = dockerHubStatus?.connected === true;
 
@@ -423,6 +428,41 @@ const ImagesPage: React.FC = () => {
         if (activeFilter === 'all') return images;
         return images.filter(img => img.imageUsageStatus === activeFilter);
     }, [images, activeFilter]);
+
+    const queryClient = useQueryClient();
+    const dispatch = useDispatch();
+
+    const deleteMutation = useMutation({
+        mutationFn: imageApi.deleteImage,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['images'] });
+            queryClient.invalidateQueries({ queryKey: ['images-usage-summary'] });
+            dispatch(addToast({ message: 'Image deleted successfully', type: 'success', duration: 4000 }));
+        },
+        onError: (err: any) => {
+            dispatch(addToast({ 
+                message: err?.response?.data?.error || 'Failed to delete image', 
+                type: 'error', 
+                duration: 5000 
+            }));
+        }
+    });
+
+    const handleDelete = (e: React.MouseEvent, image: any) => {
+        e.stopPropagation();
+        if (image.attachedContainerIds?.length > 0) {
+            dispatch(addToast({ message: 'Cannot delete image that is in use by containers', type: 'error', duration: 4000 }));
+            return;
+        }
+        setDeleteTarget({ imageId: image._id, imageTag: image.tag });
+    };
+
+    const confirmDelete = () => {
+        if (deleteTarget) {
+            deleteMutation.mutate(deleteTarget.imageId);
+            setDeleteTarget(null);
+        }
+    };
 
     const filterCounts = useMemo(() => ({
         all: images.length,
@@ -524,12 +564,13 @@ const ImagesPage: React.FC = () => {
                                                 {filteredImages.map((image, idx) => (
                                                     <tr
                                                         key={image._id}
-                                                        className="border-b border-dds-border last:border-0 hover:bg-dds-muted/50 transition-colors"
+                                                        className="border-b border-dds-border last:border-0 hover:bg-dds-muted/80 transition-colors cursor-pointer group"
                                                         onClick={() => navigate(`/images/${image._id}`)}
                                                     >
-                                                        <td className="px-5 py-3.5">
+                                                        <td className="px-5 py-3.5 relative">
+                                                            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-dds-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                                                             <div className="flex items-center gap-3">
-                                                                <Layers size={16} className="text-dds-text-muted" />
+                                                                <Layers size={16} className="text-dds-text-muted group-hover:text-dds-primary transition-colors" />
                                                                 <span className="text-[13px] font-medium text-dds-text-primary max-w-[200px] truncate">{image.tag}</span>
                                                             </div>
                                                         </td>
@@ -540,7 +581,14 @@ const ImagesPage: React.FC = () => {
                                                             </span>
                                                         </td>
                                                         <td className="px-5 py-3.5">
-                                                            <StatusBadge status={image.imageUsageStatus} />
+                                                            <div className="flex items-center gap-2">
+                                                                <StatusBadge status={image.lifecycleStatus || 'READY'} />
+                                                                {image.registry?.provider === 'DOCKERHUB' && (
+                                                                    <span className="flex items-center justify-center w-5 h-5 rounded-md bg-[#1D63ED]/10 text-[#1D63ED] title='Pushed to Docker Hub'">
+                                                                        <Upload size={12} />
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                         </td>
                                                         <td className="px-5 py-3.5">
                                                             {image.attachedContainerIds.length > 0 ? (
@@ -558,19 +606,30 @@ const ImagesPage: React.FC = () => {
                                                                 {formatDate(image.lastUsedAt)}
                                                             </span>
                                                         </td>
-                                                        <td className="px-5 py-3.5 text-right">
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setPushTarget({ imageId: image._id, imageTag: image.tag });
-                                                                }}
-                                                                disabled={!isHubConnected}
-                                                                className="btn-ghost text-dds-blue px-2 py-1 h-auto hover:bg-dds-blue/10 disabled:opacity-30 disabled:cursor-not-allowed"
-                                                                title={isHubConnected ? 'Push to Docker Hub' : 'Connect Docker Hub first'}
-                                                            >
-                                                                <Upload size={12} />
-                                                                Push
-                                                            </button>
+                                                        <td className="px-5 py-3.5">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setPushTarget({ imageId: image._id, imageTag: image.tag });
+                                                                    }}
+                                                                    disabled={!isHubConnected}
+                                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-dds-blue/10 text-dds-blue border border-dds-blue/20 hover:bg-dds-blue/20 hover:border-dds-blue/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    title={isHubConnected ? 'Push to Docker Hub' : 'Connect Docker Hub first'}
+                                                                >
+                                                                    <Upload size={12} />
+                                                                    Push
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => handleDelete(e, image)}
+                                                                    disabled={image.attachedContainerIds?.length > 0 || deleteMutation.isPending}
+                                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-dds-red/10 text-dds-red border border-dds-red/20 hover:bg-dds-red/20 hover:border-dds-red/30 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    title="Delete image"
+                                                                >
+                                                                    <Trash2 size={12} />
+                                                                    Delete
+                                                                </button>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -594,6 +653,17 @@ const ImagesPage: React.FC = () => {
                 onClose={() => setPushTarget(null)}
                 imageId={pushTarget?.imageId || ''}
                 imageTag={pushTarget?.imageTag || ''}
+            />
+
+            {/* Confirm Delete Modal */}
+            <ConfirmModal
+                isOpen={deleteTarget !== null}
+                onClose={() => setDeleteTarget(null)}
+                onConfirm={confirmDelete}
+                title="Delete Image"
+                message={`Are you sure you want to delete image "${deleteTarget?.imageTag}"? This action cannot be undone.`}
+                confirmLabel={deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+                isDangerous={true}
             />
         </div>
     );

@@ -8,18 +8,39 @@ class ImageRegistrationService {
         const inspectData = await docker.getImage(imageName).inspect();
 
         const dockerImageId = inspectData.Id;
-        const sizeBytes = inspectData.Size || inspectData.VirtualSize || 0;
-        const sizeMB = Math.round((sizeBytes / (1024 * 1024)) * 100) / 100;
-        const layerCount = inspectData.RootFS?.Layers?.length || 0;
+        const { extractImageMetadata } = await import('./imageMetadata.service.js');
+        const { recordImageEvent } = await import('./imageLifecycle.service.js');
+        
+        let metadata;
+        try {
+            metadata = await extractImageMetadata(dockerImageId);
+        } catch (err) {
+            logger.warn(`Failed to extract rich metadata for pulled image ${imageName}`, { err: err.message });
+            metadata = {
+                sizeMB: Math.round(((inspectData.Size || inspectData.VirtualSize || 0) / (1024 * 1024)) * 100) / 100,
+                layerCount: inspectData.RootFS?.Layers?.length || 0,
+            };
+        }
+
+        const sizeMB = metadata.sizeMB;
+        const layerCount = metadata.layerCount;
 
         // Check if this exact image (by dockerImageId) already registered for user
         const existing = await Image.findOne({ userId, dockerImageId });
 
         if (existing) {
             existing.imageUsageStatus = 'ACTIVE';
+            existing.lifecycleStatus = 'READY';
             existing.pullCount = (existing.pullCount || 0) + 1;
             existing.lastUsedAt = new Date();
+            
+            // Enrich with metadata if missing
+            if (!existing.architecture) {
+                Object.assign(existing, metadata);
+            }
             await existing.save();
+            
+            await recordImageEvent(existing._id, userId, 'Pulled', { tag: imageName });
 
             logger.info('Registry image already registered, updated usage', {
                 userId: userId.toString(),
@@ -37,12 +58,15 @@ class ImageRegistrationService {
             // Tag exists but different dockerImageId — update in place
             const oldSizeMB = byTag.sizeMB || 0;
             byTag.dockerImageId = dockerImageId;
-            byTag.sizeMB = sizeMB;
-            byTag.layerCount = layerCount;
+            Object.assign(byTag, metadata);
+            
             byTag.imageUsageStatus = 'ACTIVE';
+            byTag.lifecycleStatus = 'READY';
             byTag.pullCount = (byTag.pullCount || 0) + 1;
             byTag.lastUsedAt = new Date();
             await byTag.save();
+            
+            await recordImageEvent(byTag._id, userId, 'Pulled', { tag: imageName });
 
             // Adjust storage delta
             const delta = sizeMB - oldSizeMB;
@@ -64,13 +88,15 @@ class ImageRegistrationService {
             userId,
             tag: imageName,
             dockerImageId,
-            sizeMB,
-            layerCount,
+            ...metadata,
             pulledFrom: 'REGISTRY',
             imageUsageStatus: 'ACTIVE',
+            lifecycleStatus: 'READY',
             pullCount: 1,
             lastUsedAt: new Date()
         });
+        
+        await recordImageEvent(imageRecord._id, userId, 'Pulled', { tag: imageName });
 
         // Increment user storage
         await User.findByIdAndUpdate(userId, { $inc: { storageUsedMB: sizeMB } });
