@@ -18,12 +18,14 @@ import {
   GitBranch,
   Cloud,
   Box,
+  Activity,
 } from 'lucide-react';
 import AppFooter from '../components/AppFooter';
 import OverviewCard from '../components/OverviewCard';
 import ResourceUsagePanel from '../components/ResourceUsagePanel';
 import TopContainersPanel from '../components/TopContainersPanel';
 import RecentDeploymentsTable from '../components/RecentDeploymentsTable';
+import ReleaseActivityWidget from '../components/releases/ReleaseActivityWidget';
 import { useContainers, useHealthCheck } from '../hooks/useContainers';
 import { useBuilds } from '../hooks/useBuilds';
 import { useImages, useImageUsageSummary } from '../hooks/useImages';
@@ -34,6 +36,7 @@ import { useRepos } from '../hooks/useRepos';
 import { useDockerHubStatus } from '../hooks/useDockerHub';
 import { useDeployments } from '../hooks/useDeployments';
 import { useClusters } from '../hooks/useClusters';
+import { useReleases } from '../hooks/useReleases';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -65,6 +68,7 @@ const HomePage: React.FC = () => {
   const { data: hubStatus } = useDockerHubStatus();
   const { data: deployments = [] } = useDeployments();
   const { data: clusters = [] } = useClusters();
+  const { data: releases = [] } = useReleases();
 
   // ── derived ───────────────────────────────────────────────────────────────
   const running = containers.filter(c => c.state?.running).length;
@@ -126,6 +130,14 @@ const HomePage: React.FC = () => {
     ...(deployStopped > 0 ? [{ text: `${deployStopped} stopped`, colorClass: 'text-slate-400' }] : []),
   ];
 
+  const releaseActive = releases.filter(r => r.status === 'Active').length;
+  const releaseDraft = releases.filter(r => r.status === 'Draft').length;
+
+  const releaseStats = [
+    ...(releaseActive > 0 ? [{ text: `${releaseActive} active`, colorClass: 'text-emerald-400' }] : []),
+    ...(releaseDraft > 0 ? [{ text: `${releaseDraft} drafts`, colorClass: 'text-slate-400' }] : []),
+  ];
+
   return (
     <div className="flex flex-col h-full bg-dds-bg text-dds-white">
       
@@ -175,9 +187,19 @@ const HomePage: React.FC = () => {
               stats={deployStats}
             />
 
-            {/* Clusters */}
+            {/* Releases */}
             <OverviewCard
               col={0}
+              icon={<Activity size={13} />}
+              label="Releases"
+              onClick={() => navigate('/releases')}
+              count={releases.length}
+              stats={releaseStats}
+            />
+
+            {/* Clusters */}
+            <OverviewCard
+              col={1}
               icon={<Cloud size={13} />}
               label="Clusters"
               onClick={() => navigate('/clusters')}
@@ -330,6 +352,13 @@ const HomePage: React.FC = () => {
           </motion.div>
 
           <div className="flex flex-col gap-6">
+            {/* Release Activity Widget */}
+            <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ delay: 0.35 }}>
+              <div className="h-80">
+                <ReleaseActivityWidget />
+              </div>
+            </motion.div>
+
             {/* Recent Deployments Table */}
             <motion.div variants={fadeUp} initial="hidden" animate="visible" transition={{ delay: 0.4 }}>
               <RecentDeploymentsTable />

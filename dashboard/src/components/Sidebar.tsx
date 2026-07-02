@@ -31,6 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Applications', path: '/applications', icon: Globe },
       { label: 'Environments', path: '/environments', icon: KeyRound },
+      { label: 'Releases', path: '/releases', icon: Activity },
       { label: 'Deployments', path: '/deployments', icon: Rocket },
       { label: 'Containers', path: '/containers', icon: Server },
       { label: 'Pods', path: '/pods', icon: Box },

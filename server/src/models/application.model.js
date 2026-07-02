@@ -52,12 +52,18 @@ const applicationSchema = new mongoose.Schema({
         default: 'docker',
     },
 
-    // Current deployment pointer — named "current" (not "active") to support
-    // future multi-environment routing (production, staging, preview, canary)
-    // without schema migration.
+    // Deprecated: Moving to Release & Traffic orchestration architecture.
+    // Kept temporarily for backward compatibility during migration.
     currentDeploymentId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Deployment',
+        default: null,
+    },
+
+    // Link to the active user-defined traffic policy
+    trafficPolicyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'TrafficPolicy',
         default: null,
     },
 

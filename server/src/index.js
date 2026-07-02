@@ -59,6 +59,8 @@ import systemRoutes from "./routes/system.routes.js";
 import applicationRoutes from "./routes/application.routes.js";
 import gatewayRoutes from "./routes/gateway.routes.js";
 import gatewayService from "./gateway/gateway.service.js";
+import releaseRoutes from "./routes/release.routes.js";
+import trafficRoutes from "./routes/traffic.routes.js";
 
 // 1. Validate Environment immediately
 validateEnv();
@@ -124,6 +126,8 @@ app.use("/api/pipeline-runs", pipelineRunRoutes);
 app.use("/api/secrets", secretRoutes);
 app.use("/api/config", envManagementRoutes);
 app.use("/api/applications", applicationRoutes);
+app.use("/api/releases", releaseRoutes);
+app.use("/api/traffic", trafficRoutes);
 
 // ─── Backward-compat aliases (old bare paths → same routers) ─────────────────
 // These keep existing frontend and CLI working without changes.
@@ -147,6 +151,8 @@ app.use("/dockerhub", dockerHubRoutes);
 app.use("/tunnels", tunnelRoutes);
 app.use("/quota", quotaRoutes);
 app.use("/system", systemRoutes);
+app.use("/releases", releaseRoutes);
+app.use("/traffic", trafficRoutes);
 
 // Application Gateway (proxy) 
 app.use("/apps", gatewayRoutes);

@@ -537,7 +537,7 @@ export interface ImageRecord {
   pulledFrom: 'DOCKERFILE' | 'REGISTRY';
   dockerImageId: string;
   createdAt: string;
-  
+
   // Intelligence Metadata
   runtime?: string;
   os?: string;
@@ -547,14 +547,14 @@ export interface ImageRecord {
   // Relationships
   buildId?: string;
   repoId?: string;
-  
+
   // Registry
   registry?: {
-      provider: string;
-      repository: string;
-      pushedTag: string;
-      pushedDigest: string | null;
-      pushTimestamp: string | null;
+    provider: string;
+    repository: string;
+    pushedTag: string;
+    pushedDigest: string | null;
+    pushTimestamp: string | null;
   };
 }
 
@@ -1220,6 +1220,9 @@ export default api;
 // Re-export alerts API
 export { alertsApi } from './alerts';
 export type { Alert, AlertsResponse } from './alerts';
+
+export * from './releasesApi';
+export * from './trafficApi';
 
 // Application Gateway 
 

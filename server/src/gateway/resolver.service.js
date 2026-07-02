@@ -1,14 +1,15 @@
 import Application from '../models/application.model.js';
 import Deployment from '../models/deployment.model.js';
+import RoutingTable from '../models/routingTable.model.js';
 import { getResolverForProvider } from './resolverRegistry.js';
 import gatewayEvents from './gateway.events.js';
+import releaseEvents from '../events/release.events.js';
 import logger from '../utils/logger.js';
 
 /**
  * Resolver Service — Resolves slugs to proxy targets with full runtime metadata.
  *
- * Chain: slug → Application → currentDeploymentId → Deployment
- *        → EndpointResolver.resolve(deployment) → RuntimeEndpoint
+ * Chain: slug → RoutingTable → Deployment → EndpointResolver.resolve(deployment) → RuntimeEndpoint
  *
  * Returns a ResolvedRoute containing everything the gateway needs:
  *   { application, deployment, runtime: RuntimeEndpoint }
@@ -78,6 +79,11 @@ gatewayEvents.on('application:deleted', ({ applicationId, slug }) => {
     else if (applicationId) invalidateByApplicationId(applicationId);
 });
 
+// Listen to release orchestration events for fast cache invalidation
+releaseEvents.on('ROUTING_TABLE_UPDATED', ({ slug }) => {
+    if (slug) invalidateBySlug(slug);
+});
+
 // Resolution 
 
 // Resolve a slug to a ResolvedRoute with full runtime metadata.
@@ -89,56 +95,66 @@ export async function resolve(slug) {
         return cached;
     }
 
-    // 2. DB lookup: Application
-    const application = await Application.findOne({ slug })
-        .populate('repositoryId', 'repoName owner provider')
-        .lean();
+    // 2. DB lookup: RoutingTable
+    const routingTable = await RoutingTable.findOne({ slug }).sort({ version: -1 }).lean();
 
-    if (!application) {
+    if (!routingTable || !routingTable.routes || routingTable.routes.length === 0) {
+        // Fallback: try to fetch Application directly if there is no routing table
+        // to return a valid 'application' object for the gateway to construct proper errors.
+        const application = await Application.findOne({ slug }).populate('repositoryId', 'repoName owner provider').lean();
+        
+        if (!application) return null;
+
+        const entry = {
+            application,
+            deployment: null,
+            runtime: {
+                endpoint: null,
+                provider: application.provider || 'docker',
+                protocol: 'http',
+                healthy: false,
+                version: null,
+                capabilities: [],
+                metadata: { reason: 'No routing table or routes available for this application' },
+            },
+            cachedAt: Date.now(),
+        };
+        _cache.set(slug, entry);
+        return entry;
+    }
+
+    // 3. Route selection based on weights
+    let selectedRoute = null;
+    const totalWeight = routingTable.routes.reduce((sum, r) => sum + r.weight, 0);
+
+    if (totalWeight > 0) {
+        let random = Math.random() * totalWeight;
+        for (const route of routingTable.routes) {
+            random -= route.weight;
+            if (random <= 0) {
+                selectedRoute = route;
+                break;
+            }
+        }
+    } else {
+        selectedRoute = routingTable.routes[0];
+    }
+
+    if (!selectedRoute) {
         return null;
     }
 
-    if (!application.currentDeploymentId) {
-        const entry = {
-            application,
-            deployment: null,
-            runtime: {
-                endpoint: null,
-                provider: application.provider || 'docker',
-                protocol: 'http',
-                healthy: false,
-                version: null,
-                capabilities: [],
-                metadata: { reason: 'no current deployment' },
-            },
-            cachedAt: Date.now(),
-        };
-        _cache.set(slug, entry);
-        return entry;
+    // 4. DB lookup: Application and Deployment
+    const [application, deployment] = await Promise.all([
+        Application.findById(routingTable.applicationId).populate('repositoryId', 'repoName owner provider').lean(),
+        Deployment.findById(selectedRoute.deploymentId).lean()
+    ]);
+
+    if (!application || !deployment) {
+        return null;
     }
 
-    // 3. DB lookup: Deployment
-    const deployment = await Deployment.findById(application.currentDeploymentId).lean();
-    if (!deployment) {
-        const entry = {
-            application,
-            deployment: null,
-            runtime: {
-                endpoint: null,
-                provider: application.provider || 'docker',
-                protocol: 'http',
-                healthy: false,
-                version: null,
-                capabilities: [],
-                metadata: { reason: 'deployment not found' },
-            },
-            cachedAt: Date.now(),
-        };
-        _cache.set(slug, entry);
-        return entry;
-    }
-
-    // 4. Provider-agnostic endpoint resolution → RuntimeEndpoint
+    // 5. Provider-agnostic endpoint resolution → RuntimeEndpoint
     let runtime;
     try {
         const resolver = getResolverForProvider(application.provider || 'docker');
@@ -165,7 +181,7 @@ export async function resolve(slug) {
         };
     }
 
-    // 5. Cache result
+    // 6. Cache result
     const entry = { application, deployment, runtime, cachedAt: Date.now() };
     _cache.set(slug, entry);
 

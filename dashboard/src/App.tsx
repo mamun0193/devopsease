@@ -67,6 +67,8 @@ import DeploymentExecutionPage from './pages/DeploymentExecutionPage';
 import ApplicationsPage from './pages/ApplicationsPage';
 import ApplicationDetailPage from './pages/ApplicationDetailPage';
 import EnvironmentManagementPage from './pages/EnvironmentManagementPage';
+import ReleasesPage from './pages/ReleasesPage';
+import ReleaseDetailsPage from './pages/ReleaseDetailsPage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -297,6 +299,22 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ApplicationDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/releases"
+                  element={
+                    <ProtectedRoute>
+                      <ReleasesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/releases/:id"
+                  element={
+                    <ProtectedRoute>
+                      <ReleaseDetailsPage />
                     </ProtectedRoute>
                   }
                 />
