@@ -43,6 +43,11 @@ const quotaSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    usedPreviews: {
+      type: Number,  // Incremented/decremented on preview create/destroy
+      default: 0,
+      min: 0,
+    },
     usedCPU: {
       type: Number,  // Actual CPU cores from Docker stats (set by resource monitor)
       default: 0,

@@ -61,7 +61,9 @@ import gatewayRoutes from "./routes/gateway.routes.js";
 import gatewayService from "./gateway/gateway.service.js";
 import releaseRoutes from "./routes/release.routes.js";
 import trafficRoutes from "./routes/traffic.routes.js";
-
+import previewRoutes from "./routes/preview.routes.js";
+import platformScheduler from "./system/platformScheduler.js";
+import previewService from "./services/preview.service.js";
 // 1. Validate Environment immediately
 validateEnv();
 
@@ -128,6 +130,7 @@ app.use("/api/config", envManagementRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/releases", releaseRoutes);
 app.use("/api/traffic", trafficRoutes);
+app.use("/api/previews", previewRoutes);
 
 // ─── Backward-compat aliases (old bare paths → same routers) ─────────────────
 // These keep existing frontend and CLI working without changes.
@@ -230,12 +233,9 @@ async function startServer() {
       logger.info(`DevOpsEase server running on http://localhost:${PORT}`);
     });
 
-    // Tunnel expiry scheduler — runs every 60 seconds, non-blocking
-    setInterval(() => {
-      tunnelService.expireTunnelsJob().catch((err) => {
-        logger.error("Tunnel expiry scheduler error", { error: err.message });
-      });
-    }, 60_000);
+    // Platform Scheduler — background jobs
+    platformScheduler.register('tunnel:expiry', () => tunnelService.expireTunnelsJob(), 60_000);
+    platformScheduler.register('preview:expiry', () => previewService.runExpiryJob(), 5 * 60_000);
 
   } catch (err) {
     logger.error("Failed to start server", { error: err.message });

@@ -1560,3 +1560,109 @@ export const configApi = {
     return response.data.diff;
   },
 };
+
+// Preview Environment API
+
+export interface PreviewPolicy {
+  repositoryId: string;
+  autoCreateOnPush: boolean;
+  autoDestroyOnMerge: boolean;
+  allowedBranches: string[];
+  ttlMinutes: number;
+  maxLifetimeMinutes: number;
+  maxExtensions: number;
+  idleTimeoutMinutes: number;
+  maxPreviews: number;
+  cpuLimit: string;
+  memoryLimit: string;
+  visibility: string;
+}
+
+export interface PreviewTarget {
+  name: string;
+  deploymentId: string;
+  region: string;
+  status: string;
+  url: string;
+  port: number;
+  containerId: string;
+}
+
+export interface Preview {
+  _id: string;
+  userId: string;
+  repositoryId: any;
+  applicationId: string;
+  manifest: any;
+  slug: string;
+  status: string;
+  targets: PreviewTarget[];
+  readyAt: string | null;
+  expiredAt: string | null;
+  destroyedAt: string | null;
+  expiresAt: string;
+  extensionCount: number;
+  lastActivityAt: string | null;
+  destroyReason: string | null;
+  destroyedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PreviewEvent {
+  _id: string;
+  previewId: string;
+  userId: string;
+  decision: string;
+  trigger: string;
+  actor: string;
+  reason: string;
+  relatedResource: any;
+  eventVersion: string;
+  createdAt: string;
+}
+
+export const previewApi = {
+  // Previews
+  listPreviews: async (repoId?: string): Promise<Preview[]> => {
+    const params = repoId ? `?repositoryId=${repoId}` : '';
+    const response = await api.get<{ previews: Preview[] }>(`/api/previews${params}`);
+    return response.data.previews;
+  },
+
+  getPreview: async (id: string): Promise<Preview> => {
+    const response = await api.get<{ preview: Preview }>(`/api/previews/${id}`);
+    return response.data.preview;
+  },
+
+  createPreview: async (data: { repositoryId: string, branch: string, commitSha: string, prNumber?: number, prTitle?: string, trigger?: string, buildFingerprint?: string, forceBuild?: boolean }): Promise<Preview> => {
+    const response = await api.post<{ preview: Preview }>('/api/previews', data);
+    return response.data.preview;
+  },
+
+  destroyPreview: async (id: string, reason?: string): Promise<Preview> => {
+    const response = await api.delete<{ preview: Preview }>(`/api/previews/${id}`, { data: { reason } });
+    return response.data.preview;
+  },
+
+  extendPreview: async (id: string, additionalMinutes: number): Promise<Preview> => {
+    const response = await api.post<{ preview: Preview }>(`/api/previews/${id}/extend`, { additionalMinutes });
+    return response.data.preview;
+  },
+
+  getEvents: async (id: string): Promise<PreviewEvent[]> => {
+    const response = await api.get<{ events: PreviewEvent[] }>(`/api/previews/${id}/events`);
+    return response.data.events;
+  },
+
+  // Policies
+  getPolicy: async (repoId: string): Promise<PreviewPolicy> => {
+    const response = await api.get<{ policy: PreviewPolicy }>(`/api/previews/policies/${repoId}`);
+    return response.data.policy;
+  },
+
+  upsertPolicy: async (repoId: string, data: Partial<PreviewPolicy>): Promise<PreviewPolicy> => {
+    const response = await api.put<{ policy: PreviewPolicy }>(`/api/previews/policies/${repoId}`, data);
+    return response.data.policy;
+  }
+};

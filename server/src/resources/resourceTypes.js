@@ -4,5 +4,6 @@ export const RESOURCE_TYPES = Object.freeze({
     BUILD: "BUILD",
     NETWORK: "NETWORK",
     VOLUME: "VOLUME",
-    PROJECT: "PROJECT"
+    PROJECT: "PROJECT",
+    PREVIEW: "PREVIEW"
 });

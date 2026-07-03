@@ -12,6 +12,11 @@ export const PLANS = {
         memory: '512m',
         storage: '1GB',
 
+        // Preview Limits
+        maxPreviews: 1,
+        previewCpu: '0.5',
+        previewMemory: '256m',
+
         rateLimits: {
             create: { limit: 5, window: 3600 },        // 5 per hour
             exec: { limit: 10, window: 60 },           // 10 per minute
@@ -31,6 +36,11 @@ export const PLANS = {
         memory: '4g',
         storage: '10GB',
 
+        // Preview Limits
+        maxPreviews: 5,
+        previewCpu: '1',
+        previewMemory: '512m',
+
         rateLimits: {
             create: { limit: 20, window: 3600 },
             exec: { limit: 60, window: 60 },
@@ -49,6 +59,11 @@ export const PLANS = {
         cpu: '8',
         memory: '16g',
         storage: '25GB',
+
+        // Preview Limits
+        maxPreviews: 15,
+        previewCpu: '2',
+        previewMemory: '1g',
 
         rateLimits: {
             create: { limit: 50, window: 3600 },

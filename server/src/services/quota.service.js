@@ -22,6 +22,7 @@ class QuotaService {
       maxStorageMB: planConfig.maxStorageMB,
       storageType: planConfig.storageType,
       usedContainers: 0,
+      usedPreviews: 0,
       usedCPU: 0,
       usedMemoryMB: 0,
     });
@@ -94,6 +95,36 @@ class QuotaService {
     return quota;
   }
 
+  async checkPreviewCount(userId, maxPreviews) {
+    const quota = await this.getUserQuota(userId);
+    if (quota.usedPreviews >= maxPreviews) {
+      throw new AppError(
+        `Preview environment limit exceeded. Used ${quota.usedPreviews}/${maxPreviews} previews.`,
+        403,
+        "QUOTA_PREVIEWS_EXCEEDED"
+      );
+    }
+    return quota;
+  }
+
+  async incrementPreviewCount(userId) {
+    const quota = await Quota.findOneAndUpdate(
+      { userId },
+      { $inc: { usedPreviews: 1 } },
+      { new: true }
+    );
+    if (!quota) throw new AppError("Quota record not found", 404);
+    return quota;
+  }
+
+  async decrementPreviewCount(userId) {
+    const quota = await Quota.findOne({ userId });
+    if (!quota) return null;
+    quota.usedPreviews = Math.max(0, quota.usedPreviews - 1);
+    await quota.save();
+    return quota;
+  }
+
   // Set actual usage from Docker stats (called by resource monitor).
   async updateRealUsage(userId, cpuCores, memoryMB, containerCount) {
     const updateFields = {
@@ -129,6 +160,7 @@ class QuotaService {
       maxStorageMB: quota.maxStorageMB,
       storageType: quota.storageType,
       usedContainers: quota.usedContainers,
+      usedPreviews: quota.usedPreviews,
       usedCPU: quota.usedCPU,
       usedMemoryMB: quota.usedMemoryMB,
       remainingContainers: quota.maxContainers - quota.usedContainers,

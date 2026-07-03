@@ -48,6 +48,9 @@ import RegistryPage from './pages/RegistryPage';
 import AlertsPage from './pages/AlertsPage';
 import RepositoriesPage from './pages/RepositoriesPage';
 import PipelinesPage from './pages/PipelinesPage';
+import PreviewsPage from './pages/PreviewsPage';
+import PreviewDetailPage from './pages/PreviewDetailPage';
+import PreviewPolicyPage from './pages/PreviewPolicyPage';
 import PipelineDetailPage from './pages/PipelineDetailPage';
 import PipelineRunDetailPage from './pages/PipelineRunDetailPage';
 import DeploymentsPage from './pages/DeploymentsPage';
@@ -259,6 +262,31 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <PipelinesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                
+                <Route
+                  path="/previews"
+                  element={
+                    <ProtectedRoute>
+                      <PreviewsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/previews/:id"
+                  element={
+                    <ProtectedRoute>
+                      <PreviewDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/previews/policies/:repoId"
+                  element={
+                    <ProtectedRoute>
+                      <PreviewPolicyPage />
                     </ProtectedRoute>
                   }
                 />

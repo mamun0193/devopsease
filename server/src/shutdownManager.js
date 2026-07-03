@@ -7,6 +7,7 @@ import { disconnectDB } from "./config/db.js";
 import metricsAggregator from "./services/metricsAggregator.service.js";
 import globalMetricsCollector from "./services/globalMetricsCollector.js";
 import collectorWatchdog from "./services/collectorWatchdog.service.js";
+import platformScheduler from "./system/platformScheduler.js";
 
 let shutdownInProgress = false;
 
@@ -37,6 +38,9 @@ export async function gracefulShutdown(signal, server) {
 
         // 4c. Stop global metrics collector
         globalMetricsCollector.stop();
+
+        // 4d. Stop platform scheduler
+        platformScheduler.stopAll();
 
         // 5. Terminate WebSockets (Drain logic)
         await closeWebSocketServer();

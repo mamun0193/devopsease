@@ -46,6 +46,7 @@ class DeploymentBroadcaster {
                 deploymentId: String(deployment._id),
                 status: deployment.status,
                 environment: deployment.environment,
+                previewId: deployment._previewId || null,
                 updatedAt: deployment.updatedAt ?? new Date().toISOString(),
             },
         });
