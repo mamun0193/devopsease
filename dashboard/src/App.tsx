@@ -69,6 +69,9 @@ import RepositoryArtifactStudioPage from './pages/RepositoryArtifactStudioPage';
 import DeploymentExecutionPage from './pages/DeploymentExecutionPage';
 import ApplicationsPage from './pages/ApplicationsPage';
 import ApplicationDetailPage from './pages/ApplicationDetailPage';
+import DomainsPage from './pages/DomainsPage';
+import DomainDetailPage from './pages/DomainDetailPage';
+
 import EnvironmentManagementPage from './pages/EnvironmentManagementPage';
 import ReleasesPage from './pages/ReleasesPage';
 import ReleaseDetailsPage from './pages/ReleaseDetailsPage';
@@ -327,6 +330,22 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ApplicationDetailPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/domains"
+                  element={
+                    <ProtectedRoute>
+                      <DomainsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/domains/:id"
+                  element={
+                    <ProtectedRoute>
+                      <DomainDetailPage />
                     </ProtectedRoute>
                   }
                 />

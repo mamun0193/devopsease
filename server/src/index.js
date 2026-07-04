@@ -64,6 +64,10 @@ import trafficRoutes from "./routes/traffic.routes.js";
 import previewRoutes from "./routes/preview.routes.js";
 import platformScheduler from "./system/platformScheduler.js";
 import previewService from "./services/preview.service.js";
+import domainRoutes from "./routes/domain.routes.js";
+import domainService from "./services/domain.service.js";
+import certificateService from "./services/certificate.service.js";
+import domainHealthService from "./services/domainHealth.service.js";
 // 1. Validate Environment immediately
 validateEnv();
 
@@ -131,6 +135,7 @@ app.use("/api/applications", applicationRoutes);
 app.use("/api/releases", releaseRoutes);
 app.use("/api/traffic", trafficRoutes);
 app.use("/api/previews", previewRoutes);
+app.use("/api/domains", domainRoutes);
 
 // ─── Backward-compat aliases (old bare paths → same routers) ─────────────────
 // These keep existing frontend and CLI working without changes.
@@ -236,6 +241,10 @@ async function startServer() {
     // Platform Scheduler — background jobs
     platformScheduler.register('tunnel:expiry', () => tunnelService.expireTunnelsJob(), 60_000);
     platformScheduler.register('preview:expiry', () => previewService.runExpiryJob(), 5 * 60_000);
+    platformScheduler.register('domain:verification-check', () => domainService.runVerificationJob(), 2 * 60_000);
+    platformScheduler.register('domain:health-check', () => domainHealthService.runHealthCheckJob(), 5 * 60_000);
+    platformScheduler.register('certificate:renewal', () => certificateService.runRenewalJob(), 60 * 60_000);
+    platformScheduler.register('certificate:expiry', () => certificateService.runExpiryJob(), 6 * 60 * 60_000);
 
   } catch (err) {
     logger.error("Failed to start server", { error: err.message });

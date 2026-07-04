@@ -17,6 +17,21 @@ import logger from '../utils/logger.js';
 class UrlResolver {
     constructor() {
         this._baseUrl = null;
+        if (process.env.NODE_ENV === 'production') {
+            if (!process.env.DASHBOARD_BASE_URL) {
+                logger.error("FATAL: DASHBOARD_BASE_URL must be defined in production.");
+                process.exit(1);
+            }
+            if (!process.env.GATEWAY_BASE_URL) {
+                logger.error("FATAL: GATEWAY_BASE_URL must be defined in production.");
+                process.exit(1);
+            }
+        }
+        
+        this.dashboardBaseUrl = process.env.DASHBOARD_BASE_URL || 'http://localhost:5173';
+        this.apiBaseUrl = process.env.API_BASE_URL || 'http://localhost:5000';
+        this.gatewayBaseUrl = process.env.GATEWAY_BASE_URL || 'http://localhost:8080';
+        this.wildcardDomain = process.env.WILDCARD_DOMAIN || 'devopsease.local';
     }
 
     /**
@@ -56,6 +71,50 @@ class UrlResolver {
      */
     apiUrl(path) {
         return `${this._getBase()}${path}`;
+    }
+
+    /**
+     * Generate a URL for a custom domain.
+     * @param {string} hostname - The custom hostname
+     * @param {string} path - Optional path
+     * @returns {string}
+     */
+    customDomainUrl(hostname, path = '/') {
+        return `https://${hostname}${path}`;
+    }
+
+    /**
+     * Generate a URL to the dashboard.
+     * @param {string} path - Optional path
+     * @returns {string}
+     */
+    dashboardUrl(path = '/') {
+        return `${this._getDashboardBase()}${path}`;
+    }
+
+    /**
+     * Generate a URL to a specific domain's detail page in the dashboard.
+     * @param {string} domainId - The domain ID
+     * @returns {string}
+     */
+    domainDetailUrl(domainId) {
+        return this.dashboardUrl(`/domains/${domainId}`);
+    }
+
+    /**
+     * Generate a URL to a specific certificate's detail page in the dashboard.
+     * @param {string} domainId - The domain ID
+     * @returns {string}
+     */
+    certificateDetailUrl(domainId) {
+        return this.dashboardUrl(`/domains/${domainId}#certificate`);
+    }
+
+    /**
+     * @private
+     */
+    _getDashboardBase() {
+        return this.dashboardBaseUrl;
     }
 
     /**

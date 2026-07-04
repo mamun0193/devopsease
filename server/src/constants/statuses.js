@@ -66,3 +66,28 @@ export const APPLICATION_PROVIDERS = Object.freeze({
     ECS:        'ecs',
     SSH:        'ssh',
 });
+
+// Domain Statuses
+export const DOMAIN_STATUS = Object.freeze({
+    ADDED: 'added',
+    PENDING_VERIFICATION: 'pending_verification',
+    VERIFIED: 'verified',
+    CONNECTED: 'connected',
+    HEALTHY: 'healthy',
+    UNHEALTHY: 'unhealthy',
+    DISCONNECTED: 'disconnected',
+    ARCHIVED: 'archived'
+});
+
+// Certificate Statuses
+export const CERTIFICATE_STATUS = Object.freeze({
+    REQUESTED: 'requested',
+    VALIDATING: 'validating',
+    ISSUED: 'issued',
+    INSTALLED: 'installed',
+    RENEWING: 'renewing',
+    EXPIRED: 'expired',
+    REVOKED: 'revoked',
+    REPLACED: 'replaced',
+    FAILED: 'failed'
+});

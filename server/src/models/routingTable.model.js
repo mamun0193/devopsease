@@ -51,6 +51,10 @@ const routingTableSchema = new mongoose.Schema({
         type: [routeEntrySchema],
         default: []
     },
+    hostnames: {
+        type: [String],
+        default: []
+    },
     generatedAt: {
         type: Date,
         default: Date.now
@@ -61,5 +65,8 @@ const routingTableSchema = new mongoose.Schema({
 
 // Index to fetch the latest routing table for a slug quickly
 routingTableSchema.index({ slug: 1, version: -1 }, { unique: true });
+
+// Sparse index for hostname lookups
+routingTableSchema.index({ hostnames: 1 }, { sparse: true });
 
 export default mongoose.model('RoutingTable', routingTableSchema);

@@ -1,5 +1,5 @@
 import { parseGatewayRequest } from './router.service.js';
-import { resolve as resolveTarget } from './resolver.service.js';
+import { resolve as resolveTarget, resolveByHostname } from './resolver.service.js';
 import { proxyHttp, proxyWs } from './proxy.service.js';
 import { runExtensions } from './gateway.middleware.js';
 import metricsCollector from './metrics.collector.js';
@@ -11,29 +11,49 @@ import logger from '../utils/logger.js';
 async function handleHttpRequest(req, res) {
     const parsed = parseGatewayRequest(req);
     if (!parsed) {
-        res.status(400).json({ error: 'Invalid application slug' });
+        res.status(400).json({ error: 'Invalid request' });
         return;
     }
 
-    const { slug, subPath } = parsed;
+    const { hostname, slug, subPath } = parsed;
     const ctx = req.gatewayContext;
+    
+    // First try to resolve by custom hostname
+    let result = null;
+    let resolvedSlug = slug;
+    
+    // Skip hostname resolution if it's obviously localhost or an IP (though in prod you'd check against a list of platform domains)
+    const isPlatformDomain = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === process.env.PLATFORM_DOMAIN;
+    
+    if (!isPlatformDomain) {
+        result = await resolveByHostname(hostname);
+    }
 
-    // Populate context with slug
-    if (ctx) ctx.setSlug(slug, subPath);
-    req._gatewaySlug = slug;
+    // Fall back to slug resolution if no custom domain match
+    if (!result) {
+        if (!slug) {
+            res.status(400).json({ error: 'Invalid application slug' });
+            return;
+        }
+        result = await resolveTarget(slug);
+    } else {
+        // If resolved by hostname, we need the underlying slug for context/metrics
+        resolvedSlug = result.application.slug;
+    }
+
+    // Populate context with resolved slug (might be the underlying one if matched by custom domain)
+    if (ctx) ctx.setSlug(resolvedSlug, subPath);
+    req._gatewaySlug = resolvedSlug;
 
     try {
-        metricsCollector.incrementConnections(slug);
-
-        // Resolve 
-        const result = await resolveTarget(slug);
+        metricsCollector.incrementConnections(resolvedSlug);
 
         // Application not found
         if (!result) {
             res.status(404).json({
                 error: 'Application not found',
-                slug,
-                message: `No application found at /apps/${slug}`,
+                slug: resolvedSlug,
+                message: `No application found for ${hostname}${subPath}`,
             });
             return;
         }
@@ -114,7 +134,7 @@ async function handleHttpRequest(req, res) {
 
     } catch (err) {
         logger.error('Gateway service error', {
-            slug,
+            slug: resolvedSlug,
             error: err.message,
             stack: err.stack,
             ...(ctx ? { requestId: ctx.requestId } : {}),
@@ -128,25 +148,40 @@ async function handleHttpRequest(req, res) {
         }
     } finally {
         // Decrement on response finish
-        res.on('finish', () => metricsCollector.decrementConnections(slug));
+        res.on('finish', () => metricsCollector.decrementConnections(resolvedSlug));
     }
 }
 
 // Handle a WebSocket upgrade through the gateway 
 async function handleWsUpgrade(req, socket, head) {
+    const hostname = req.hostname || req.headers.host?.split(':')[0];
+    
     // Parse slug from URL: /apps/:slug/...
     const urlParts = req.url.replace(/^\/apps\//, '').split('/');
     const slug = urlParts[0];
     const subPath = '/' + urlParts.slice(1).join('/');
 
-    if (!slug) {
-        socket.destroy();
-        return;
+    let result = null;
+    let resolvedSlug = slug;
+    
+    const isPlatformDomain = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === process.env.PLATFORM_DOMAIN;
+    
+    if (!isPlatformDomain) {
+        result = await resolveByHostname(hostname);
+    }
+    
+    if (!result) {
+        if (!slug) {
+            socket.destroy();
+            return;
+        }
+        result = await resolveTarget(slug);
+    } else {
+        resolvedSlug = result.application.slug;
     }
 
     try {
         metricsCollector.incrementWsConnections();
-        const result = await resolveTarget(slug);
 
         if (!result || !result.runtime?.endpoint || !result.runtime?.healthy) {
             socket.destroy();
@@ -156,17 +191,17 @@ async function handleWsUpgrade(req, socket, head) {
         // Check protocol capability
         const capabilities = result.runtime.capabilities || ['http', 'ws'];
         if (!capabilities.includes('ws')) {
-            logger.warn('Gateway WS upgrade rejected: endpoint does not support WebSocket', { slug });
+            logger.warn('Gateway WS upgrade rejected: endpoint does not support WebSocket', { slug: resolvedSlug });
             socket.destroy();
             return;
         }
 
-        proxyWs(req, socket, head, result.runtime.endpoint, slug, subPath);
+        proxyWs(req, socket, head, result.runtime.endpoint, resolvedSlug, subPath);
 
         socket.on('close', () => metricsCollector.decrementWsConnections());
 
     } catch (err) {
-        logger.error('Gateway WS upgrade error', { slug, error: err.message });
+        logger.error('Gateway WS upgrade error', { slug: resolvedSlug, error: err.message });
         socket.destroy();
     }
 }

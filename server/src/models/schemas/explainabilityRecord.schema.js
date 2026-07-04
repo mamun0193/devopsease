@@ -30,6 +30,16 @@ const explainabilityRecordSchema = new mongoose.Schema({
         required: true,
         immutable: true
     },
+    fromState: {
+        type: String,
+        default: null,
+        immutable: true
+    },
+    toState: {
+        type: String,
+        default: null,
+        immutable: true
+    },
     relatedResource: {
         type: mongoose.Schema.Types.Mixed, // { type: 'Deployment', id: '...' }
         default: null,

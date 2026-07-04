@@ -84,6 +84,23 @@ releaseEvents.on('ROUTING_TABLE_UPDATED', ({ slug }) => {
     if (slug) invalidateBySlug(slug);
 });
 
+// Domain events for custom domain caching
+releaseEvents.on('DOMAIN_CONNECTED', ({ hostname }) => {
+    if (hostname) invalidateBySlug(`host:${hostname}`);
+});
+
+releaseEvents.on('DOMAIN_DISCONNECTED', ({ hostname }) => {
+    if (hostname) invalidateBySlug(`host:${hostname}`);
+});
+
+releaseEvents.on('CERTIFICATE_INSTALLED', ({ hostname }) => {
+    if (hostname) invalidateBySlug(`host:${hostname}`);
+});
+
+releaseEvents.on('CERTIFICATE_REVOKED', ({ hostname }) => {
+    if (hostname) invalidateBySlug(`host:${hostname}`);
+});
+
 // Resolution 
 
 // Resolve a slug to a ResolvedRoute with full runtime metadata.
@@ -123,6 +140,33 @@ export async function resolve(slug) {
         return entry;
     }
 
+    return resolveFromRoutingTable(routingTable, slug);
+}
+
+/**
+ * Resolve a custom hostname to a target endpoint.
+ */
+export async function resolveByHostname(hostname) {
+    const cacheKey = `host:${hostname}`;
+    
+    // 1. Check cache
+    const cached = _cache.get(cacheKey);
+    if (cached && (Date.now() - cached.cachedAt) < CACHE_TTL_MS) {
+        return cached;
+    }
+
+    // 2. DB lookup: RoutingTable via hostnames sparse index
+    const routingTable = await RoutingTable.findOne({ hostnames: hostname }).sort({ version: -1 }).lean();
+    
+    if (!routingTable) return null;
+    
+    return resolveFromRoutingTable(routingTable, cacheKey);
+}
+
+/**
+ * Shared routing logic once a RoutingTable is found.
+ */
+async function resolveFromRoutingTable(routingTable, cacheKey) {
     // 3. Route selection based on weights
     let selectedRoute = null;
     const totalWeight = routingTable.routes.reduce((sum, r) => sum + r.weight, 0);
@@ -164,7 +208,7 @@ export async function resolve(slug) {
         runtime.applicationId = String(application._id);
     } catch (err) {
         logger.warn('Gateway resolver: endpoint resolution failed', {
-            slug,
+            cacheKey,
             provider: application.provider,
             error: err.message,
         });
@@ -183,7 +227,7 @@ export async function resolve(slug) {
 
     // 6. Cache result
     const entry = { application, deployment, runtime, cachedAt: Date.now() };
-    _cache.set(slug, entry);
+    _cache.set(cacheKey, entry);
 
     return entry;
 }

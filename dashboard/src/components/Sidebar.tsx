@@ -30,6 +30,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: 'Runtime',
     items: [
       { label: 'Applications', path: '/applications', icon: Globe },
+      { label: 'Domains', path: '/domains', icon: Globe },
       { label: 'Environments', path: '/environments', icon: KeyRound },
       { label: 'Releases', path: '/releases', icon: Activity },
       { label: 'Deployments', path: '/deployments', icon: Rocket },
