@@ -1,27 +1,54 @@
 import logger from '../utils/logger.js';
 
+/**
+ * PlatformScheduler
+ * 
+ * Centralized scheduler for all recurring platform jobs.
+ * All background work (TTL expiry, tunnel cleanup, future cost intelligence, etc.)
+ * should be registered here instead of using standalone timers.
+ */
+
 class PlatformScheduler {
   constructor() {
-    this._jobs = new Map(); // name → { intervalId, handler, intervalMs, lastRun }
+    this._jobs = new Map();
   }
 
+  // Register a recurring job.
   register(name, handler, intervalMs) {
     if (this._jobs.has(name)) {
       logger.info(`[PlatformScheduler] Job "${name}" is already registered`);
       return;
     }
 
-    const id = setInterval(async () => {
+    const jobMeta = {
+      intervalId: null,
+      handler,
+      intervalMs,
+      lastRun: null,
+      runCount: 0,
+      running: false
+    };
+
+    jobMeta.intervalId = setInterval(async () => {
+      // Prevent overlapping execution
+      if (jobMeta.running) {
+        logger.warn(`[PlatformScheduler] Job "${name}" skipped — previous execution still running`);
+        return;
+      }
+
+      jobMeta.running = true;
       try {
         await handler();
-        const job = this._jobs.get(name);
-        if (job) job.lastRun = new Date();
+        jobMeta.lastRun = new Date();
+        jobMeta.runCount += 1;
       } catch (err) {
         logger.error(`[PlatformScheduler] Job "${name}" failed`, { error: err.message });
+      } finally {
+        jobMeta.running = false;
       }
     }, intervalMs);
 
-    this._jobs.set(name, { intervalId: id, handler, intervalMs, lastRun: null });
+    this._jobs.set(name, jobMeta);
     logger.info(`[PlatformScheduler] Registered job "${name}"`, { intervalMs });
   }
 
@@ -38,7 +65,9 @@ class PlatformScheduler {
     return [...this._jobs.entries()].map(([name, job]) => ({
       name,
       intervalMs: job.intervalMs,
-      lastRun: job.lastRun
+      lastRun: job.lastRun,
+      runCount: job.runCount,
+      running: job.running
     }));
   }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings, Save, ArrowLeft, Shield } from 'lucide-react';
+import { Settings, Save, ArrowLeft, Shield, CheckCircle } from 'lucide-react';
 import { previewApi, type PreviewPolicy } from '../api';
 
 const PreviewPolicyPage: React.FC = () => {
@@ -15,6 +15,8 @@ const PreviewPolicyPage: React.FC = () => {
   });
 
   const [formData, setFormData] = useState<Partial<PreviewPolicy>>({});
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (policy) setFormData(policy);
@@ -24,7 +26,13 @@ const PreviewPolicyPage: React.FC = () => {
     mutationFn: () => previewApi.upsertPolicy(repoId!, formData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['preview-policy', repoId] });
-      alert('Policy saved successfully');
+      setSaveStatus('success');
+      setSaveError(null);
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    },
+    onError: (err: any) => {
+      setSaveStatus('error');
+      setSaveError(err?.response?.data?.message || err?.message || 'Failed to save policy');
     }
   });
 
@@ -66,6 +74,17 @@ const PreviewPolicyPage: React.FC = () => {
           <Save className="w-4 h-4" /> Save Policy
         </button>
       </div>
+
+      {saveStatus === 'success' && (
+        <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3 text-sm text-green-400 flex items-center gap-2">
+          <CheckCircle className="w-4 h-4" /> Policy saved successfully
+        </div>
+      )}
+      {saveStatus === 'error' && saveError && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-sm text-red-400">
+          {saveError}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Automation Settings */}

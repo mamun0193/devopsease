@@ -12,6 +12,8 @@ import { RESOURCE_TYPES } from '../resources/resourceTypes.js';
 import resourceService from '../resources/resource.service.js';
 import quotaService from './quota.service.js';
 import previewPolicyService from './previewPolicy.service.js';
+import { canTransition, validateTransition } from '../system/previewLifecycle.js';
+import urlResolver from '../system/urlResolver.js';
 import logger from '../utils/logger.js';
 import AppError from '../utils/AppError.js';
 import crypto from 'crypto';
@@ -43,7 +45,6 @@ class PreviewService {
         // 3. Artifact Reuse
         let buildId = null;
         let imageId = null;
-        let buildManifestId = null;
 
         if (buildFingerprint && !forceBuild) {
             const existingManifest = await BuildManifest.findOne({
@@ -56,7 +57,6 @@ class PreviewService {
                 if (build) {
                     buildId = build._id;
                     imageId = existingManifest.imageId;
-                    buildManifestId = existingManifest._id;
                 }
             }
         }
@@ -123,7 +123,7 @@ class PreviewService {
         // Async spawn deployment
         this._deployPreviewTarget(preview, manifest, buildId).catch(err => {
             logger.error(`Preview deployment failed for ${preview._id}: ${err.message}`);
-            this._transitionStatus(preview._id, 'failed', 'PREVIEW_FAILED', 'PLATFORM', 'Platform', `Deployment failed: ${err.message}`);
+            this._safeTransition(preview._id, 'failed', 'PREVIEW_FAILED', 'PLATFORM', 'Platform', `Deployment failed: ${err.message}`);
         });
 
         return preview;
@@ -131,13 +131,13 @@ class PreviewService {
 
     async _deployPreviewTarget(preview, manifest, buildId) {
         // Transition to preparing
-        await this._transitionStatus(preview._id, 'preparing', 'PREVIEW_PREPARING', 'PLATFORM', 'Platform', 'Resolving artifacts');
+        await this._safeTransition(preview._id, 'preparing', 'PREVIEW_PREPARING', 'PLATFORM', 'Platform', 'Resolving artifacts');
 
         const build = await Build.findById(buildId);
         if (!build) throw new Error('Build not found during deployment');
 
         // Transition to deploying
-        await this._transitionStatus(preview._id, 'deploying', 'PREVIEW_DEPLOYING', 'PLATFORM', 'Platform', 'Creating containers');
+        await this._safeTransition(preview._id, 'deploying', 'PREVIEW_DEPLOYING', 'PLATFORM', 'Platform', 'Creating containers');
 
         // Delegate to existing deployment service
         const deployment = await deployFromBuild(build, { replicas: 1 });
@@ -159,7 +159,7 @@ class PreviewService {
             name: 'primary',
             deploymentId: deployment._id,
             status: 'ready',
-            url: `http://localhost:4000/apps/${preview.slug}`, // Gateway URL
+            url: urlResolver.previewUrl(preview.slug),
             port: deployment.port,
             containerId: deployment.containerId
         });
@@ -205,16 +205,21 @@ class PreviewService {
         const preview = await Preview.findById(previewId);
         if (!preview) throw new AppError('Preview not found', 404);
         
-        const repo = await Repository.findById(preview.repositoryId);
+        // Authorization
+        const repo = await Repository.findById(preview.repositoryId).select('userId').lean();
         if (String(preview.userId) !== String(userId) && (!repo || String(repo.userId) !== String(userId))) {
             throw new AppError('Unauthorized to destroy this preview', 403);
         }
         
-        if (!['ready', 'failed', 'expired', 'creating', 'preparing', 'deploying'].includes(preview.status)) {
+        // Allow destroying from any active state (including 'destroying' for expiry job re-entry)
+        if (!['ready', 'failed', 'expired', 'creating', 'preparing', 'deploying', 'destroying'].includes(preview.status)) {
             throw new PreviewLifecycleError(`Cannot destroy preview from status: ${preview.status}`);
         }
 
-        await this._transitionStatus(preview._id, 'destroying', 'PREVIEW_DESTROYING', 'USER_COMMAND', userId, reason || 'Manual destroy requested');
+        // Only transition if not already destroying (prevents double event)
+        if (preview.status !== 'destroying') {
+            await this._safeTransition(preview._id, 'destroying', 'PREVIEW_DESTROYING', 'USER_COMMAND', userId, reason || 'Manual destroy requested');
+        }
 
         // Cleanup deployments
         for (const target of preview.targets) {
@@ -234,9 +239,10 @@ class PreviewService {
         preview.destroyedAt = new Date();
         preview.destroyReason = reason;
         preview.destroyedBy = userId;
+        preview.status = 'destroyed';
         await preview.save();
 
-        await this._transitionStatus(preview._id, 'destroyed', 'PREVIEW_DESTROYED', 'USER_COMMAND', userId, 'Resources cleaned up');
+        await this._recordEvent(preview._id, preview.userId, 'PREVIEW_DESTROYED', 'USER_COMMAND', userId, 'Resources cleaned up');
 
         await quotaService.decrementPreviewCount(preview.userId);
         await resourceService.updateResourceStatus(String(preview._id), RESOURCE_TYPES.PREVIEW, 'deleted');
@@ -255,7 +261,8 @@ class PreviewService {
         const preview = await Preview.findById(previewId);
         if (!preview) throw new AppError('Preview not found', 404);
         
-        const repo = await Repository.findById(preview.repositoryId);
+        // Authorization
+        const repo = await Repository.findById(preview.repositoryId).select('userId').lean();
         if (String(preview.userId) !== String(userId) && (!repo || String(repo.userId) !== String(userId))) {
             throw new AppError('Unauthorized to extend this preview', 403);
         }
@@ -315,13 +322,21 @@ class PreviewService {
                 logger.error(`Error expiring preview ${preview._id}: ${err.message}`);
             }
         }
-        
-        // Idle timeout enforcement could be added here
     }
 
-    async _transitionStatus(previewId, newStatus, decision, trigger, actor, reason) {
+    /**
+     * Safe transition: validates the state machine, updates the database,
+     * and records an explainability event.
+     */
+    async _safeTransition(previewId, newStatus, decision, trigger, actor, reason) {
         const preview = await Preview.findById(previewId);
         if (!preview) return null;
+
+        // Validate using centralized lifecycle state machine
+        if (!canTransition(preview.status, newStatus)) {
+            logger.warn(`[PreviewLifecycle] Invalid transition rejected: ${preview.status} → ${newStatus} for ${previewId}`);
+            return null;
+        }
 
         preview.status = newStatus;
         await preview.save();

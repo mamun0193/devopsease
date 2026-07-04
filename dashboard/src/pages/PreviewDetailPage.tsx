@@ -9,6 +9,7 @@ const PreviewDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [extensionMinutes, setExtensionMinutes] = useState(60);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const { data: preview, isLoading } = useQuery({
     queryKey: ['preview', id],
@@ -25,16 +26,24 @@ const PreviewDetailPage: React.FC = () => {
   const extendMutation = useMutation({
     mutationFn: () => previewApi.extendPreview(id!, extensionMinutes),
     onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['preview', id] });
       queryClient.invalidateQueries({ queryKey: ['preview-events', id] });
+    },
+    onError: (err: any) => {
+      setActionError(err?.response?.data?.message || err?.message || 'Failed to extend preview');
     }
   });
 
   const destroyMutation = useMutation({
     mutationFn: () => previewApi.destroyPreview(id!, 'Manual destruction via UI'),
     onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['preview', id] });
       queryClient.invalidateQueries({ queryKey: ['preview-events', id] });
+    },
+    onError: (err: any) => {
+      setActionError(err?.response?.data?.message || err?.message || 'Failed to destroy preview');
     }
   });
 
@@ -79,6 +88,14 @@ const PreviewDetailPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {actionError && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 text-sm text-red-400 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          {actionError}
+          <button onClick={() => setActionError(null)} className="ml-auto text-red-500 hover:text-red-400">✕</button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">

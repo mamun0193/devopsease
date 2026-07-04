@@ -36,17 +36,31 @@ class PreviewPolicyService {
     /**
      * Upsert preview policy for a repository.
      */
+    // Fields that users are allowed to configure
+    static ALLOWED_POLICY_FIELDS = [
+        'autoCreateOnPush', 'autoDestroyOnMerge', 'allowedBranches',
+        'ttlMinutes', 'maxLifetimeMinutes', 'maxExtensions', 'idleTimeoutMinutes',
+        'maxPreviews', 'cpuLimit', 'memoryLimit', 'visibility'
+    ];
+
     async upsertPolicy(repositoryId, userId, updateData) {
         // Ensure limits do not exceed plan limits
         const user = await User.findById(userId);
         const planKey = user?.subscription?.plan || DEFAULT_PLAN;
         const plan = PLANS[planKey] || PLANS[DEFAULT_PLAN];
 
-        // Sanitize incoming data against plan maximums
-        const sanitizedData = {
-            ...updateData,
-            maxPreviews: Math.min(updateData.maxPreviews || 1, plan.maxPreviews || 3)
-        };
+        // Whitelist: only allow known, safe fields
+        const sanitizedData = {};
+        for (const field of PreviewPolicyService.ALLOWED_POLICY_FIELDS) {
+            if (updateData[field] !== undefined) {
+                sanitizedData[field] = updateData[field];
+            }
+        }
+
+        // Enforce plan maximums
+        if (sanitizedData.maxPreviews) {
+            sanitizedData.maxPreviews = Math.min(sanitizedData.maxPreviews, plan.maxPreviews || 3);
+        }
 
         const policy = await PreviewPolicy.findOneAndUpdate(
             { repositoryId },

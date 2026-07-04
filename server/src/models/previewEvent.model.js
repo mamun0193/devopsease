@@ -46,6 +46,6 @@ const previewEventSchema = new mongoose.Schema({
     timestamps: false
 });
 
-previewEventSchema.index({ previewId: 1, decision: 1 });
+previewEventSchema.index({ previewId: 1, createdAt: -1 });
 
 export default mongoose.model('PreviewEvent', previewEventSchema);
