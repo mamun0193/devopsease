@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Server, Hammer, Rocket, Layers, FolderKanban, Network, HardDrive,
-  Globe, GitBranch, GitMerge, Cloud, Box, Settings, Users, ChevronDown, ChevronRight, Activity, TerminalSquare, KeyRound, Eye
+  Globe, GitBranch, GitMerge, Cloud, Box, Settings, Users, ChevronDown, ChevronRight, Activity, TerminalSquare, KeyRound, Eye, Zap
 } from 'lucide-react';
 
 type NavGroup = {
@@ -50,8 +50,10 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    title: 'Observability',
+    title: 'Admin',
     items: [
+      { label: 'Platform Health', path: '/observability', icon: Activity },
+      { label: 'DevOpsEase Autopilot', path: '/autopilot', icon: Zap },
       { label: 'Alerts', path: '/alerts', icon: Activity },
     ],
   },

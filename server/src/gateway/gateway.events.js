@@ -1,17 +1,19 @@
-import { EventEmitter } from 'events';
+import platformEventBus from '../events/platformEventBus.js';
 
-/**
- * Gateway Events — Central event bus for gateway cache invalidation.
- *
- * Events:
- *   'deployment:finished'       — { deploymentId, repoId }
- *   'deployment:rollback'       — { deploymentId, repoId }
- *   'application:updated'       — { applicationId, slug }
- *   'application:deleted'       — { applicationId, slug }
- */
-const gatewayEvents = new EventEmitter();
+// ponytail: Backward-compatible shim — delegates to unified PlatformEventBus.
+// Existing `gatewayEvents.emit('deployment:finished', ...)` calls work unchanged.
 
-// Prevent memory leaks with many listeners
-gatewayEvents.setMaxListeners(50);
+const gatewayEvents = {
+    on(event, handler) {
+        platformEventBus.on(event, handler);
+    },
+    off(event, handler) {
+        platformEventBus.off(event, handler);
+    },
+    emit(event, ...args) {
+        platformEventBus.emit(event, ...args);
+    },
+    setMaxListeners() {},
+};
 
 export default gatewayEvents;

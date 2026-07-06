@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 export const ALERT_TYPES = Object.freeze({
+  // Container alerts (existing)
   CRASH: "CRASH",
   CRASH_LOOP: "CRASH_LOOP",
   OOM: "OOM",
@@ -9,6 +10,17 @@ export const ALERT_TYPES = Object.freeze({
   QUOTA_WARNING: "QUOTA_WARNING",
   HEALTH_DEGRADED: "HEALTH_DEGRADED",
   HEALTH_UNHEALTHY: "HEALTH_UNHEALTHY",
+  // Platform-wide alerts
+  BUILD_FAILED: "BUILD_FAILED",
+  DEPLOYMENT_FAILED: "DEPLOYMENT_FAILED",
+  DOMAIN_UNHEALTHY: "DOMAIN_UNHEALTHY",
+  CERTIFICATE_EXPIRING: "CERTIFICATE_EXPIRING",
+  CERTIFICATE_EXPIRED: "CERTIFICATE_EXPIRED",
+  PIPELINE_FAILED: "PIPELINE_FAILED",
+  GATEWAY_ERROR_SPIKE: "GATEWAY_ERROR_SPIKE",
+  GATEWAY_LATENCY_HIGH: "GATEWAY_LATENCY_HIGH",
+  SCHEDULER_FAILURE: "SCHEDULER_FAILURE",
+  PLATFORM_DEGRADED: "PLATFORM_DEGRADED",
 });
 
 export const ALERT_SEVERITIES = Object.freeze({
@@ -22,7 +34,7 @@ const alertSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      default: null, // null for platform-wide alerts
       index: true,
     },
     containerId: {
@@ -43,6 +55,27 @@ const alertSchema = new mongoose.Schema(
     message: {
       type: String,
       required: true,
+    },
+    // Platform correlation fields
+    domain: {
+      type: String,
+      default: null,
+    },
+    correlationId: {
+      type: String,
+      default: null,
+    },
+    resourceType: {
+      type: String,
+      default: null,
+    },
+    suppressedCount: {
+      type: Number,
+      default: 0,
+    },
+    recoveryAlert: {
+      type: Boolean,
+      default: false,
     },
     metadata: {
       type: mongoose.Schema.Types.Mixed,

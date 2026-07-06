@@ -1,5 +1,6 @@
 .vscode/
 .github/
+.agents
 node_modules
 .env
 projectoverview.md

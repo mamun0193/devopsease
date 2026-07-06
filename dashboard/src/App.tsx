@@ -71,6 +71,7 @@ import ApplicationsPage from './pages/ApplicationsPage';
 import ApplicationDetailPage from './pages/ApplicationDetailPage';
 import DomainsPage from './pages/DomainsPage';
 import DomainDetailPage from './pages/DomainDetailPage';
+import ObservabilityPage from './pages/ObservabilityPage';
 
 import EnvironmentManagementPage from './pages/EnvironmentManagementPage';
 import ReleasesPage from './pages/ReleasesPage';
@@ -145,6 +146,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <AdminObservabilityPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/observability"
+                  element={
+                    <ProtectedRoute>
+                      <ObservabilityPage />
                     </ProtectedRoute>
                   }
                 />

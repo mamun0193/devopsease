@@ -7,8 +7,8 @@ import logger from "../utils/logger.js";
 const DEDUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
 class AlertService {
-  async createAlert({ userId, containerId = null, type, severity, message, metadata = {} }) {
-    if (!userId || !type || !severity || !message) {
+  async createAlert({ userId = null, containerId = null, type, severity, message, metadata = {}, domain = null, correlationId = null, resourceType = null, recoveryAlert = false }) {
+    if (!type || !severity || !message) {
       logger.warn("AlertService.createAlert called with missing fields", { userId, type, severity });
       return null;
     }
@@ -16,16 +16,20 @@ class AlertService {
     try {
       // Deduplication: check for identical unresolved alert within window
       const dedupCutoff = new Date(Date.now() - DEDUP_WINDOW_MS);
-      const existing = await Alert.findOne({
-        userId,
-        containerId,
+      const dedupFilter = {
         type,
         resolved: false,
         createdAt: { $gte: dedupCutoff },
-      }).lean();
+      };
+      if (userId) dedupFilter.userId = userId;
+      if (containerId) dedupFilter.containerId = containerId;
+
+      const existing = await Alert.findOne(dedupFilter).lean();
 
       if (existing) {
-        logger.debug("Alert deduplicated — skipping", { type, containerId });
+        // Suppression: increment count instead of silently dropping
+        await Alert.updateOne({ _id: existing._id }, { $inc: { suppressedCount: 1 } });
+        logger.debug("Alert suppressed — incrementing count", { type, containerId, suppressedCount: existing.suppressedCount + 1 });
         return null;
       }
 
@@ -36,6 +40,10 @@ class AlertService {
         severity,
         message,
         metadata,
+        domain,
+        correlationId,
+        resourceType,
+        recoveryAlert,
       });
 
       logger.info("Alert created", {
@@ -43,15 +51,18 @@ class AlertService {
         type,
         severity,
         containerId,
-        userId: String(userId),
+        domain,
+        userId: userId ? String(userId) : null,
       });
 
-      // Broadcast to connected clients
-      alertBroadcaster.broadcast(userId, alert.toObject());
+      // Broadcast to connected clients (only if user-scoped)
+      if (userId) {
+        alertBroadcaster.broadcast(userId, alert.toObject());
+      }
 
       return alert;
     } catch (err) {
-      logger.error("AlertService.createAlert failed", { error: err.message, type, userId: String(userId) });
+      logger.error("AlertService.createAlert failed", { error: err.message, type, userId: userId ? String(userId) : null });
       return null;
     }
   }
@@ -107,6 +118,39 @@ class AlertService {
       { $set: { resolved: true, resolvedAt: new Date() } }
     );
     return result.modifiedCount;
+  }
+
+  // Alert summary grouped by domain × severity for observability dashboard
+  async getAlertSummary(userId = null) {
+    const match = { resolved: false };
+    if (userId) match.userId = userId;
+
+    const pipeline = [
+      { $match: match },
+      { $group: {
+        _id: { domain: { $ifNull: ['$domain', 'CONTAINER'] }, severity: '$severity' },
+        count: { $sum: 1 },
+        suppressedTotal: { $sum: '$suppressedCount' },
+        latestAt: { $max: '$createdAt' },
+      }},
+      { $sort: { '_id.severity': 1 } },
+    ];
+
+    const results = await Alert.aggregate(pipeline);
+
+    const summary = {};
+    for (const r of results) {
+      const domain = r._id.domain || 'CONTAINER';
+      if (!summary[domain]) summary[domain] = {};
+      summary[domain][r._id.severity] = {
+        count: r.count,
+        suppressedTotal: r.suppressedTotal,
+        latestAt: r.latestAt,
+      };
+    }
+
+    const totalUnresolved = results.reduce((s, r) => s + r.count, 0);
+    return { summary, totalUnresolved };
   }
 }
 

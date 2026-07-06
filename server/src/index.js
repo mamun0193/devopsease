@@ -68,6 +68,9 @@ import domainRoutes from "./routes/domain.routes.js";
 import domainService from "./services/domain.service.js";
 import certificateService from "./services/certificate.service.js";
 import domainHealthService from "./services/domainHealth.service.js";
+import observabilityRoutes from "./routes/observability.routes.js";
+import platformEventBus from "./events/platformEventBus.js";
+import { platformHealthJob, eventCleanupJob, initEventPersistence, checkGatewayThresholds } from "./observability/platformHealth.service.js";
 // 1. Validate Environment immediately
 validateEnv();
 
@@ -136,6 +139,7 @@ app.use("/api/releases", releaseRoutes);
 app.use("/api/traffic", trafficRoutes);
 app.use("/api/previews", previewRoutes);
 app.use("/api/domains", domainRoutes);
+app.use("/api/observability", observabilityRoutes);
 
 // ─── Backward-compat aliases (old bare paths → same routers) ─────────────────
 // These keep existing frontend and CLI working without changes.
@@ -178,6 +182,10 @@ async function startServer() {
 
     const redisConnected = await connectRedis();
     logger.info(redisConnected ? "Redis connected — caching enabled" : "Redis unavailable — caching disabled");
+
+    // Initialize unified event bus (depends on Redis)
+    await platformEventBus.init();
+    initEventPersistence();
 
     try {
       await docker.ping();
@@ -245,6 +253,10 @@ async function startServer() {
     platformScheduler.register('domain:health-check', () => domainHealthService.runHealthCheckJob(), 5 * 60_000);
     platformScheduler.register('certificate:renewal', () => certificateService.runRenewalJob(), 60 * 60_000);
     platformScheduler.register('certificate:expiry', () => certificateService.runExpiryJob(), 6 * 60 * 60_000);
+
+    // Observability scheduler jobs
+    platformScheduler.register('observability:health-evaluation', async () => { checkGatewayThresholds(); await platformHealthJob(); }, 30_000);
+    platformScheduler.register('observability:event-cleanup', () => eventCleanupJob(), 6 * 60 * 60_000);
 
   } catch (err) {
     logger.error("Failed to start server", { error: err.message });
