@@ -72,6 +72,7 @@ import ApplicationDetailPage from './pages/ApplicationDetailPage';
 import DomainsPage from './pages/DomainsPage';
 import DomainDetailPage from './pages/DomainDetailPage';
 import ObservabilityPage from './pages/ObservabilityPage';
+import AutopilotPage from './pages/AutopilotPage';
 
 import EnvironmentManagementPage from './pages/EnvironmentManagementPage';
 import ReleasesPage from './pages/ReleasesPage';
@@ -154,6 +155,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <ObservabilityPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/autopilot"
+                  element={
+                    <ProtectedRoute>
+                      <AutopilotPage />
                     </ProtectedRoute>
                   }
                 />

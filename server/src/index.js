@@ -69,8 +69,10 @@ import domainService from "./services/domain.service.js";
 import certificateService from "./services/certificate.service.js";
 import domainHealthService from "./services/domainHealth.service.js";
 import observabilityRoutes from "./routes/observability.routes.js";
+import autopilotRoutes from "./routes/autopilot.routes.js";
 import platformEventBus from "./events/platformEventBus.js";
 import { platformHealthJob, eventCleanupJob, initEventPersistence, checkGatewayThresholds } from "./observability/platformHealth.service.js";
+import autopilotService from "./autopilot/autopilot.service.js";
 // 1. Validate Environment immediately
 validateEnv();
 
@@ -140,6 +142,7 @@ app.use("/api/traffic", trafficRoutes);
 app.use("/api/previews", previewRoutes);
 app.use("/api/domains", domainRoutes);
 app.use("/api/observability", observabilityRoutes);
+app.use("/api/autopilot", autopilotRoutes);
 
 // ─── Backward-compat aliases (old bare paths → same routers) ─────────────────
 // These keep existing frontend and CLI working without changes.
@@ -257,6 +260,9 @@ async function startServer() {
     // Observability scheduler jobs
     platformScheduler.register('observability:health-evaluation', async () => { checkGatewayThresholds(); await platformHealthJob(); }, 30_000);
     platformScheduler.register('observability:event-cleanup', () => eventCleanupJob(), 6 * 60 * 60_000);
+
+    // Autopilot scheduler job
+    platformScheduler.register('autopilot:evaluate', () => autopilotService.evaluate(), 15_000);
 
   } catch (err) {
     logger.error("Failed to start server", { error: err.message });

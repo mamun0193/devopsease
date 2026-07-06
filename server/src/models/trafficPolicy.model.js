@@ -40,6 +40,15 @@ const trafficPolicySchema = new mongoose.Schema({
         type: [targetRuleSchema],
         default: []
     },
+    autonomousConfig: {
+        enabled: { type: Boolean, default: false },
+        autoAdvanceStep: { type: Number, default: 10, min: 1, max: 100 },
+        healthThreshold: { type: Number, default: 90, min: 0, max: 100 },
+        minRequestVolume: { type: Number, default: 10, min: 0 },
+        cooldownMs: { type: Number, default: 300000 }, // 5 mins between shifts
+        lastShiftAt: { type: Date, default: null },
+        nextEvaluationAt: { type: Date, default: Date.now }
+    },
     explainabilityLog: {
         type: [explainabilityRecordSchema],
         default: []
