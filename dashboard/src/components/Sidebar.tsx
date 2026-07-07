@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useRole } from '../context/RoleContext';
 import {
   LayoutDashboard, Server, Hammer, Rocket, Layers, FolderKanban, Network, HardDrive,
-  Globe, GitBranch, GitMerge, Cloud, Box, Settings, Users, ChevronDown, ChevronRight, Activity, TerminalSquare, KeyRound, Eye, Zap, Shield, ShieldAlert
+  Globe, GitBranch, GitMerge, Cloud, Box, Settings, Users, ChevronDown, ChevronRight, Activity, TerminalSquare, KeyRound, Eye, Zap, Shield, ShieldAlert, Sparkles
 } from 'lucide-react';
 
 type NavGroup = {
   title: string;
-  items: { label: string; path: string; icon: React.ElementType }[];
+  items: { label: string; path: string; icon: React.ElementType; requiresAdmin?: boolean }[];
 };
 
 const NAV_GROUPS: NavGroup[] = [
@@ -43,20 +44,21 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Infrastructure',
     items: [
-      { label: 'Clusters', path: '/clusters', icon: Cloud },
-      { label: 'Networks', path: '/networks', icon: Network },
-      { label: 'Volumes', path: '/volumes', icon: HardDrive },
-      { label: 'Registry', path: '/registry', icon: Globe },
+      { label: 'Clusters', path: '/clusters', icon: Cloud, requiresAdmin: true },
+      { label: 'Networks', path: '/networks', icon: Network, requiresAdmin: true },
+      { label: 'Volumes', path: '/volumes', icon: HardDrive, requiresAdmin: true },
+      { label: 'Registry', path: '/registry', icon: Globe, requiresAdmin: true },
     ],
   },
   {
-    title: 'Admin',
+    title: 'Intelligence',
     items: [
-      { label: 'Platform Health', path: '/observability', icon: Activity },
-      { label: 'DevOpsEase Autopilot', path: '/autopilot', icon: Zap },
+      { label: 'AI Copilot', path: '/copilot', icon: Sparkles },
       { label: 'Alerts', path: '/alerts', icon: Activity },
-      { label: 'Security Center', path: '/security', icon: Shield },
-      { label: 'Platform Resilience', path: '/backups', icon: ShieldAlert },
+      { label: 'Platform Health', path: '/observability', icon: Activity, requiresAdmin: true },
+      { label: 'DevOpsEase Autopilot', path: '/autopilot', icon: Zap, requiresAdmin: true },
+      { label: 'Security Center', path: '/security', icon: Shield, requiresAdmin: true },
+      { label: 'Platform Resilience', path: '/backups', icon: ShieldAlert, requiresAdmin: true },
     ],
   },
 ];
@@ -64,6 +66,7 @@ const NAV_GROUPS: NavGroup[] = [
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAdmin } = useRole();
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 
   const toggleGroup = (title: string) => {
@@ -80,8 +83,12 @@ const Sidebar: React.FC = () => {
       </div>
 
       <nav className="flex-1 p-3 space-y-3">
-        {NAV_GROUPS.map((group) => (
-          <div key={group.title} className="space-y-1">
+        {NAV_GROUPS.map((group) => {
+          const visibleItems = group.items.filter(item => !item.requiresAdmin || isAdmin);
+          if (visibleItems.length === 0) return null;
+
+          return (
+            <div key={group.title} className="space-y-1">
             <button
               onClick={() => toggleGroup(group.title)}
               className="w-full flex items-center justify-between px-2 py-1.5 text-[11px] font-semibold text-dds-text-muted uppercase tracking-wider hover:text-dds-text-secondary transition-colors"
@@ -92,7 +99,7 @@ const Sidebar: React.FC = () => {
             
             {!collapsedGroups[group.title] && (
               <div className="space-y-0.5 mt-1">
-                {group.items.map(({ label, path, icon: Icon }) => {
+                {visibleItems.map(({ label, path, icon: Icon }) => {
                   const isActive = location.pathname === path || (path !== '/dashboard' && location.pathname.startsWith(path));
                   return (
                     <button
@@ -115,7 +122,8 @@ const Sidebar: React.FC = () => {
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="p-3 border-t border-dds-border mt-auto">

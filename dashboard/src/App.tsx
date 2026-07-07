@@ -74,6 +74,7 @@ import DomainDetailPage from './pages/DomainDetailPage';
 import ObservabilityPage from './pages/ObservabilityPage';
 import SecurityCenterPage from "./pages/SecurityCenterPage";
 import BackupsPage from "./pages/BackupsPage";
+import CopilotPage from "./pages/CopilotPage";
 import AutopilotPage from './pages/AutopilotPage';
 
 import EnvironmentManagementPage from './pages/EnvironmentManagementPage';
@@ -161,6 +162,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <AutopilotPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/copilot"
+                  element={
+                    <ProtectedRoute>
+                      <CopilotPage />
                     </ProtectedRoute>
                   }
                 />
