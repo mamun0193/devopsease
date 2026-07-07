@@ -1,4 +1,4 @@
-import SecurityLog from '../models/SecurityLog.js';
+import platformEventBus, { DOMAINS, SEVERITIES } from '../events/platformEventBus.js';
 import logger from '../utils/logger.js';
 
 export const BUILD_EVENTS = {
@@ -12,29 +12,30 @@ export const BUILD_EVENTS = {
 };
 
 const SEVERITY_MAP = {
-    [BUILD_EVENTS.BUILD_STARTED]: 'INFO',
-    [BUILD_EVENTS.BUILD_SUCCESS]: 'INFO',
-    [BUILD_EVENTS.BUILD_FAILED]: 'WARN',
-    [BUILD_EVENTS.BUILD_MANIFEST_GENERATED]: 'INFO',
-    [BUILD_EVENTS.CACHE_PLAN_READY]: 'INFO',
-    [BUILD_EVENTS.BUILD_CACHE_HIT]: 'INFO',
-    [BUILD_EVENTS.BUILD_CACHE_MISS]: 'INFO'
+    [BUILD_EVENTS.BUILD_STARTED]: SEVERITIES.INFO,
+    [BUILD_EVENTS.BUILD_SUCCESS]: SEVERITIES.INFO,
+    [BUILD_EVENTS.BUILD_FAILED]: SEVERITIES.WARNING,
+    [BUILD_EVENTS.BUILD_MANIFEST_GENERATED]: SEVERITIES.INFO,
+    [BUILD_EVENTS.CACHE_PLAN_READY]: SEVERITIES.INFO,
+    [BUILD_EVENTS.BUILD_CACHE_HIT]: SEVERITIES.INFO,
+    [BUILD_EVENTS.BUILD_CACHE_MISS]: SEVERITIES.INFO
 };
 
 export function logBuildEvent({ event, userId, buildId, tag, metadata = {} }) {
-    const severity = SEVERITY_MAP[event] || 'INFO';
+    const severity = SEVERITY_MAP[event] || SEVERITIES.INFO;
 
-    SecurityLog.create({
-        userId,
-        action: event,
-        result: event === BUILD_EVENTS.BUILD_FAILED ? 'denied' : 'allowed',
+    platformEventBus.publish(DOMAINS.BUILD, event, {
         severity,
-        metadata: { buildId: buildId?.toString(), tag, ...metadata }
-    }).catch((error) => {
-        logger.warn('Build audit log write failed', { event, error: error.message });
+        userId,
+        resourceType: 'Build',
+        resourceId: buildId,
+        payload: {
+            tag,
+            ...metadata
+        }
     });
 
-    const logMethod = severity === 'WARN' ? 'warn' : 'info';
+    const logMethod = severity === SEVERITIES.WARNING ? 'warn' : 'info';
     logger[logMethod](`Build event: ${event}`, {
         userId: userId?.toString(),
         buildId: buildId?.toString(),

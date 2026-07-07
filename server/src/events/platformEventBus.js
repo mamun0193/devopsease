@@ -31,6 +31,13 @@ const DOMAINS = Object.freeze({
     IMAGE: 'IMAGE',
     PIPELINE: 'PIPELINE',
     TRAFFIC: 'TRAFFIC',
+    // Security & Resilience Domains
+    AUTH: 'AUTH',
+    SECRETS: 'SECRETS',
+    INFRASTRUCTURE: 'INFRASTRUCTURE',
+    RECOVERY: 'RECOVERY',
+    AUDIT: 'AUDIT',
+    COMPLIANCE: 'COMPLIANCE',
 });
 
 class PlatformEventBus extends EventEmitter {

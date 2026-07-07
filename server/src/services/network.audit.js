@@ -1,4 +1,4 @@
-import SecurityLog from '../models/SecurityLog.js';
+import platformEventBus, { DOMAINS, SEVERITIES } from '../events/platformEventBus.js';
 import logger from '../utils/logger.js';
 
 export const NETWORK_EVENTS = {
@@ -10,11 +10,11 @@ export const NETWORK_EVENTS = {
 };
 
 const SEVERITY_MAP = {
-    [NETWORK_EVENTS.NETWORK_CREATED]: 'INFO',
-    [NETWORK_EVENTS.NETWORK_DELETED]: 'INFO',
-    [NETWORK_EVENTS.NETWORK_DELETE_BLOCKED]: 'WARN',
-    [NETWORK_EVENTS.NETWORK_RECONCILED]: 'INFO',
-    [NETWORK_EVENTS.NETWORK_DOCKER_GONE]: 'WARN',
+    [NETWORK_EVENTS.NETWORK_CREATED]: SEVERITIES.INFO,
+    [NETWORK_EVENTS.NETWORK_DELETED]: SEVERITIES.INFO,
+    [NETWORK_EVENTS.NETWORK_DELETE_BLOCKED]: SEVERITIES.WARNING,
+    [NETWORK_EVENTS.NETWORK_RECONCILED]: SEVERITIES.INFO,
+    [NETWORK_EVENTS.NETWORK_DOCKER_GONE]: SEVERITIES.WARNING,
 };
 
 /**
@@ -22,19 +22,19 @@ const SEVERITY_MAP = {
  * @param {{ event: string, userId: string|ObjectId, metadata?: object }} options
  */
 export function logNetworkEvent({ event, userId, metadata = {} }) {
-    const severity = SEVERITY_MAP[event] || 'INFO';
+    const severity = SEVERITY_MAP[event] || SEVERITIES.INFO;
 
-    SecurityLog.create({
-        userId,
-        action: event,
-        result: severity === 'WARN' ? 'denied' : 'allowed',
+    platformEventBus.publish(DOMAINS.INFRASTRUCTURE, event, {
         severity,
-        metadata
-    }).catch((err) => {
-        logger.warn('Network audit log write failed', { event, error: err.message });
+        userId,
+        resourceType: 'Network',
+        resourceId: metadata.networkId || null,
+        payload: {
+            ...metadata
+        }
     });
 
-    const logMethod = severity === 'WARN' ? 'warn' : 'info';
+    const logMethod = severity === SEVERITIES.WARNING ? 'warn' : 'info';
     logger[logMethod](`Network event: ${event}`, {
         userId: userId?.toString(),
         ...metadata

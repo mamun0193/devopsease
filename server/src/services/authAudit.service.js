@@ -1,4 +1,4 @@
-import SecurityLog from "../models/SecurityLog.js";
+import platformEventBus, { DOMAINS, SEVERITIES } from "../events/platformEventBus.js";
 import logger from "../utils/logger.js";
 
 export const AUTH_EVENTS = {
@@ -12,13 +12,13 @@ export const AUTH_EVENTS = {
 };
 
 const SEVERITY_MAP = {
-    [AUTH_EVENTS.LOGIN_SUCCESS]: 'INFO',
-    [AUTH_EVENTS.LOGIN_FAILED]: 'WARN',
-    [AUTH_EVENTS.REFRESH_SUCCESS]: 'INFO',
-    [AUTH_EVENTS.REFRESH_FAILED]: 'WARN',
-    [AUTH_EVENTS.LOGOUT]: 'INFO',
-    [AUTH_EVENTS.REUSE_DETECTED]: 'HIGH',
-    [AUTH_EVENTS.RATE_LIMITED]: 'WARN',
+    [AUTH_EVENTS.LOGIN_SUCCESS]: SEVERITIES.INFO,
+    [AUTH_EVENTS.LOGIN_FAILED]: SEVERITIES.WARNING,
+    [AUTH_EVENTS.REFRESH_SUCCESS]: SEVERITIES.INFO,
+    [AUTH_EVENTS.REFRESH_FAILED]: SEVERITIES.WARNING,
+    [AUTH_EVENTS.LOGOUT]: SEVERITIES.INFO,
+    [AUTH_EVENTS.REUSE_DETECTED]: SEVERITIES.CRITICAL,
+    [AUTH_EVENTS.RATE_LIMITED]: SEVERITIES.WARNING,
 };
 
 /**
@@ -26,24 +26,24 @@ const SEVERITY_MAP = {
  * Never blocks the request, never throws.
  */
 export function logAuthEvent({ event, userId = null, email = null, ip = null, userAgent = null, metadata = {} }) {
-    const severity = SEVERITY_MAP[event] || 'INFO';
+    const severity = SEVERITY_MAP[event] || SEVERITIES.INFO;
+    const result = event.includes('SUCCESS') || event === AUTH_EVENTS.LOGOUT ? 'allowed' : 'denied';
 
-    // Fire and forget — don't await
-    SecurityLog.create({
-        userId,
-        action: event,
-        result: event.includes('SUCCESS') || event === AUTH_EVENTS.LOGOUT ? 'allowed' : 'denied',
+    platformEventBus.publish(DOMAINS.AUTH, event, {
         severity,
-        email,
-        ip,
-        userAgent,
-        metadata,
-    }).catch((error) => {
-        logger.warn("Auth audit log write failed", { event, error: error.message });
+        userId,
+        payload: {
+            reason: `Authentication ${result}`,
+            result,
+            email,
+            ip,
+            userAgent,
+            ...metadata
+        }
     });
 
     // Also log to structured logger for real-time observability
-    const logMethod = severity === 'HIGH' ? 'error' : severity === 'WARN' ? 'warn' : 'info';
+    const logMethod = severity === SEVERITIES.CRITICAL ? 'error' : severity === SEVERITIES.WARNING ? 'warn' : 'info';
     logger[logMethod](`Auth event: ${event}`, {
         userId: userId?.toString(),
         email,

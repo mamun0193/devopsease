@@ -384,8 +384,9 @@ async function eventCleanupJob() {
 /** Wire up persistence for WARNING+ events. Called once at startup. */
 function initEventPersistence() {
     platformEventBus.onAny(async (envelope) => {
-        // Only persist WARNING, ERROR, CRITICAL
-        if (envelope.severity === 'INFO' || !envelope.severity) return;
+        // Persist WARNING, ERROR, CRITICAL. Also persist INFO if it is a Security/Resilience/Audit event.
+        const isSecurityDomain = ['AUTH', 'SECRETS', 'INFRASTRUCTURE', 'RECOVERY', 'AUDIT', 'COMPLIANCE'].includes(envelope.domain);
+        if (envelope.severity === 'INFO' && !isSecurityDomain) return;
 
         try {
             await PlatformEvent.create({

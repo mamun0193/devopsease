@@ -72,6 +72,8 @@ import ApplicationDetailPage from './pages/ApplicationDetailPage';
 import DomainsPage from './pages/DomainsPage';
 import DomainDetailPage from './pages/DomainDetailPage';
 import ObservabilityPage from './pages/ObservabilityPage';
+import SecurityCenterPage from "./pages/SecurityCenterPage";
+import BackupsPage from "./pages/BackupsPage";
 import AutopilotPage from './pages/AutopilotPage';
 
 import EnvironmentManagementPage from './pages/EnvironmentManagementPage';
@@ -109,10 +111,6 @@ function App() {
                 <Route path="/docs" element={<DocsPage />} />
 
                 <Route path="/developers" element={<DevelopersPage />} />
-
-                <Route path="/features" element={<FeaturesPage />} />
-
-                <Route path="/about" element={<AboutPage />} />
 
                 <Route path="/pricing" element={<PricingPage />} />
 
@@ -163,6 +161,22 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <AutopilotPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/security"
+                  element={
+                    <ProtectedRoute>
+                      <SecurityCenterPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/backups"
+                  element={
+                    <ProtectedRoute>
+                      <BackupsPage />
                     </ProtectedRoute>
                   }
                 />

@@ -62,7 +62,9 @@ import gatewayService from "./gateway/gateway.service.js";
 import releaseRoutes from "./routes/release.routes.js";
 import trafficRoutes from "./routes/traffic.routes.js";
 import previewRoutes from "./routes/preview.routes.js";
+import resilienceRoutes from "./routes/resilience.routes.js";
 import platformScheduler from "./system/platformScheduler.js";
+import backupService from "./resilience/backup.service.js";
 import previewService from "./services/preview.service.js";
 import domainRoutes from "./routes/domain.routes.js";
 import domainService from "./services/domain.service.js";
@@ -140,6 +142,7 @@ app.use("/api/applications", applicationRoutes);
 app.use("/api/releases", releaseRoutes);
 app.use("/api/traffic", trafficRoutes);
 app.use("/api/previews", previewRoutes);
+app.use("/api/resilience", resilienceRoutes);
 app.use("/api/domains", domainRoutes);
 app.use("/api/observability", observabilityRoutes);
 app.use("/api/autopilot", autopilotRoutes);
@@ -264,6 +267,11 @@ async function startServer() {
     // Autopilot scheduler job
     platformScheduler.register('autopilot:evaluate', () => autopilotService.evaluate(), 15_000);
 
+    // Resilience & Security Center
+    platformScheduler.register('backup:daily', () => backupService.runDailyBackup(), 24 * 60 * 60_000);
+    platformScheduler.register('backup:retention', () => backupService.runRetentionCleanup(), 6 * 60 * 60_000);
+
+    logger.info("Global scheduler registered.");
   } catch (err) {
     logger.error("Failed to start server", { error: err.message });
     process.exit(1);
