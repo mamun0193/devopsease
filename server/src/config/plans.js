@@ -21,6 +21,7 @@ export const PLANS = {
             create: { limit: 5, window: 3600 },        // 5 per hour
             exec: { limit: 10, window: 60 },           // 10 per minute
             destructive: { limit: 5, window: 60 },     // 5 per minute (stop, remove, restart)
+            platform_api: { limit: 60, window: 60 },   // 60 requests per minute
         }
     },
     pro: {
@@ -45,6 +46,7 @@ export const PLANS = {
             create: { limit: 20, window: 3600 },
             exec: { limit: 60, window: 60 },
             destructive: { limit: 20, window: 60 },
+            platform_api: { limit: 300, window: 60 },
         }
     },
     premium: {
@@ -69,6 +71,7 @@ export const PLANS = {
             create: { limit: 50, window: 3600 },
             exec: { limit: 300, window: 60 },
             destructive: { limit: 100, window: 60 },
+            platform_api: { limit: 1000, window: 60 },
         }
     }
 };

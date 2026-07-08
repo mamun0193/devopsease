@@ -76,6 +76,7 @@ import autopilotRoutes from "./routes/autopilot.routes.js";
 import platformEventBus from "./events/platformEventBus.js";
 import { platformHealthJob, eventCleanupJob, initEventPersistence, checkGatewayThresholds } from "./observability/platformHealth.service.js";
 import autopilotService from "./autopilot/autopilot.service.js";
+import { WebhookDispatcher } from "./platform/webhooks/WebhookDispatcher.js";
 // 1. Validate Environment immediately
 validateEnv();
 
@@ -268,6 +269,9 @@ async function startServer() {
 
     // Autopilot scheduler job
     platformScheduler.register('autopilot:evaluate', () => autopilotService.evaluate(), 15_000);
+
+    // Webhooks
+    platformScheduler.register('webhooks:process-retries', () => WebhookDispatcher.processRetries(), 15_000);
 
     // Resilience & Security Center
     platformScheduler.register('backup:daily', () => backupService.runDailyBackup(), 24 * 60 * 60_000);

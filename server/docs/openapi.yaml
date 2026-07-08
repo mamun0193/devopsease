@@ -1,0 +1,82 @@
+openapi: 3.0.3
+info:
+  title: DevOpsEase Developer Platform API
+  description: Public API for extending and integrating with DevOpsEase.
+  version: 1.0.0
+servers:
+  - url: https://api.devopsease.com/api/v1/platform
+    description: Production server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Personal Access Token (PAT) or API Key.
+  schemas:
+    Repository:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        cloneUrl:
+          type: string
+        defaultBranch:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Deployment:
+      type: object
+      properties:
+        id:
+          type: string
+        repositoryId:
+          type: string
+        status:
+          type: string
+        commitSha:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: string
+          format: date-time
+security:
+  - bearerAuth: []
+paths:
+  /repositories:
+    get:
+      summary: List repositories
+      description: Returns a list of repositories accessible to the authenticated token. Requires `repository:read` capability.
+      responses:
+        '200':
+          description: A paginated list of repositories.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Repository'
+  /deployments:
+    post:
+      summary: Trigger a deployment
+      description: Queues a new deployment for the specified repository. Requires `deployment:execute` capability.
+      responses:
+        '202':
+          description: Deployment accepted and queued.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Deployment'
