@@ -4,59 +4,43 @@ import {
     updateSecret,
     deleteSecret,
 } from '../services/secret.service.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { standardResponse } from '../utils/apiResponse.js';
+import { ValidationError } from '../utils/AppError.js';
 
-export const createSecretAction = async (req, res, next) => {
-    try {
+export const createSecretAction = asyncHandler(async (req, res) => {
         const userId = req.user._id;
         const { name, value, environment } = req.body ?? {};
 
         if (!name || value == null || !environment) {
-            const error = new Error('name, value, and environment are required');
-            error.statusCode = 400;
-            error.errorCode = 'VALIDATION_ERROR';
-            throw error;
+            throw new ValidationError('name, value, and environment are required');
         }
 
         const secret = await createSecret({ userId, name, value, environment });
-        res.status(201).json({ secret });
-    } catch (error) {
-        next(error);
-    }
-};
+        res.status(201).json(standardResponse({ secret }));
+});
 
-export const getSecretsAction = async (req, res, next) => {
-    try {
+export const getSecretsAction = asyncHandler(async (req, res) => {
         const userId = req.user._id;
         const { environment } = req.query;
 
         const secrets = await getSecrets(userId, environment);
-        res.json({ secrets });
-    } catch (error) {
-        next(error);
-    }
-};
+        res.json(standardResponse({ secrets }));
+});
 
-export const updateSecretAction = async (req, res, next) => {
-    try {
+export const updateSecretAction = asyncHandler(async (req, res) => {
         const userId = req.user._id;
         const secretId = req.params.id;
         const { name, value, environment } = req.body ?? {};
 
         const secret = await updateSecret(userId, secretId, { name, value, environment });
-        res.json({ secret });
-    } catch (error) {
-        next(error);
-    }
-};
+        res.json(standardResponse({ secret }));
+});
 
-export const deleteSecretAction = async (req, res, next) => {
-    try {
+export const deleteSecretAction = asyncHandler(async (req, res) => {
         const userId = req.user._id;
         const secretId = req.params.id;
 
         await deleteSecret(userId, secretId);
-        res.json({ message: 'Secret deleted successfully' });
-    } catch (error) {
-        next(error);
-    }
-};
+        res.json(standardResponse(null, 'Secret deleted successfully'));
+});

@@ -1,31 +1,28 @@
 import logger from "../utils/logger.js";
 import globalMetricsCollector from "./globalMetricsCollector.js";
+import platformScheduler from "../system/platformScheduler.js";
 
 const CHECK_INTERVAL_MS = 5_000;
 const STALE_THRESHOLD_MS = 10_000;
 
 class CollectorWatchdog {
     constructor() {
-        this._timer = null;
         this._restartCount = 0;
     }
 
     start() {
-        if (this._timer) return;
-
         logger.info("CollectorWatchdog: started (check every 5s, stale threshold 10s)");
 
-        this._timer = setInterval(() => {
-            this._check();
-        }, CHECK_INTERVAL_MS);
+        platformScheduler.register(
+            "CollectorWatchdog:check",
+            () => this._check(),
+            CHECK_INTERVAL_MS
+        );
     }
 
     stop() {
-        if (this._timer) {
-            clearInterval(this._timer);
-            this._timer = null;
-            logger.info("CollectorWatchdog: stopped");
-        }
+        platformScheduler.unregister("CollectorWatchdog:check");
+        logger.info("CollectorWatchdog: stopped");
     }
 
     _check() {

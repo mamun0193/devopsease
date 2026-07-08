@@ -5,6 +5,7 @@ import { getResolverForProvider } from './resolverRegistry.js';
 import gatewayEvents from './gateway.events.js';
 import releaseEvents from '../events/release.events.js';
 import logger from '../utils/logger.js';
+import { getRedisClient, isRedisConnected } from '../redis/client.js';
 
 /**
  * Resolver Service — Resolves slugs to proxy targets with full runtime metadata.
@@ -28,6 +29,9 @@ function invalidateBySlug(slug) {
     if (_cache.delete(slug)) {
         logger.debug('Gateway resolver cache invalidated', { slug });
     }
+    if (isRedisConnected()) {
+        getRedisClient().del(`gateway:resolve:${slug}`).catch(() => {});
+    }
 }
 
 function invalidateByApplicationId(applicationId) {
@@ -35,6 +39,9 @@ function invalidateByApplicationId(applicationId) {
     for (const [slug, entry] of _cache) {
         if (String(entry.application?._id) === appIdStr) {
             _cache.delete(slug);
+            if (isRedisConnected()) {
+                getRedisClient().del(`gateway:resolve:${slug}`).catch(() => {});
+            }
             logger.debug('Gateway resolver cache invalidated by applicationId', { slug, applicationId: appIdStr });
             return;
         }
@@ -47,6 +54,9 @@ function invalidateByRepoId(repoId) {
         if (String(entry.application?.repositoryId) === repoIdStr ||
             String(entry.application?.repositoryId?._id) === repoIdStr) {
             _cache.delete(slug);
+            if (isRedisConnected()) {
+                getRedisClient().del(`gateway:resolve:${slug}`).catch(() => {});
+            }
             logger.debug('Gateway resolver cache invalidated by repoId', { slug, repoId: repoIdStr });
         }
     }
@@ -106,10 +116,24 @@ releaseEvents.on('CERTIFICATE_REVOKED', ({ hostname }) => {
 // Resolve a slug to a ResolvedRoute with full runtime metadata.
 
 export async function resolve(slug) {
-    // 1. Check cache
+    // 1. Check local cache
     const cached = _cache.get(slug);
     if (cached && (Date.now() - cached.cachedAt) < CACHE_TTL_MS) {
         return cached;
+    }
+
+    // 1b. Check Redis cache
+    if (isRedisConnected()) {
+        try {
+            const redisCached = await getRedisClient().get(`gateway:resolve:${slug}`);
+            if (redisCached) {
+                const parsed = JSON.parse(redisCached);
+                _cache.set(slug, { ...parsed, cachedAt: Date.now() });
+                return parsed;
+            }
+        } catch (err) {
+            logger.debug('Gateway resolver: redis cache read failed', { slug, error: err.message });
+        }
     }
 
     // 2. DB lookup: RoutingTable
@@ -137,6 +161,9 @@ export async function resolve(slug) {
             cachedAt: Date.now(),
         };
         _cache.set(slug, entry);
+        if (isRedisConnected()) {
+            getRedisClient().set(`gateway:resolve:${slug}`, JSON.stringify(entry), 'EX', 30).catch(() => {});
+        }
         return entry;
     }
 
@@ -149,10 +176,24 @@ export async function resolve(slug) {
 export async function resolveByHostname(hostname) {
     const cacheKey = `host:${hostname}`;
     
-    // 1. Check cache
+    // 1. Check local cache
     const cached = _cache.get(cacheKey);
     if (cached && (Date.now() - cached.cachedAt) < CACHE_TTL_MS) {
         return cached;
+    }
+
+    // 1b. Check Redis cache
+    if (isRedisConnected()) {
+        try {
+            const redisCached = await getRedisClient().get(`gateway:resolve:${cacheKey}`);
+            if (redisCached) {
+                const parsed = JSON.parse(redisCached);
+                _cache.set(cacheKey, { ...parsed, cachedAt: Date.now() });
+                return parsed;
+            }
+        } catch (err) {
+            logger.debug('Gateway resolver: redis cache read failed', { hostname, error: err.message });
+        }
     }
 
     // 2. DB lookup: RoutingTable via hostnames sparse index
@@ -228,6 +269,9 @@ async function resolveFromRoutingTable(routingTable, cacheKey) {
     // 6. Cache result
     const entry = { application, deployment, runtime, cachedAt: Date.now() };
     _cache.set(cacheKey, entry);
+    if (isRedisConnected()) {
+        getRedisClient().set(`gateway:resolve:${cacheKey}`, JSON.stringify(entry), 'EX', 30).catch(() => {});
+    }
 
     return entry;
 }

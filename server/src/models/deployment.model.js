@@ -24,7 +24,8 @@ const deploymentSchema = new mongoose.Schema({
     imageId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Image',
-        default: null
+        default: null,
+      index: true,
     },
     imageTag: {
         type: String,

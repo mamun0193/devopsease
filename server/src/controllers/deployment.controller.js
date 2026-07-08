@@ -10,11 +10,13 @@ import {
     rollbackDeployment,
     scaleDeployment,
 } from '../services/deployment.service.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { standardResponse } from '../utils/apiResponse.js';
+import { NotFoundError, ForbiddenError, ValidationError } from '../utils/AppError.js';
 
 const ENV_MAP = { development: 'dev', staging: 'staging', production: 'production' };
 
-export const getDeployments = async (req, res, next) => {
-    try {
+export const getDeployments = asyncHandler(async (req, res) => {
         const userId = req.user._id;
 
         const userRepos = await Repository.find({ userId }).select('_id repoName defaultBranch').lean();
@@ -76,28 +78,20 @@ export const getDeployments = async (req, res, next) => {
             };
         });
 
-        res.json({ deployments: shaped });
-    } catch (error) {
-        next(error);
+        res.json(standardResponse({ deployments: shaped }));
+});
+
+export const getDeploymentById = asyncHandler(async (req, res) => {
+    const deployment = await assertDeploymentOwnership(req.user._id, req.params.id);
+    res.json(standardResponse({ deployment }));
+});
+
+export const getDeploymentLogs = asyncHandler(async (req, res) => {
+    const deployment = await assertDeploymentOwnership(req.user._id, req.params.id);
+
+    if (!deployment.containerId) {
+        return res.json(standardResponse({ logs: [] }));
     }
-};
-
-export const getDeploymentById = async (req, res, next) => {
-    try {
-        const deployment = await assertDeploymentOwnership(req.user._id, req.params.id);
-        res.json({ deployment });
-    } catch (error) {
-        next(error);
-    }
-};
-
-export const getDeploymentLogs = async (req, res, next) => {
-    try {
-        const deployment = await assertDeploymentOwnership(req.user._id, req.params.id);
-
-        if (!deployment.containerId) {
-            return res.json({ logs: [] });
-        }
 
         const container = docker.getContainer(deployment.containerId);
         const rawLogs = await container.logs({
@@ -107,37 +101,27 @@ export const getDeploymentLogs = async (req, res, next) => {
             timestamps: false,
         });
 
-        const decoded = rawLogs
-            .toString('utf8')
-            .split('\n')
-            .map((line) => line.replace(/^[\x00-\x08\x0b-\x1f]/g, '').trim())
-            .filter(Boolean);
+    const decoded = rawLogs
+        .toString('utf8')
+        .split('\n')
+        .map((line) => line.replace(/^[\x00-\x08\x0b-\x1f]/g, '').trim())
+        .filter(Boolean);
 
-        res.json({ logs: decoded });
-    } catch (error) {
-        if (error?.statusCode === 404 || error?.reason === 'no such container') {
-            return res.json({ logs: [] });
-        }
-        next(error);
-    }
-};
+    res.json(standardResponse({ logs: decoded }));
+});
 
 // Ownership helper — T3: prefer direct userId match, fallback to repo-based lookup for pre-migration docs
 
 async function assertDeploymentOwnership(userId, deploymentId) {
     const deployment = await Deployment.findById(deploymentId).lean();
     if (!deployment) {
-        const err = new Error('Deployment not found');
-        err.statusCode = 404;
-        throw err;
+        throw new NotFoundError('Deployment not found');
     }
 
     // Fast path: direct userId comparison (post-migration deployments)
     if (deployment.userId) {
         if (deployment.userId.toString() !== userId.toString()) {
-            const err = new Error('Not authorized to manage this deployment');
-            err.statusCode = 403;
-            throw err;
+            throw new ForbiddenError('Not authorized to manage this deployment');
         }
         return deployment;
     }
@@ -145,9 +129,7 @@ async function assertDeploymentOwnership(userId, deploymentId) {
     // Fallback: legacy deployments without userId — check via Repository
     const repo = await Repository.findOne({ _id: deployment.repoId, userId }).lean();
     if (!repo) {
-        const err = new Error('Not authorized to manage this deployment');
-        err.statusCode = 403;
-        throw err;
+        throw new ForbiddenError('Not authorized to manage this deployment');
     }
 
     return deployment;
@@ -155,62 +137,40 @@ async function assertDeploymentOwnership(userId, deploymentId) {
 
 //  Deployment Actions 
 
-export const startDeploymentAction = async (req, res, next) => {
-    try {
-        await assertDeploymentOwnership(req.user._id, req.params.id);
-        const deployment = await startDeployment(req.params.id);
-        res.json({ deployment });
-    } catch (error) {
-        next(error);
+export const startDeploymentAction = asyncHandler(async (req, res) => {
+    await assertDeploymentOwnership(req.user._id, req.params.id);
+    const deployment = await startDeployment(req.params.id);
+    res.json(standardResponse({ deployment }));
+});
+
+export const stopDeploymentAction = asyncHandler(async (req, res) => {
+    await assertDeploymentOwnership(req.user._id, req.params.id);
+    const deployment = await stopDeployment(req.params.id);
+    res.json(standardResponse({ deployment }));
+});
+
+export const removeDeploymentAction = asyncHandler(async (req, res) => {
+    await assertDeploymentOwnership(req.user._id, req.params.id);
+    const deployment = await removeDeployment(req.params.id);
+    res.json(standardResponse({ deployment }));
+});
+
+export const rollbackDeploymentAction = asyncHandler(async (req, res) => {
+    await assertDeploymentOwnership(req.user._id, req.params.id);
+    const deployment = await rollbackDeployment(req.params.id, {
+        reason: req.body?.reason,
+    });
+    res.json(standardResponse({ deployment }));
+});
+
+export const scaleDeploymentAction = asyncHandler(async (req, res) => {
+    await assertDeploymentOwnership(req.user._id, req.params.id);
+
+    const replicas = Number(req.body?.replicas);
+    if (!Number.isInteger(replicas) || replicas < 1) {
+        throw new ValidationError('"replicas" must be a positive integer');
     }
-};
 
-export const stopDeploymentAction = async (req, res, next) => {
-    try {
-        await assertDeploymentOwnership(req.user._id, req.params.id);
-        const deployment = await stopDeployment(req.params.id);
-        res.json({ deployment });
-    } catch (error) {
-        next(error);
-    }
-};
-
-export const removeDeploymentAction = async (req, res, next) => {
-    try {
-        await assertDeploymentOwnership(req.user._id, req.params.id);
-        const deployment = await removeDeployment(req.params.id);
-        res.json({ deployment });
-    } catch (error) {
-        next(error);
-    }
-};
-
-export const rollbackDeploymentAction = async (req, res, next) => {
-    try {
-        await assertDeploymentOwnership(req.user._id, req.params.id);
-        const deployment = await rollbackDeployment(req.params.id, {
-            reason: req.body?.reason,
-        });
-        res.json({ deployment });
-    } catch (error) {
-        next(error);
-    }
-};
-
-export const scaleDeploymentAction = async (req, res, next) => {
-    try {
-        await assertDeploymentOwnership(req.user._id, req.params.id);
-
-        const replicas = Number(req.body?.replicas);
-        if (!Number.isInteger(replicas) || replicas < 1) {
-            const err = new Error('"replicas" must be a positive integer');
-            err.statusCode = 400;
-            throw err;
-        }
-
-        const deployment = await scaleDeployment(req.params.id, replicas);
-        res.json({ deployment });
-    } catch (error) {
-        next(error);
-    }
-};
+    const deployment = await scaleDeployment(req.params.id, replicas);
+    res.json(standardResponse({ deployment }));
+});

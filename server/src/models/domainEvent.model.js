@@ -10,12 +10,14 @@ const domainEventSchema = new mongoose.Schema({
     certificateId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Certificate',
-        default: null
+        default: null,
+      index: true,
     },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: true,
+      index: true,
     },
     decision: {
         type: String,

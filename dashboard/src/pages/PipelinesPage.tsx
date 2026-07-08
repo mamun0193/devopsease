@@ -27,6 +27,8 @@ import { usePipelines, useRunPipeline, useDeletePipeline, useTogglePipeline } fr
 import { useAppDispatch } from '../store/hooks';
 import { addToast } from '../store/toastSlice';
 import type { Pipeline, PipelineRepo } from '../api';
+import { Skeleton } from '../components/ui/skeleton';
+import { EmptyState } from '../components/ui/empty-state';
 
 // Helpers
 function formatRelativeTime(dateString: string): string {
@@ -189,10 +191,10 @@ function TableSkeleton() {
                         <tr key={i} className="border-b border-dds-border">
                             <td className="py-4 px-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-md bg-dds-muted animate-pulse" />
+                                    <Skeleton className="w-9 h-9 rounded-md flex-shrink-0" />
                                     <div className="space-y-2">
-                                        <div className="h-3.5 bg-dds-muted rounded animate-pulse w-40" />
-                                        <div className="h-2.5 bg-dds-muted/60 rounded animate-pulse w-56" />
+                                        <Skeleton className="h-3.5 w-40" />
+                                        <Skeleton className="h-2.5 w-56 bg-white/5" />
                                     </div>
                                 </div>
                             </td>
@@ -373,23 +375,21 @@ const PipelinesPage: React.FC = () => {
                         ) : pipelines.length === 0 ? (
                             <motion.div
                                 key="empty"
-                                className="flex flex-col items-center justify-center py-20 text-center"
                                 initial={{ opacity: 0, scale: 0.97 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0 }}
                             >
-                                <GitMerge size={40} className="text-dds-text-muted mb-4" />
-                                <h3 className="text-lg font-medium text-dds-text-primary mb-1">No pipelines yet</h3>
-                                <p className="text-sm text-dds-text-secondary max-w-sm mx-auto mb-6">
-                                    Create your first CI/CD pipeline to automate builds, tests, and deployments.
-                                </p>
-                                <button
-                                    onClick={() => setCreateModalOpen(true)}
-                                    className="btn-primary"
-                                >
-                                    <Plus size={16} />
-                                    Create Pipeline
-                                </button>
+                                <EmptyState
+                                    icon={<GitMerge className="h-10 w-10 text-dds-text-muted" />}
+                                    title="No pipelines yet"
+                                    description="Create your first CI/CD pipeline to automate builds, tests, and deployments."
+                                    action={
+                                        <button onClick={() => setCreateModalOpen(true)} className="btn-primary flex items-center gap-2">
+                                            <Plus size={16} />
+                                            Create Pipeline
+                                        </button>
+                                    }
+                                />
                             </motion.div>
                         ) : filtered.length === 0 ? (
                             <motion.div

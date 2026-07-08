@@ -43,7 +43,8 @@ const envSchema = new mongoose.Schema({
     inheritsFrom: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Environment',
-        default: null
+        default: null,
+      index: true,
     },
     isDefault: {
         type: Boolean,

@@ -4,6 +4,7 @@ import {
   CheckCircle2, WifiOff, Loader2, User, Link2,
 } from 'lucide-react';
 import type { Repository, RepoStatus } from '../services/repo.api';
+import { EmptyState } from './ui/empty-state';
 
 interface RepoListTableProps {
   repos: Repository[];
@@ -195,21 +196,12 @@ const RepoRow: React.FC<RepoRowProps> = ({ repo, isDeleting, onDeleteClick }) =>
 
 // ── Empty state ─────────────────────────────────────────────────────────────────
 
-const EmptyState: React.FC = () => (
-  <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
-    <div className="relative mb-6">
-      <div className="w-16 h-16 rounded-xl bg-dds-surface border border-dds-border flex items-center justify-center shadow-sm">
-        <GitBranch size={28} className="text-dds-text-muted" />
-      </div>
-      <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-dds-bg border border-dds-primary/30 flex items-center justify-center">
-        <ExternalLink size={12} className="text-dds-primary" />
-      </div>
-    </div>
-    <h3 className="text-dds-text-primary font-medium text-[15px] mb-2">No repositories connected yet</h3>
-    <p className="text-dds-text-secondary text-[13px] max-w-xs leading-relaxed">
-      Connect your first Git repository to start managing deployments, CI/CD pipelines, and build status.
-    </p>
-  </div>
+const RepoEmptyState: React.FC = () => (
+  <EmptyState
+    icon={<GitBranch size={28} className="text-dds-text-muted" />}
+    title="No repositories connected yet"
+    description="Connect your first Git repository to start managing deployments, CI/CD pipelines, and build status."
+  />
 );
 
 // Main component 
@@ -232,7 +224,7 @@ const RepoListTable: React.FC<RepoListTableProps> = ({ repos, onDelete }) => {
     }
   };
 
-  if (repos.length === 0) return <EmptyState />;
+  if (repos.length === 0) return <RepoEmptyState />;
 
   const confirmRepo = repos.find((r) => r._id === confirmId);
 

@@ -11,7 +11,8 @@ const previewPolicySchema = new mongoose.Schema({
         ref: 'Repository',
         required: true,
         unique: true,
-        immutable: true
+        immutable: true,
+      index: true,
     },
     
     // Automation
@@ -70,7 +71,8 @@ const previewPolicySchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: true,
+      index: true,
     }
 }, {
     timestamps: true

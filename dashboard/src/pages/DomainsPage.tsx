@@ -15,6 +15,8 @@ import {
   Activity
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useAppDispatch } from '../store/hooks';
+import { addToast } from '../store/toastSlice';
 
 const StatusBadge = ({ status }: { status: string }) => {
   const styles: Record<string, string> = {
@@ -37,6 +39,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 export default function DomainsPage() {
+  const dispatch = useAppDispatch();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -98,7 +101,7 @@ export default function DomainsPage() {
       setAppId('');
       fetchDomains();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to add domain');
+      dispatch(addToast({ message: err.response?.data?.message || 'Failed to add domain', type: 'error', duration: 5000 }));
     } finally {
       setIsSubmitting(false);
     }

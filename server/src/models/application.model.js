@@ -58,6 +58,7 @@ const applicationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Deployment',
         default: null,
+      index: true,
     },
 
     // Link to the active user-defined traffic policy
@@ -65,6 +66,7 @@ const applicationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'TrafficPolicy',
         default: null,
+      index: true,
     },
 
     // Future: per-environment deployment pointers for traffic splitting

@@ -29,7 +29,8 @@ const volumeSchema = new mongoose.Schema({
     projectId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Project',
-        default: null
+        default: null,
+      index: true,
     },
     sizeMB: {
         type: Number,

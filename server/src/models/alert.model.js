@@ -34,7 +34,7 @@ const alertSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: null, // null for platform-wide alerts
+      default: null, // null for platform-wide alerts,
       index: true,
     },
     containerId: {

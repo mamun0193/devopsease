@@ -77,12 +77,14 @@ const pipelineRunSchema = new mongoose.Schema({
     buildId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Build',
-        default: null
+        default: null,
+      index: true,
     },
     deploymentId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Deployment',
-        default: null
+        default: null,
+      index: true,
     },
     steps: {
         type: [stepSchema],

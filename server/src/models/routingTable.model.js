@@ -7,12 +7,14 @@ const routeEntrySchema = new mongoose.Schema({
     deploymentId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Deployment',
-        required: true
+        required: true,
+      index: true,
     },
     releaseId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Release',
-        required: true
+        required: true,
+      index: true,
     },
     weight: {
         type: Number,
@@ -45,7 +47,8 @@ const routingTableSchema = new mongoose.Schema({
     applicationId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Application',
-        required: true
+        required: true,
+      index: true,
     },
     routes: {
         type: [routeEntrySchema],

@@ -1,8 +1,10 @@
 import express from 'express';
 import resilienceController from '../controllers/resilience.controller.js';
-import { requireAdmin } from '../middlewares/requireAdmin.js';
+import { requireRole, ROLES } from '../middlewares/rbac.js';
 
 const router = express.Router();
+
+const requireAdmin = requireRole(ROLES.ADMIN);
 
 // Security Center (Audit Logs)
 router.get('/security/events', requireAdmin, resilienceController.getSecurityEvents);

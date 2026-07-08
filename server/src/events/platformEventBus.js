@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import crypto from 'crypto';
 import logger from '../utils/logger.js';
 import { getRedisClient, isRedisConnected } from '../redis/client.js';
+import actionHistoryService from '../services/actionHistory.service.js';
 
 // ponytail: Unified Platform Event Bus — single event infrastructure for all DevOpsEase subsystems.
 // Replaces release.events.js, domainEvents.js, gateway.events.js with one bus.
@@ -38,6 +39,7 @@ const DOMAINS = Object.freeze({
     RECOVERY: 'RECOVERY',
     AUDIT: 'AUDIT',
     COMPLIANCE: 'COMPLIANCE',
+    SECURITY: 'SECURITY',
 });
 
 class PlatformEventBus extends EventEmitter {
@@ -201,6 +203,29 @@ class PlatformEventBus extends EventEmitter {
             resourceId: envelope.resourceId,
             severity: envelope.severity,
         });
+
+        // Ensure critical domain events are recorded in ActionHistory
+        this._recordToHistoryIfCritical(envelope);
+    }
+
+    /** Record critical domain events to ActionHistory */
+    _recordToHistoryIfCritical(envelope) {
+        const criticalDomains = [DOMAINS.DEPLOYMENT, DOMAINS.BUILD, DOMAINS.RELEASE, DOMAINS.PIPELINE];
+        const isCriticalType = envelope.eventType.includes('FINISHED') || envelope.eventType.includes('FAILED') || envelope.eventType.includes('COMPLETED') || envelope.eventType.includes('ERROR');
+        
+        const isCritical = criticalDomains.includes(envelope.domain) && isCriticalType;
+        const isError = envelope.severity === SEVERITIES.ERROR || envelope.severity === SEVERITIES.CRITICAL;
+
+        if (isCritical || isError) {
+            actionHistoryService.recordAction({
+                containerId: envelope.resourceId || envelope.domain,
+                containerName: envelope.resourceType || envelope.domain,
+                action: envelope.eventType.toLowerCase(),
+                status: isError ? 'failed' : 'success',
+                reason: envelope.payload?.error || envelope.payload?.message || envelope.payload?.reason || null,
+                source: 'platform_event',
+            }).catch(err => logger.debug("[PlatformEventBus] Failed to record to ActionHistory", { error: err.message }));
+        }
     }
 
     /** Infer domain from legacy event names. */

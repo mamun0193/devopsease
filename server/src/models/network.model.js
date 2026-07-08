@@ -31,7 +31,8 @@ const networkSchema = new mongoose.Schema({
     projectId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Project',
-        default: null
+        default: null,
+      index: true,
     },
     usageStatus: {
         type: String,

@@ -8,17 +8,17 @@ import { repoApi } from '../services/repo.api';
 import type { Repository } from '../services/repo.api';
 import { useAppDispatch } from '../store/hooks';
 import { addToast } from '../store/toastSlice';
+import { Skeleton } from '../components/ui/skeleton';
 
 const CardSkeleton: React.FC = () => (
   <div className="p-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
     {Array.from({ length: 6 }).map((_, i) => (
       <div key={i} className="card p-5">
-        {/* Header */}
         <div className="flex items-start gap-3.5 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-dds-muted animate-pulse flex-shrink-0" />
+          <Skeleton className="w-10 h-10 rounded-xl flex-shrink-0" />
           <div className="flex-1 space-y-2 pt-1">
-            <div className="h-3.5 bg-dds-muted rounded animate-pulse w-32" />
-            <div className="h-2.5 bg-dds-muted/60 rounded animate-pulse w-48" />
+            <Skeleton className="h-3.5 w-32" />
+            <Skeleton className="h-2.5 w-48 bg-white/5" />
           </div>
         </div>
       </div>

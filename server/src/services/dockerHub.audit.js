@@ -1,4 +1,4 @@
-import SecurityLog from '../models/SecurityLog.js';
+import platformEventBus from '../events/platformEventBus.js';
 import logger from '../utils/logger.js';
 
 export const DOCKERHUB_EVENTS = {
@@ -31,14 +31,15 @@ export function logDockerHubEvent({ event, userId, metadata = {} }) {
     const isSuccess = event.includes('SUCCESS') || event === DOCKERHUB_EVENTS.DOCKERHUB_CONNECT || event === DOCKERHUB_EVENTS.DOCKERHUB_DISCONNECT || event === DOCKERHUB_EVENTS.IMAGE_PULL_STARTED;
 
     // Fire and forget — don't await
-    SecurityLog.create({
-        userId,
-        action: event,
-        result: isSuccess ? 'allowed' : 'denied',
+    platformEventBus.publish('SECURITY', event, {
         severity,
-        metadata
-    }).catch((error) => {
-        logger.warn('DockerHub audit log write failed', { event, error: error.message });
+        userId,
+        payload: {
+            summary: `DockerHub Action: ${event}`,
+            metadata: {
+                ...metadata
+            }
+        }
     });
 
     const logMethod = severity === 'WARN' ? 'warn' : 'info';

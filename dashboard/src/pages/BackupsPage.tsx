@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAppDispatch } from '../store/hooks';
+import { addToast } from '../store/toastSlice';
 
 export default function BackupsPage() {
+  const dispatch = useAppDispatch();
   const [backups, setBackups] = useState<any[]>([]);
   const [restores, setRestores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -39,8 +42,8 @@ export default function BackupsPage() {
     try {
       await axios.post('/api/resilience/backups', { tier: 'pinned' });
       await fetchData();
-    } catch (err) {
-      alert('Failed to create backup');
+    } catch (err: any) {
+      dispatch(addToast({ message: err?.response?.data?.message || 'Failed to create backup', type: 'error', duration: 5000 }));
     } finally {
       setCreating(false);
     }
@@ -51,8 +54,8 @@ export default function BackupsPage() {
     try {
       await axios.delete(`/api/resilience/backups/${id}`);
       await fetchData();
-    } catch (err) {
-      alert('Failed to delete backup');
+    } catch (err: any) {
+      dispatch(addToast({ message: err?.response?.data?.message || 'Failed to delete backup', type: 'error', duration: 5000 }));
     }
   };
 
@@ -69,8 +72,8 @@ export default function BackupsPage() {
     try {
       const res = await axios.post('/api/resilience/restores/plan', { backupId });
       setRestorePlan(res.data);
-    } catch (err) {
-      alert('Failed to generate restore plan');
+    } catch (err: any) {
+      dispatch(addToast({ message: err?.response?.data?.message || 'Failed to generate restore plan', type: 'error', duration: 5000 }));
       setWizardOpen(false);
     }
   };
@@ -80,11 +83,11 @@ export default function BackupsPage() {
     setWizardStep('EXECUTING');
     try {
       await axios.post(`/api/resilience/restores/${restorePlan.restore._id}/execute`);
-      alert('Restore execution started! The platform will enter maintenance mode.');
+      dispatch(addToast({ message: 'Restore execution started! The platform will enter maintenance mode.', type: 'info', duration: 5000 }));
       setWizardOpen(false);
       fetchData();
-    } catch (err) {
-      alert('Failed to execute restore');
+    } catch (err: any) {
+      dispatch(addToast({ message: err?.response?.data?.message || 'Failed to execute restore', type: 'error', duration: 5000 }));
       setWizardOpen(false);
     }
   };

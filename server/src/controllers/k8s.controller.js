@@ -2,6 +2,8 @@ import { generateDeploymentYaml } from '../services/k8sDeployment.service.js';
 import { generateServiceYaml } from '../services/k8sService.service.js';
 import { generateIngressYaml } from '../services/k8sIngress.service.js';
 import { getSecrets } from '../services/secret.service.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { standardResponse } from '../utils/apiResponse.js';
 
 function buildManagedSecretEnvRefs(secretRecords = [], environment = 'development') {
     const normalizedEnvironment = String(environment || 'development').trim().toLowerCase();
@@ -27,8 +29,7 @@ function mergeUniqueEnvEntries(envEntries = []) {
     return Array.from(deduped.values());
 }
 
-export const generateDeploymentYamlAction = async (req, res, next) => {
-    try {
+export const generateDeploymentYamlAction = asyncHandler(async (req, res) => {
         const body = req.body ?? {};
         const environment = body.environment || 'development';
 
@@ -41,26 +42,15 @@ export const generateDeploymentYamlAction = async (req, res, next) => {
             env: mergeUniqueEnvEntries([...requestEnv, ...managedSecretEnv]),
         });
 
-        res.json({ yaml });
-    } catch (error) {
-        next(error);
-    }
-};
+    res.json(standardResponse({ yaml }));
+});
 
-export const generateServiceYamlAction = async (req, res, next) => {
-    try {
-        const yaml = generateServiceYaml(req.body ?? {});
-        res.json({ yaml });
-    } catch (error) {
-        next(error);
-    }
-};
+export const generateServiceYamlAction = asyncHandler(async (req, res) => {
+    const yaml = generateServiceYaml(req.body ?? {});
+    res.json(standardResponse({ yaml }));
+});
 
-export const generateIngressYamlAction = async (req, res, next) => {
-    try {
-        const yaml = generateIngressYaml(req.body ?? {});
-        res.json({ yaml });
-    } catch (error) {
-        next(error);
-    }
-};
+export const generateIngressYamlAction = asyncHandler(async (req, res) => {
+    const yaml = generateIngressYaml(req.body ?? {});
+    res.json(standardResponse({ yaml }));
+});

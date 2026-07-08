@@ -5,14 +5,16 @@ import { runValidation } from '../validation/validation.service.js';
 import { generateDeploymentPreview } from '../deployments/preview.engine.js';
 import logger from '../utils/logger.js';
 import { diffLines } from 'diff';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { standardResponse } from '../utils/apiResponse.js';
+import AppError, { ValidationError, NotFoundError } from '../utils/AppError.js';
 
-export const getArtifacts = async (req, res) => {
-    try {
-        const { repoId } = req.params;
+export const getArtifacts = asyncHandler(async (req, res) => {
+    const { repoId } = req.params;
 
-        if (!repoId) {
-            return res.status(400).json({ success: false, error: 'Repository ID is required' });
-        }
+    if (!repoId) {
+        throw new ValidationError('Repository ID is required');
+    }
 
         // 1. Generate or fetch immutable bundle
         const artifactBundle = await generatorServiceGenerate(repoId);
@@ -37,27 +39,19 @@ export const getArtifacts = async (req, res) => {
 
         const preview = generateDeploymentPreview(latestRevision);
 
-        res.status(200).json({
-            success: true,
-            data: {
-                bundle: artifactBundle,
-                revision: latestRevision,
-                preview
-            }
-        });
-    } catch (error) {
-        logger.error(`Error generating artifacts for repo ${req.params.repoId}:`, error);
-        res.status(500).json({ success: false, error: 'Failed to generate deployment artifacts', details: error.message });
-    }
-};
+    res.status(200).json(standardResponse({
+        bundle: artifactBundle,
+        revision: latestRevision,
+        preview
+    }));
+});
 
-export const updateArtifactRevision = async (req, res) => {
-    try {
-        const { id } = req.params; // artifactBundleId
-        const { editedArtifacts } = req.body;
+export const updateArtifactRevision = asyncHandler(async (req, res) => {
+    const { id } = req.params; // artifactBundleId
+    const { editedArtifacts } = req.body;
 
-        const bundle = await ArtifactBundle.findById(id);
-        if (!bundle) return res.status(404).json({ success: false, error: 'Bundle not found' });
+    const bundle = await ArtifactBundle.findById(id);
+    if (!bundle) throw new NotFoundError('Bundle not found');
 
         const latestRevision = await ArtifactRevision.findOne({ artifactBundleId: id }).sort({ revision: -1 });
         const nextRevisionNumber = latestRevision ? latestRevision.revision + 1 : 1;
@@ -78,58 +72,42 @@ export const updateArtifactRevision = async (req, res) => {
 
         const preview = generateDeploymentPreview(newRevision);
 
-        res.status(200).json({ success: true, data: { revision: newRevision, preview } });
-    } catch (error) {
-        logger.error(`Error updating artifact revision:`, error);
-        res.status(500).json({ success: false, error: 'Failed to update artifact revision' });
-    }
-};
+    res.status(200).json(standardResponse({ revision: newRevision, preview }));
+});
 
-export const approveArtifactRevision = async (req, res) => {
-    try {
-        const { revisionId } = req.params;
-        const revision = await ArtifactRevision.findById(revisionId);
-        if (!revision) return res.status(404).json({ success: false, error: 'Revision not found' });
+export const approveArtifactRevision = asyncHandler(async (req, res) => {
+    const { revisionId } = req.params;
+    const revision = await ArtifactRevision.findById(revisionId);
+    if (!revision) throw new NotFoundError('Revision not found');
 
         revision.approvalStatus = 'APPROVED';
         revision.approvedBy = req.user._id;
         revision.approvedAt = new Date();
         await revision.save();
 
-        res.status(200).json({ success: true, data: revision });
-    } catch (error) {
-        res.status(500).json({ success: false, error: 'Failed to approve revision' });
-    }
-};
+    res.status(200).json(standardResponse(revision));
+});
 
-export const getArtifactHistory = async (req, res) => {
-    try {
-        const { id } = req.params; // artifactBundleId
-        const revisions = await ArtifactRevision.find({ artifactBundleId: id })
+export const getArtifactHistory = asyncHandler(async (req, res) => {
+    const { id } = req.params; // artifactBundleId
+    const revisions = await ArtifactRevision.find({ artifactBundleId: id })
                                               .sort({ revision: -1 })
                                               .populate('createdBy', 'username email')
                                               .populate('approvedBy', 'username email');
-        res.status(200).json({ success: true, data: revisions });
-    } catch (error) {
-        res.status(500).json({ success: false, error: 'Failed to fetch history' });
-    }
-};
+    res.status(200).json(standardResponse(revisions));
+});
 
-export const getArtifactDiff = async (req, res) => {
-    try {
-        const { id, revision } = req.params; // artifactBundleId and specific revision
-        const bundle = await ArtifactBundle.findById(id);
-        const rev = await ArtifactRevision.findOne({ artifactBundleId: id, revision });
+export const getArtifactDiff = asyncHandler(async (req, res) => {
+    const { id, revision } = req.params; // artifactBundleId and specific revision
+    const bundle = await ArtifactBundle.findById(id);
+    const rev = await ArtifactRevision.findOne({ artifactBundleId: id, revision });
 
-        if (!bundle || !rev) return res.status(404).json({ success: false, error: 'Not found' });
+    if (!bundle || !rev) throw new NotFoundError('Not found');
 
         // A simple example diff on docker-compose
         const originalCompose = bundle.compose?.content || '';
         const editedCompose = rev.editedArtifacts?.compose?.content || originalCompose;
 
         const diff = diffLines(originalCompose, editedCompose);
-        res.status(200).json({ success: true, data: { composeDiff: diff } });
-    } catch (error) {
-        res.status(500).json({ success: false, error: 'Failed to calculate diff' });
-    }
-};
+    res.status(200).json(standardResponse({ composeDiff: diff }));
+});

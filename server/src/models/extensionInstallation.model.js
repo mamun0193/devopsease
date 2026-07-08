@@ -16,6 +16,7 @@ const extensionInstallationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: true,
     },
     configuration: {
       type: mongoose.Schema.Types.Mixed, // The actual configuration values provided by the user

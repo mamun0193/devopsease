@@ -1,5 +1,6 @@
 import docker from "../docker/client.js";
 import logger from "../utils/logger.js";
+import platformScheduler from "../system/platformScheduler.js";
 import ContainerOwnership from "../models/ContainerOwnership.js";
 import quotaService from "./quota.service.js";
 import alertService from "./alert.service.js";
@@ -9,14 +10,10 @@ import globalMetricsCollector from "./globalMetricsCollector.js";
 
 class ResourceMonitorService {
     constructor() {
-        this._interval = null;
-        this._running = false;
     }
     // Start the resource monitor scheduler.
     // Polls Docker stats every 10 seconds and updates per-user quota usage.
     start() {
-        if (this._interval) return;
-
         logger.info("Resource monitor started (10s interval)");
 
         // Run once immediately, then schedule
@@ -24,22 +21,17 @@ class ResourceMonitorService {
             logger.warn("Initial resource collection failed", { error: err.message });
         });
 
-        this._interval = setInterval(() => {
-            this.collectContainerStats().catch((err) => {
-                logger.warn("Resource monitor tick failed", { error: err.message });
-            });
-        }, 10_000);
+        platformScheduler.register(
+            "ResourceMonitor:collect",
+            () => this.collectContainerStats(),
+            10_000
+        );
     }
     stop() {
-        if (this._interval) {
-            clearInterval(this._interval);
-            this._interval = null;
-            logger.info("Resource monitor stopped");
-        }
+        platformScheduler.unregister("ResourceMonitor:collect");
+        logger.info("Resource monitor stopped");
     }
     async collectContainerStats() {
-        if (this._running) return; // guard against overlapping runs
-        this._running = true;
 
         try {
             // 0. Reconcile orphaned ownership records
@@ -148,8 +140,6 @@ class ResourceMonitorService {
             }
         } catch (err) {
             logger.warn("Resource monitor collection error", { error: err.message });
-        } finally {
-            this._running = false;
         }
     }
     // Calculate CPU usage in cores from Docker stats.

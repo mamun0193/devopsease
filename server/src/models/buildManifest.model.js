@@ -29,7 +29,8 @@ const BuildComparisonSchema = new mongoose.Schema({
     previousBuildId: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Build',
-        default: null
+        default: null,
+      index: true,
     },
     dependencyChanges: { type: Boolean, default: false },
     dockerfileChanges: { type: Boolean, default: false },

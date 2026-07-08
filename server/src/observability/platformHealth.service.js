@@ -44,6 +44,14 @@ function scoreToStatus(score) {
     return HEALTH_STATUS.UNHEALTHY;
 }
 
+const subsystemEvaluators = new Map();
+
+function registerHealthCheck(name, evaluatorFn) {
+    if (subsystemEvaluators.has(name)) return;
+    subsystemEvaluators.set(name, evaluatorFn);
+    logger.info(`[PlatformHealth] Registered health check for subsystem: ${name}`);
+}
+
 // ─── Infrastructure Health ────────────────────────────────────────────────────
 
 async function evaluateInfrastructureHealth() {
@@ -253,8 +261,24 @@ async function evaluatePlatformHealth() {
     const gateway = evaluateGatewayHealth();
     const scheduler = evaluateSchedulerHealth();
 
+    const dynamicSubsystems = await Promise.all(
+        Array.from(subsystemEvaluators.entries()).map(async ([name, evaluatorFn]) => {
+            try {
+                return await evaluatorFn();
+            } catch (err) {
+                logger.error(`[PlatformHealth] Evaluator for ${name} failed`, { error: err.message });
+                return {
+                    name,
+                    status: HEALTH_STATUS.UNHEALTHY,
+                    score: 0,
+                    dimensions: { availability: 0, reliability: 0, performance: 0, security: 0 },
+                };
+            }
+        })
+    );
+
     // Compose overall score from subsystem scores
-    const subsystems = [infrastructure, gateway, scheduler];
+    const subsystems = [infrastructure, gateway, scheduler, ...dynamicSubsystems];
     const avgScore = Math.round(subsystems.reduce((sum, s) => sum + s.score, 0) / subsystems.length);
 
     const overallStatus = infrastructure.status === HEALTH_STATUS.UNHEALTHY
@@ -291,11 +315,12 @@ async function evaluatePlatformHealth() {
         status: overallStatus,
         score: composeDimensionScore(dimensions),
         dimensions,
-        subsystems: {
-            infrastructure,
-            gateway,
-            scheduler,
-        },
+        subsystems: subsystems.reduce((acc, s) => {
+            // Lowercase the first letter of the subsystem name for the key
+            const key = s.name.charAt(0).toLowerCase() + s.name.slice(1);
+            acc[key] = s;
+            return acc;
+        }, {}),
         explanation,
         evaluatedAt: new Date(),
     };
@@ -385,7 +410,7 @@ async function eventCleanupJob() {
 function initEventPersistence() {
     platformEventBus.onAny(async (envelope) => {
         // Persist WARNING, ERROR, CRITICAL. Also persist INFO if it is a Security/Resilience/Audit event.
-        const isSecurityDomain = ['AUTH', 'SECRETS', 'INFRASTRUCTURE', 'RECOVERY', 'AUDIT', 'COMPLIANCE'].includes(envelope.domain);
+        const isSecurityDomain = ['AUTH', 'SECRETS', 'INFRASTRUCTURE', 'RECOVERY', 'AUDIT', 'COMPLIANCE', 'SECURITY'].includes(envelope.domain);
         if (envelope.severity === 'INFO' && !isSecurityDomain) return;
 
         try {
@@ -461,6 +486,7 @@ export {
     eventCleanupJob,
     initEventPersistence,
     checkGatewayThresholds,
+    registerHealthCheck,
     HEALTH_STATUS,
     DIMENSION_WEIGHTS,
 };

@@ -1,11 +1,11 @@
 import ContainerMetric from "../models/containerMetric.model.js";
 import logger from "../utils/logger.js";
+import platformScheduler from "../system/platformScheduler.js";
 
 // Service responsible for periodic aggregation of raw metrics into coarser resolutions and cleanup of old data.
 
 class MetricsAggregator {
   constructor() {
-    this._intervals = [];
   }
   // Start the aggregation and cleanup intervals. Called on server startup.
   start() {
@@ -19,42 +19,25 @@ class MetricsAggregator {
     );
 
     // 10-minute aggregation — every 10 minutes
-    const tenMinInterval = setInterval(
-      () => {
-        this.aggregate30sTo10m().catch((err) =>
-          logger.error("MetricsAggregator: 30s→10m aggregation failed", {
-            error: err.message,
-          }),
-        );
-      },
-      10 * 60 * 1000,
+    platformScheduler.register(
+      "MetricsAggregator:10m",
+      () => this.aggregate30sTo10m(),
+      10 * 60 * 1000
     );
 
     // 1-hour aggregation — every hour
-    const oneHourAggInterval = setInterval(
-      () => {
-        this.aggregate10mTo1h().catch((err) =>
-          logger.error("MetricsAggregator: 10m→1h aggregation failed", {
-            error: err.message,
-          }),
-        );
-      },
-      60 * 60 * 1000,
+    platformScheduler.register(
+      "MetricsAggregator:1h",
+      () => this.aggregate10mTo1h(),
+      60 * 60 * 1000
     );
 
     // Cleanup — every hour
-    const cleanupInterval = setInterval(
-      () => {
-        this.cleanup().catch((err) =>
-          logger.error("MetricsAggregator: cleanup failed", {
-            error: err.message,
-          }),
-        );
-      },
-      60 * 60 * 1000,
+    platformScheduler.register(
+      "MetricsAggregator:cleanup",
+      () => this.cleanup(),
+      60 * 60 * 1000
     );
-
-    this._intervals.push(tenMinInterval, oneHourAggInterval, cleanupInterval);
 
     // Run initial aggregation after a short delay (let some data accumulate)
     setTimeout(() => {
@@ -65,10 +48,9 @@ class MetricsAggregator {
   }
   // Stop all intervals to halt the aggregation pipeline. Called on server shutdown.
   stop() {
-    for (const id of this._intervals) {
-      clearInterval(id);
-    }
-    this._intervals = [];
+    platformScheduler.unregister("MetricsAggregator:10m");
+    platformScheduler.unregister("MetricsAggregator:1h");
+    platformScheduler.unregister("MetricsAggregator:cleanup");
     logger.info("MetricsAggregator: stopped");
   }
 

@@ -6,71 +6,57 @@ import BuildManifest from '../models/buildManifest.model.js';
 import { createLogReadStream } from '../services/buildLog.service.js';
 import { runBuildPipeline } from '../services/build.service.js';
 import logger from '../utils/logger.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { standardResponse } from '../utils/apiResponse.js';
+import { ValidationError, NotFoundError } from '../utils/AppError.js';
 
-export const triggerBuild = async (req, res, next) => {
-    try {
+export const triggerBuild = asyncHandler(async (req, res) => {
         const { tag, dockerfile } = req.body;
         const userId = req.user._id;
 
         if (!tag || !dockerfile) {
-            return res.status(400).json({ message: 'tag and dockerfile are required' });
+            throw new ValidationError('tag and dockerfile are required');
         }
 
         if (typeof tag !== 'string' || tag.length > 128) {
-            return res.status(400).json({ message: 'tag must be a string under 128 characters' });
+            throw new ValidationError('tag must be a string under 128 characters');
         }
 
         if (typeof dockerfile !== 'string') {
-            return res.status(400).json({ message: 'dockerfile must be a string' });
+            throw new ValidationError('dockerfile must be a string');
         }
 
         const build = await buildService.startBuild(userId, tag, dockerfile);
 
-        res.status(202).json({
-            message: 'Build started',
+        res.status(202).json(standardResponse({
             buildId: build._id,
             tag: build.tag,
             status: build.status,
             wsUrl: `/ws/build/${build._id}`
-        });
-    } catch (error) {
-        if (error.statusCode) {
-            return res.status(error.statusCode).json({ message: error.message });
-        }
-        next(error);
+        }, 'Build started'));
+});
+
+export const listBuilds = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const builds = await buildService.getUserBuilds(userId);
+    res.json(standardResponse({ builds }));
+});
+
+export const getBuild = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const { id } = req.params;
+
+    const build = await buildService.getBuildById(id, userId);
+    if (!build) {
+        throw new NotFoundError('Build not found');
     }
-};
 
-export const listBuilds = async (req, res, next) => {
-    try {
-        const userId = req.user._id;
-        const builds = await buildService.getUserBuilds(userId);
-        res.json({ builds });
-    } catch (error) {
-        next(error);
-    }
-};
-
-export const getBuild = async (req, res, next) => {
-    try {
-        const userId = req.user._id;
-        const { id } = req.params;
-
-        const build = await buildService.getBuildById(id, userId);
-        if (!build) {
-            return res.status(404).json({ message: 'Build not found' });
-        }
-
-        res.json({ build });
-    } catch (error) {
-        next(error);
-    }
-};
+    res.json(standardResponse({ build }));
+});
 
 // Stream build logs from the filesystem.
  
-export const streamBuildLogs = async (req, res, next) => {
-    try {
+export const streamBuildLogs = asyncHandler(async (req, res) => {
         const userId = req.user._id;
         const { id } = req.params;
 
@@ -79,7 +65,7 @@ export const streamBuildLogs = async (req, res, next) => {
             .lean();
 
         if (!build) {
-            return res.status(404).json({ message: 'Build not found' });
+            throw new NotFoundError('Build not found');
         }
 
         // Prefer filesystem logs (new builds)
@@ -103,94 +89,68 @@ export const streamBuildLogs = async (req, res, next) => {
         const content = build.logSummary || (build.logs || []).join('\n');
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.send(content);
-    } catch (error) {
-        next(error);
-    }
-};
+});
 
-export const listImages = async (req, res, next) => {
-    try {
-        const userId = req.user._id;
-        const images = await Image.find({ userId })
-            .select('tag sizeMB layerCount createdAt')
-            .sort({ createdAt: -1 })
-            .lean();
-        res.json({ images });
-    } catch (error) {
-        next(error);
-    }
-};
+export const listImages = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const images = await Image.find({ userId })
+        .select('tag sizeMB layerCount createdAt')
+        .sort({ createdAt: -1 })
+        .lean();
+    res.json(standardResponse({ images }));
+});
 
-export const getBuildManifest = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const userId = req.user._id;
+export const getBuildManifest = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user._id;
 
-        const build = await Build.findOne({ _id: id, userId });
-        if (!build) return res.status(404).json({ message: 'Build not found' });
-        if (!build.manifestId) return res.status(404).json({ message: 'No Build Manifest found for this build' });
+    const build = await Build.findOne({ _id: id, userId });
+    if (!build) throw new NotFoundError('Build not found');
+    if (!build.manifestId) throw new NotFoundError('No Build Manifest found for this build');
 
-        const manifest = await BuildManifest.findById(build.manifestId).lean();
-        if (!manifest) return res.status(404).json({ message: 'Manifest document missing' });
+    const manifest = await BuildManifest.findById(build.manifestId).lean();
+    if (!manifest) throw new NotFoundError('Manifest document missing');
 
-        res.json({ manifest });
-    } catch (error) {
-        next(error);
-    }
-};
+    res.json(standardResponse({ manifest }));
+});
 
-export const getCacheAnalytics = async (req, res, next) => {
-    try {
-        const userId = req.user._id;
-        
-        const manifests = await BuildManifest.find({ userId, strategy: { $ne: 'UNKNOWN' } }).lean();
-        
-        const totalBuilds = manifests.length;
-        const cacheHits = manifests.filter(m => m.strategy === 'FULL_REUSE').length;
-        const partialHits = manifests.filter(m => m.strategy === 'PARTIAL_REUSE').length;
-        
-        let totalSavedTimeMs = 0;
-        manifests.forEach(m => {
-            totalSavedTimeMs += (m.estimatedSavedTimeMs || 0);
-        });
+export const getCacheAnalytics = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    
+    const manifests = await BuildManifest.find({ userId, strategy: { $ne: 'UNKNOWN' } }).lean();
+    
+    const totalBuilds = manifests.length;
+    const cacheHits = manifests.filter(m => m.strategy === 'FULL_REUSE').length;
+    const partialHits = manifests.filter(m => m.strategy === 'PARTIAL_REUSE').length;
+    
+    let totalSavedTimeMs = 0;
+    manifests.forEach(m => {
+        totalSavedTimeMs += (m.estimatedSavedTimeMs || 0);
+    });
 
-        res.json({
-            analytics: {
-                totalBuilds,
-                cacheHits,
-                partialHits,
-                hitRatePercentage: totalBuilds > 0 ? ((cacheHits + partialHits) / totalBuilds) * 100 : 0,
-                totalSavedTimeMs
-            }
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+    res.json(standardResponse({
+        analytics: {
+            totalBuilds,
+            cacheHits,
+            partialHits,
+            hitRatePercentage: totalBuilds > 0 ? ((cacheHits + partialHits) / totalBuilds) * 100 : 0,
+            totalSavedTimeMs
+        }
+    }));
+});
 
-export const deleteBuild = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const userId = req.user._id;
+export const deleteBuild = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user._id;
 
-        const build = await Build.findOneAndDelete({ _id: id, userId });
-        if (!build) return res.status(404).json({ message: 'Build not found' });
+    const build = await Build.findOneAndDelete({ _id: id, userId });
+    if (!build) throw new NotFoundError('Build not found');
 
-        // Optionally, we could clean up associated manifest/image here
-        // but for now, just removing the build record is fine.
+    res.json(standardResponse(null, 'Build deleted successfully'));
+});
 
-        res.json({ message: 'Build deleted successfully' });
-    } catch (error) {
-        next(error);
-    }
-};
-
-export const deleteAllBuilds = async (req, res, next) => {
-    try {
-        const userId = req.user._id;
-        await Build.deleteMany({ userId });
-        res.json({ message: 'All builds deleted successfully' });
-    } catch (error) {
-        next(error);
-    }
-};
+export const deleteAllBuilds = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    await Build.deleteMany({ userId });
+    res.json(standardResponse(null, 'All builds deleted successfully'));
+});

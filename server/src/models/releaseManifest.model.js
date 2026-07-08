@@ -17,37 +17,43 @@ const releaseManifestSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Repository',
         required: true,
-        immutable: true
+        immutable: true,
+      index: true,
     },
     configSnapshotId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ConfigSnapshot',
         required: true,
-        immutable: true
+        immutable: true,
+      index: true,
     },
     buildManifestId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'BuildManifest',
         default: null,
-        immutable: true
+        immutable: true,
+      index: true,
     },
     imageId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Image',
         default: null,
-        immutable: true
+        immutable: true,
+      index: true,
     },
     environmentId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Environment',
         default: null,
-        immutable: true
+        immutable: true,
+      index: true,
     },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
-        immutable: true
+        immutable: true,
+      index: true,
     },
     // Any extra metadata needed to deterministically reproduce the release
     strategyParameters: {

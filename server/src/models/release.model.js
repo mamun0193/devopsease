@@ -21,7 +21,8 @@ const releaseTargetSchema = new mongoose.Schema({
     deploymentId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Deployment',
-        default: null
+        default: null,
+      index: true,
     },
     status: {
         type: String,
@@ -45,7 +46,8 @@ const releaseSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ReleaseManifest',
         required: true,
-        immutable: true
+        immutable: true,
+      index: true,
     },
     version: {
         type: String,

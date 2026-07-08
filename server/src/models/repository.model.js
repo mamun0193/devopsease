@@ -43,7 +43,8 @@ const repositorySchema = new mongoose.Schema({
     lastBuildId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Build',
-        default: null
+        default: null,
+      index: true,
     }
 }, {
     timestamps: true

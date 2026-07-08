@@ -8,7 +8,8 @@ const previewTargetSchema = new mongoose.Schema({
     deploymentId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Deployment',
-        default: null
+        default: null,
+      index: true,
     },
     region: {
         type: String,

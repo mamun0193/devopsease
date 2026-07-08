@@ -1,5 +1,5 @@
 import ownershipService from '../services/ownership.service.js';
-import SecurityLog from '../models/SecurityLog.js';
+import platformEventBus from '../events/platformEventBus.js';
 import { ROLES } from './rbac.js';
 import AppError from '../utils/AppError.js';
 import logger from '../utils/logger.js';
@@ -44,16 +44,19 @@ export const ownershipGuard = (actionName) => {
             logger.warn(`Access Denied: User ${userId} tried to ${actionName} container ${containerId}`);
 
             // Log security event (async, don't block response)
-            SecurityLog.create({
+            platformEventBus.publish('SECURITY', 'ACCESS_DENIED', {
+                severity: 'WARNING',
                 userId,
-                containerId,
-                action: actionName,
-                result: 'denied',
-                metadata: {
-                    ip: req.ip,
-                    userAgent: req.get('User-Agent')
+                resourceId: containerId,
+                resourceType: 'Container',
+                payload: {
+                    summary: `Access Denied: User tried to ${actionName} container`,
+                    metadata: {
+                        ip: req.ip,
+                        userAgent: req.get('User-Agent')
+                    }
                 }
-            }).catch(err => logger.error('Failed to write security log', { error: err.message }));
+            });
 
             return next(new AppError("Access Denied: You do not own this container", 403));
 

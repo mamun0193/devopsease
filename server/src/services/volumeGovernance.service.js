@@ -2,7 +2,7 @@ import Volume from '../models/volume.model.js';
 import User from '../models/User.js';
 import Project from '../models/project.model.js';
 import docker from '../docker/client.js';
-import SecurityLog from '../models/SecurityLog.js';
+import platformEventBus from '../events/platformEventBus.js';
 import logger from '../utils/logger.js';
 
 const VOLUME_EVENTS = {
@@ -30,14 +30,15 @@ async function acquireLock(userId) {
 
 function logVolumeEvent({ event, userId, metadata = {} }) {
     const severity = event === VOLUME_EVENTS.VOLUME_PRUNE_FAILED ? 'WARN' : 'INFO';
-    SecurityLog.create({
-        userId,
-        action: event,
-        result: severity === 'WARN' ? 'denied' : 'allowed',
+    platformEventBus.publish('INFRASTRUCTURE', event, {
         severity,
-        metadata
-    }).catch((err) => {
-        logger.warn('Volume audit log write failed', { event, error: err.message });
+        userId,
+        payload: {
+            summary: `Volume Governance Action: ${event}`,
+            metadata: {
+                ...metadata
+            }
+        }
     });
 
     const logMethod = severity === 'WARN' ? 'warn' : 'info';

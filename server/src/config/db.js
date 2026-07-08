@@ -14,6 +14,10 @@ export const connectDB = async () => {
         const conn = await mongoose.connect(process.env.MONGO_URI, {
             serverSelectionTimeoutMS: 5000,
             socketTimeoutMS: 45000,
+            maxPoolSize: 100,
+            minPoolSize: 10,
+            maxIdleTimeMS: 30000,
+            autoIndex: process.env.NODE_ENV !== 'production' // disable autoIndex in production
         });
 
         isConnected = true;

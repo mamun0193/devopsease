@@ -20,6 +20,8 @@ import {
   Info
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
+import { useAppDispatch } from '../store/hooks';
+import { addToast } from '../store/toastSlice';
 
 const StatusBadge = ({ status }: { status: string }) => {
   const styles: Record<string, string> = {
@@ -44,6 +46,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 export default function DomainDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   
   const [domain, setDomain] = useState<Domain | null>(null);
   const [events, setEvents] = useState<DomainEvent[]>([]);
@@ -97,7 +100,7 @@ export default function DomainDetailPage() {
       await domainsApi.verifyDomain(id!);
       await fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Verification check failed');
+      dispatch(addToast({ message: err.response?.data?.message || 'Verification check failed', type: 'error', duration: 5000 }));
       await fetchData(); // refresh to show error state if changed
     } finally {
       setIsActionLoading(false);
@@ -110,7 +113,7 @@ export default function DomainDetailPage() {
       await domainsApi.retryVerification(id!);
       await fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to retry verification');
+      dispatch(addToast({ message: err.response?.data?.message || 'Failed to retry verification', type: 'error', duration: 5000 }));
     } finally {
       setIsActionLoading(false);
     }
@@ -122,7 +125,7 @@ export default function DomainDetailPage() {
       await domainsApi.requestCertificate(id!);
       await fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to request certificate');
+      dispatch(addToast({ message: err.response?.data?.message || 'Failed to request certificate', type: 'error', duration: 5000 }));
     } finally {
       setIsActionLoading(false);
     }
@@ -134,7 +137,7 @@ export default function DomainDetailPage() {
       await domainsApi.connectDomain(id!);
       await fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to connect domain');
+      dispatch(addToast({ message: err.response?.data?.message || 'Failed to connect domain', type: 'error', duration: 5000 }));
     } finally {
       setIsActionLoading(false);
     }
@@ -147,7 +150,7 @@ export default function DomainDetailPage() {
       await domainsApi.disconnectDomain(id!, 'User disconnected via UI');
       await fetchData();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to disconnect domain');
+      dispatch(addToast({ message: err.response?.data?.message || 'Failed to disconnect domain', type: 'error', duration: 5000 }));
     } finally {
       setIsActionLoading(false);
     }
@@ -160,14 +163,14 @@ export default function DomainDetailPage() {
       await domainsApi.archiveDomain(id!, 'User requested archival via UI');
       navigate('/domains');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete domain');
+      dispatch(addToast({ message: err.response?.data?.message || 'Failed to delete domain', type: 'error', duration: 5000 }));
       setIsActionLoading(false);
     }
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    // Could add a toast notification here
+    dispatch(addToast({ message: 'Copied to clipboard', type: 'info', duration: 2000 }));
   };
 
   if (loading) return <div className="p-8 text-slate-400">Loading domain details...</div>;

@@ -1,10 +1,10 @@
 import express from 'express';
 import aiController from '../controllers/ai.controller.js';
-import { requireAuth } from '../middlewares/requireAuth.js';
+import authMiddleware from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
-router.use(requireAuth);
+router.use(authMiddleware);
 
 router.get('/conversations', aiController.getMyConversations);
 router.post('/conversations', aiController.createConversation);

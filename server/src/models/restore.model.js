@@ -5,6 +5,7 @@ const restoreSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'BackupManifest',
         required: true,
+      index: true,
     },
     status: {
         type: String,

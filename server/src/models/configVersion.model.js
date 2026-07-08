@@ -34,6 +34,7 @@ const configVersionSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
+      index: true,
     },
     changeType: {
         type: String,
@@ -50,6 +51,7 @@ const configVersionSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Deployment',
         default: null,
+      index: true,
     },
     rollbackFromVersion: {
         type: Number,

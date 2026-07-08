@@ -27,11 +27,13 @@ import { RESOURCE_TYPES } from "../resources/resourceTypes.js";
 import imageObservabilityService from "../services/imageObservability.service.js";
 import tunnelService from "../services/tunnel.service.js";
 import quotaService from "../services/quota.service.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { standardResponse } from "../utils/apiResponse.js";
+import { NotFoundError, ValidationError, ConflictError } from "../utils/AppError.js";
 
 // List owned containers 
 
-export async function listContainers(req, res, next) {
-  try {
+export const listContainers = asyncHandler(async (req, res) => {
     const ownedContainerIds = await ownershipService.listOwnedContainers(req.user._id);
 
     const containerPromises = ownedContainerIds.map(async (id) => {
@@ -66,21 +68,15 @@ export async function listContainers(req, res, next) {
       canDestroy: canPerform({ ...permContext, actionType: ACTIONS.DESTRUCTIVE }),
     };
 
-    res.status(200).json({
-      success: true,
-      data: sanitizedContainers,
-      permissions,
-      message: "Containers retrieved successfully",
-    });
-  } catch (err) {
-    next(err);
-  }
-}
+    res.status(200).json(standardResponse({
+      containers: sanitizedContainers,
+      permissions
+    }));
+});
 
 // Remove all owned containers 
 
-export async function removeAllContainers(req, res, next) {
-  try {
+export const removeAllContainers = asyncHandler(async (req, res) => {
     const ownedContainerIds = await ownershipService.listOwnedContainers(req.user._id);
 
     if (ownedContainerIds.length === 0) {
@@ -113,23 +109,20 @@ export async function removeAllContainers(req, res, next) {
 
     containerCacheService.invalidateContainerList();
 
-    res.status(200).json({
-      success: true,
-      data: { removed, total: ownedContainerIds.length, errors: errors.length > 0 ? errors : undefined },
-      message: `${removed} container${removed !== 1 ? 's' : ''} removed`,
-    });
-  } catch (err) {
-    next(err);
-  }
-}
+    res.status(200).json(standardResponse({
+      removed, 
+      total: ownedContainerIds.length, 
+      errors: errors.length > 0 ? errors : undefined 
+    }));
+});
 
 // Create a new container 
 
-export async function createContainerHandler(req, res, next) {
+export const createContainerHandler = asyncHandler(async (req, res) => {
   let createdContainerId = null;
   try {
     if (!req.body) {
-      throw new AppError("Request body is missing. Ensure Content-Type is 'application/json'", 400);
+      throw new ValidationError("Request body is missing. Ensure Content-Type is 'application/json'");
     }
     const { image, name, ports, env, autoStart, cpuLimit: rawCpu, memoryLimit: rawMem, restartPolicy, maxRetryCount } = req.body;
 
@@ -185,11 +178,7 @@ export async function createContainerHandler(req, res, next) {
       }
     });
 
-    res.status(result.statusCode).json({
-      success: result.success,
-      data: result.data,
-      message: result.message,
-    });
+    res.status(result.statusCode).json(standardResponse(result.data));
 
     imageObservabilityService.reconcileImageUsage().catch(() => { });
   } catch (err) {
@@ -201,14 +190,13 @@ export async function createContainerHandler(req, res, next) {
         logger.error(`CRITICAL: Failed to cleanup orphaned container ${createdContainerId}`, { error: cleanupErr.message });
       }
     }
-    next(err);
+    throw err;
   }
-}
+});
 
 // Container logs 
 
-export async function getContainerLogsHandler(req, res, next) {
-  try {
+export const getContainerLogsHandler = asyncHandler(async (req, res) => {
     const { tail, since, until } = req.query;
     const options = {
       tail: tail ? parseInt(tail, 10) : 500,
@@ -217,20 +205,12 @@ export async function getContainerLogsHandler(req, res, next) {
     };
     const rawLogs = await getContainerLogs(req.params.id, options);
     const { logs, stats } = parseLogs(rawLogs);
-    res.status(200).json({
-      success: true,
-      data: { raw: rawLogs, parsed: logs, stats },
-      message: "Container logs retrieved successfully",
-    });
-  } catch (err) {
-    next(err);
-  }
-}
+    res.status(200).json(standardResponse({ raw: rawLogs, parsed: logs, stats }));
+});
 
 // Container inspect 
 
-export async function inspectContainer(req, res, next) {
-  try {
+export const inspectContainer = asyncHandler(async (req, res) => {
     const data = await containerCacheService.getContainerInspect(req.params.id);
     const permContext = { role: req.user.role, ownsResource: req.ownsResource };
     const permissions = {
@@ -239,68 +219,49 @@ export async function inspectContainer(req, res, next) {
       canDestroy: canPerform({ ...permContext, actionType: ACTIONS.DESTRUCTIVE }),
     };
 
-    res.status(200).json({
-      success: true,
-      data,
-      permissions,
-      message: "Container inspection completed successfully"
-    });
-  } catch (err) {
-    next(err);
-  }
-}
+    res.status(200).json(standardResponse({ inspect: data, permissions }));
+});
 
 // Lifecycle actions (start/stop/restart/pause/unpause/remove) 
 
-export async function startContainerHandler(req, res, next) {
-  try {
+export const startContainerHandler = asyncHandler(async (req, res) => {
     const result = await dockerStart(req.params.id);
     if (!result.success) throw new AppError(result.message, result.statusCode);
     invalidateAnalysisCache(req.params.id);
-    res.status(result.statusCode).json({ success: result.success, data: result.data, message: result.message });
-  } catch (err) { next(err); }
-}
+    res.status(result.statusCode).json(standardResponse(result.data));
+});
 
-export async function stopContainerHandler(req, res, next) {
-  try {
+export const stopContainerHandler = asyncHandler(async (req, res) => {
     const result = await dockerStop(req.params.id);
     if (!result.success) throw new AppError(result.message, result.statusCode);
     invalidateAnalysisCache(req.params.id);
     tunnelService.revokeByContainer(req.params.id).catch(() => { });
-    res.status(result.statusCode).json({ success: result.success, data: result.data, message: result.message });
-  } catch (err) { next(err); }
-}
+    res.status(result.statusCode).json(standardResponse(result.data));
+});
 
-export async function restartContainerHandler(req, res, next) {
-  try {
+export const restartContainerHandler = asyncHandler(async (req, res) => {
     const result = await dockerRestart(req.params.id);
     if (!result.success) throw new AppError(result.message, result.statusCode);
     invalidateAnalysisCache(req.params.id);
     activityMonitor.recordRestart(req.user._id);
-    res.status(result.statusCode).json({ success: result.success, data: result.data, message: result.message });
-  } catch (err) { next(err); }
-}
+    res.status(result.statusCode).json(standardResponse(result.data));
+});
 
-export async function pauseContainerHandler(req, res, next) {
-  try {
+export const pauseContainerHandler = asyncHandler(async (req, res) => {
     const result = await dockerPause(req.params.id);
     if (!result.success) throw new AppError(result.message, result.statusCode);
     invalidateAnalysisCache(req.params.id);
-    res.status(result.statusCode).json({ success: result.success, data: result.data, message: result.message });
-  } catch (err) { next(err); }
-}
+    res.status(result.statusCode).json(standardResponse(result.data));
+});
 
-export async function unpauseContainerHandler(req, res, next) {
-  try {
+export const unpauseContainerHandler = asyncHandler(async (req, res) => {
     const result = await dockerUnpause(req.params.id);
     if (!result.success) throw new AppError(result.message, result.statusCode);
     invalidateAnalysisCache(req.params.id);
-    res.status(result.statusCode).json({ success: result.success, data: result.data, message: result.message });
-  } catch (err) { next(err); }
-}
+    res.status(result.statusCode).json(standardResponse(result.data));
+});
 
-export async function removeContainerHandler(req, res, next) {
-  try {
+export const removeContainerHandler = asyncHandler(async (req, res) => {
     const force = req.query.force === "true";
     const result = await dockerRemove(req.params.id, force);
     if (!result.success) throw new AppError(result.message, result.statusCode);
@@ -311,29 +272,24 @@ export async function removeContainerHandler(req, res, next) {
     removeStream(req.params.id);
     tunnelService.revokeByContainer(req.params.id).catch(() => { });
 
-    res.status(result.statusCode).json({ success: result.success, data: result.data, message: result.message });
-
+    res.status(result.statusCode).json(standardResponse(result.data));
     imageObservabilityService.reconcileImageUsage().catch(() => { });
-  } catch (err) { next(err); }
-}
+});
 
 // Stats and metrics 
 
-export async function getContainerStats(req, res, next) {
-  try {
+export const getContainerStats = asyncHandler(async (req, res) => {
     const result = await containerStatsService.getContainerStats(req.params.id);
     if (!result.success) {
-      return res.status(result.statusCode || 500).json({ success: false, data: null, message: result.error });
+      throw new AppError(result.error, result.statusCode || 500);
     }
-    return res.status(200).json({ success: true, data: result.data, message: 'Container stats retrieved successfully' });
-  } catch (err) { next(err); }
-}
+    return res.status(200).json(standardResponse(result.data));
+});
 
-export async function getTopContainers(req, res) {
-  try {
+export const getTopContainers = asyncHandler(async (req, res) => {
     const ownedContainerIds = await ownershipService.listOwnedContainers(req.user._id);
     if (ownedContainerIds.length === 0) {
-      return res.status(200).json({ success: true, data: { topCPU: [], topMemory: [] } });
+      return res.status(200).json(standardResponse({ topCPU: [], topMemory: [] }));
     }
 
     const allLatest = globalMetricsCollector.getAllLatest();
@@ -372,27 +328,16 @@ export async function getTopContainers(req, res) {
       topMemory: [...validStats].sort((a, b) => b.memoryUsedMB - a.memoryUsedMB).slice(0, 5),
     };
 
-    return res.status(200).json({ success: true, data });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "Failed to get top containers" });
-  }
-}
+    return res.status(200).json(standardResponse(data));
+});
 
-export async function getMetricsHistory(req, res) {
-  try {
+export const getMetricsHistory = asyncHandler(async (req, res) => {
     const range = req.query.range || "1m";
     const dataPoints = await queryMetricsByRange(req.params.id, range);
-    return res.status(200).json({ success: true, data: { dataPoints } });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "Failed to get metrics history" });
-  }
-}
+    return res.status(200).json(standardResponse({ dataPoints }));
+});
 
-export async function getRecentMetrics(req, res) {
-  try {
+export const getRecentMetrics = asyncHandler(async (req, res) => {
     const dataPoints = globalMetricsCollector.getBuffer(req.params.id);
-    return res.status(200).json({ success: true, data: { dataPoints } });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "Failed to get recent metrics" });
-  }
-}
+    return res.status(200).json(standardResponse({ dataPoints }));
+});

@@ -15,6 +15,9 @@ interface ConfirmModalProps {
   inputPlaceholder?: string;
   inputValue?: string;
   onInputChange?: (value: string) => void;
+  children?: React.ReactNode;
+  variant?: string;
+  isLoading?: boolean;
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -30,6 +33,9 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   inputPlaceholder,
   inputValue = '',
   onInputChange,
+  children,
+  variant,
+  isLoading,
 }) => {
   const showInput = Boolean(onInputChange);
 
@@ -81,7 +87,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
               {/* Body */}
               <div className="px-6 py-5">
-                <p className="text-dds-text-secondary text-[13px] leading-relaxed">{message}</p>
+                {message && <p className="text-dds-text-secondary text-[13px] leading-relaxed">{message}</p>}
+                {children}
                 {showInput && (
                   <div className="mt-5">
                     {inputLabel && (

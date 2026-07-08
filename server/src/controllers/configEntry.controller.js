@@ -9,171 +9,128 @@ import {
     bulkUpsert,
 } from '../services/configEntry.service.js';
 import { importConfig, exportConfig } from '../services/configImportExport.service.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { standardResponse } from '../utils/apiResponse.js';
+import { ValidationError } from '../utils/AppError.js';
 
 // ConfigEntry Controller — Application-centric configuration management.
 
- 
+export const createConfigEntry = asyncHandler(async (req, res) => {
+    const { repositoryId, name, value, type, environmentId, description, source } = req.body;
+    const userId = req.user._id;
 
-export const createConfigEntry = async (req, res, next) => {
-    try {
-        const { repositoryId, name, value, type, environmentId, description, source } = req.body;
-        const userId = req.user._id;
-
-        if (!repositoryId || !name || value == null || !environmentId) {
-            return res.status(400).json({
-                message: 'repositoryId, name, value, and environmentId are required',
-            });
-        }
-
-        const entry = await createEntry({
-            repositoryId,
-            userId,
-            name,
-            value,
-            type: type || 'variable',
-            environmentId,
-            description: description || '',
-            source: source || 'manual',
-        });
-
-        res.status(201).json({ entry });
-    } catch (error) {
-        next(error);
+    if (!repositoryId || !name || value == null || !environmentId) {
+        throw new ValidationError('repositoryId, name, value, and environmentId are required');
     }
-};
 
-export const listConfigEntries = async (req, res, next) => {
-    try {
-        const { repositoryId, environmentId, type } = req.query;
+    const entry = await createEntry({
+        repositoryId,
+        userId,
+        name,
+        value,
+        type: type || 'variable',
+        environmentId,
+        description: description || '',
+        source: source || 'manual',
+    });
 
-        if (!repositoryId) {
-            return res.status(400).json({ message: 'repositoryId query parameter is required' });
-        }
+    res.status(201).json(standardResponse({ entry }));
+});
 
-        const entries = await getEntries(repositoryId, environmentId || undefined, {
-            type: type || undefined,
-        });
+export const listConfigEntries = asyncHandler(async (req, res) => {
+    const { repositoryId, environmentId, type } = req.query;
 
-        res.json({ entries });
-    } catch (error) {
-        next(error);
+    if (!repositoryId) {
+        throw new ValidationError('repositoryId query parameter is required');
     }
-};
 
-export const updateConfigEntry = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const userId = req.user._id;
-        const { value, description, reason } = req.body;
+    const entries = await getEntries(repositoryId, environmentId || undefined, {
+        type: type || undefined,
+    });
 
-        const entry = await updateEntry(userId, id, { value, description, reason });
+    res.json(standardResponse({ entries }));
+});
 
-        res.json({ entry });
-    } catch (error) {
-        next(error);
+export const updateConfigEntry = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user._id;
+    const { value, description, reason } = req.body;
+
+    const entry = await updateEntry(userId, id, { value, description, reason });
+
+    res.json(standardResponse({ entry }));
+});
+
+export const deleteConfigEntry = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    const result = await deleteEntry(userId, id);
+
+    res.json(standardResponse({ ...result }, 'Config entry deleted'));
+});
+
+export const getVersionHistory = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const versions = await getEntryVersions(id);
+
+    res.json(standardResponse({ versions }));
+});
+
+export const rollbackConfigEntry = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const userId = req.user._id;
+    const { targetVersion, reason } = req.body;
+
+    if (!targetVersion) {
+        throw new ValidationError('targetVersion is required');
     }
-};
 
-export const deleteConfigEntry = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const userId = req.user._id;
+    const entry = await rollbackEntry(userId, id, targetVersion, { reason });
 
-        const result = await deleteEntry(userId, id);
+    res.json(standardResponse({ entry }));
+});
 
-        res.json({ message: 'Config entry deleted', ...result });
-    } catch (error) {
-        next(error);
+export const bulkUpsertEntries = asyncHandler(async (req, res) => {
+    const { repositoryId, environmentId, entries: entryList } = req.body;
+    const userId = req.user._id;
+
+    if (!repositoryId || !environmentId || !Array.isArray(entryList)) {
+        throw new ValidationError('repositoryId, environmentId, and entries[] are required');
     }
-};
 
-export const getVersionHistory = async (req, res, next) => {
-    try {
-        const { id } = req.params;
+    const result = await bulkUpsert(repositoryId, userId, environmentId, entryList);
 
-        const versions = await getEntryVersions(id);
+    res.json(standardResponse({ result }));
+});
 
-        res.json({ versions });
-    } catch (error) {
-        next(error);
+export const importConfigEntries = asyncHandler(async (req, res) => {
+    const { repositoryId, environmentId, content, format } = req.body;
+    const userId = req.user._id;
+
+    if (!repositoryId || !environmentId || !content) {
+        throw new ValidationError('repositoryId, environmentId, and content are required');
     }
-};
 
-export const rollbackConfigEntry = async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const userId = req.user._id;
-        const { targetVersion, reason } = req.body;
+    const result = await importConfig(content, format || 'auto', repositoryId, environmentId, userId);
 
-        if (!targetVersion) {
-            return res.status(400).json({ message: 'targetVersion is required' });
-        }
+    res.json(standardResponse({ result }));
+});
 
-        const entry = await rollbackEntry(userId, id, targetVersion, { reason });
+export const exportConfigEntries = asyncHandler(async (req, res) => {
+    const { format } = req.params;
+    const { repositoryId, environmentId, name, namespace } = req.query;
+    const userId = req.user._id;
 
-        res.json({ entry });
-    } catch (error) {
-        next(error);
+    if (!repositoryId || !environmentId) {
+        throw new ValidationError('repositoryId and environmentId query parameters are required');
     }
-};
 
-export const bulkUpsertEntries = async (req, res, next) => {
-    try {
-        const { repositoryId, environmentId, entries: entryList } = req.body;
-        const userId = req.user._id;
+    const { content, contentType } = await exportConfig(
+        repositoryId, userId, environmentId, format, { name, namespace },
+    );
 
-        if (!repositoryId || !environmentId || !Array.isArray(entryList)) {
-            return res.status(400).json({
-                message: 'repositoryId, environmentId, and entries[] are required',
-            });
-        }
-
-        const result = await bulkUpsert(repositoryId, userId, environmentId, entryList);
-
-        res.json({ result });
-    } catch (error) {
-        next(error);
-    }
-};
-
-export const importConfigEntries = async (req, res, next) => {
-    try {
-        const { repositoryId, environmentId, content, format } = req.body;
-        const userId = req.user._id;
-
-        if (!repositoryId || !environmentId || !content) {
-            return res.status(400).json({
-                message: 'repositoryId, environmentId, and content are required',
-            });
-        }
-
-        const result = await importConfig(content, format || 'auto', repositoryId, environmentId, userId);
-
-        res.json({ result });
-    } catch (error) {
-        next(error);
-    }
-};
-
-export const exportConfigEntries = async (req, res, next) => {
-    try {
-        const { format } = req.params;
-        const { repositoryId, environmentId, name, namespace } = req.query;
-        const userId = req.user._id;
-
-        if (!repositoryId || !environmentId) {
-            return res.status(400).json({
-                message: 'repositoryId and environmentId query parameters are required',
-            });
-        }
-
-        const { content, contentType } = await exportConfig(
-            repositoryId, userId, environmentId, format, { name, namespace },
-        );
-
-        res.setHeader('Content-Type', contentType);
-        res.send(content);
-    } catch (error) {
-        next(error);
-    }
-};
+    res.setHeader('Content-Type', contentType);
+    res.send(content);
+});

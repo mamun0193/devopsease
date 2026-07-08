@@ -1,4 +1,4 @@
-import SecurityLog from '../models/SecurityLog.js';
+import platformEventBus from '../events/platformEventBus.js';
 import logger from '../utils/logger.js';
 
 export const GOVERNANCE_EVENTS = {
@@ -9,26 +9,25 @@ export const GOVERNANCE_EVENTS = {
 };
 
 const SEVERITY_MAP = {
-    [GOVERNANCE_EVENTS.IMAGE_PRUNE_PREVIEW]: 'INFO',
-    [GOVERNANCE_EVENTS.IMAGE_PRUNE_EXECUTED]: 'INFO',
-    [GOVERNANCE_EVENTS.IMAGE_PRUNE_FAILED]: 'WARN',
-    [GOVERNANCE_EVENTS.BUILD_CACHE_PRUNE_EXECUTED]: 'INFO'
+    [GOVERNANCE_EVENTS.IMAGE_PRUNE_PREVIEW]: 'info',
+    [GOVERNANCE_EVENTS.IMAGE_PRUNE_EXECUTED]: 'info',
+    [GOVERNANCE_EVENTS.IMAGE_PRUNE_FAILED]: 'warning',
+    [GOVERNANCE_EVENTS.BUILD_CACHE_PRUNE_EXECUTED]: 'info'
 };
 
 export function logGovernanceEvent({ event, userId, metadata = {} }) {
-    const severity = SEVERITY_MAP[event] || 'INFO';
+    const severity = SEVERITY_MAP[event] || 'info';
 
-    SecurityLog.create({
+    platformEventBus.publish('INFRASTRUCTURE', event, {
+        severity: severity.toUpperCase(),
         userId,
-        action: event,
-        result: event === GOVERNANCE_EVENTS.IMAGE_PRUNE_FAILED ? 'denied' : 'allowed',
-        severity,
-        metadata
-    }).catch((error) => {
-        logger.warn('Governance audit log write failed', { event, error: error.message });
+        payload: {
+            summary: `Governance Action: ${event}`,
+            metadata
+        }
     });
 
-    const logMethod = severity === 'WARN' ? 'warn' : 'info';
+    const logMethod = severity === 'warning' ? 'warn' : 'info';
     logger[logMethod](`Governance event: ${event}`, {
         userId: userId?.toString(),
         ...metadata

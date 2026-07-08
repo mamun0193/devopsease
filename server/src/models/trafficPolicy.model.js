@@ -5,7 +5,8 @@ const targetRuleSchema = new mongoose.Schema({
     releaseId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Release',
-        required: true
+        required: true,
+      index: true,
     },
     weight: {
         type: Number,
@@ -56,7 +57,8 @@ const trafficPolicySchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: true,
+      index: true,
     }
 }, {
     timestamps: true

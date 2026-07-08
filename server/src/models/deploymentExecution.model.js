@@ -10,12 +10,14 @@ const deploymentExecutionSchema = new mongoose.Schema({
     artifactBundleId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ArtifactBundle',
-        required: true
+        required: true,
+      index: true,
     },
     artifactRevisionId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'ArtifactRevision',
-        required: true
+        required: true,
+      index: true,
     },
     provider: {
         type: String,

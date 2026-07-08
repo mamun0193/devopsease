@@ -1,53 +1,36 @@
 import Volume from '../models/volume.model.js';
 import volumeService from '../services/volume.service.js';
 import volumeGovernance from '../services/volumeGovernance.service.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { standardResponse } from '../utils/apiResponse.js';
 
 // GET /volumes — list all volumes owned by the authenticated user
-export const listVolumes = async (req, res, next) => {
-    try {
+export const listVolumes = asyncHandler(async (req, res) => {
         const userId = req.user._id;
         const volumes = await Volume.find({ userId })
             .select('-__v')
             .sort({ createdAt: -1 })
             .lean();
-        res.json({ volumes });
-    } catch (error) {
-        next(error);
-    }
-};
+        res.json(standardResponse({ volumes }));
+});
 
 // GET /volumes/prune-preview — get prune candidates
-export const getPrunePreview = async (req, res, next) => {
-    try {
+export const getPrunePreview = asyncHandler(async (req, res) => {
         const userId = req.user._id;
-        const result = await volumeGovernance.getPruneCandidates(userId);
-        res.json(result);
-    } catch (error) {
-        next(error);
-    }
-};
+    const result = await volumeGovernance.getPruneCandidates(userId);
+    res.json(standardResponse(result));
+});
 
 // POST /volumes/prune-unused — execute safe prune
-export const pruneUnused = async (req, res, next) => {
-    try {
+export const pruneUnused = asyncHandler(async (req, res) => {
         const userId = req.user._id;
-        const result = await volumeGovernance.executeSafePrune(userId);
-        res.json({ message: 'Volume prune complete', ...result });
-    } catch (error) {
-        if (error.statusCode) {
-            return res.status(error.statusCode).json({ message: error.message });
-        }
-        next(error);
-    }
-};
+    const result = await volumeGovernance.executeSafePrune(userId);
+    res.json(standardResponse(result, 'Volume prune complete'));
+});
 
 // POST /volumes/reconcile — reconcile DB records against Docker state
-export const reconcileVolumes = async (req, res, next) => {
-    try {
+export const reconcileVolumes = asyncHandler(async (req, res) => {
         const userId = req.user._id;
-        const result = await volumeService.reconcileVolumes(userId);
-        res.json({ message: 'Reconciliation complete', ...result });
-    } catch (error) {
-        next(error);
-    }
-};
+    const result = await volumeService.reconcileVolumes(userId);
+    res.json(standardResponse(result, 'Reconciliation complete'));
+});

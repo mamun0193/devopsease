@@ -1,20 +1,19 @@
 import express from "express";
 import actionHistoryService from "../services/actionHistory.service.js";
-import AppError from "../utils/AppError.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { standardResponse } from "../utils/apiResponse.js";
+import { NotFoundError, ValidationError } from "../utils/AppError.js";
 
 const router = express.Router();
 
-router.get("/", async (req, res, next) => {
-  try {
+router.get("/", asyncHandler(async (req, res) => {
     const { containerId, limit, cursor } = req.query;
 
     const parsedLimit = limit ? parseInt(limit, 10) : 50;
 
     if (parsedLimit < 1 || parsedLimit > 200) {
-      throw new AppError("Limit must be between 1 and 200", 400);
+      throw new ValidationError("Limit must be between 1 and 200");
     }
-
-    console.log('📊 Actions API called:', { containerId, limit: parsedLimit, cursor });
 
     const result = await actionHistoryService.getActions({
       containerId,
@@ -22,92 +21,44 @@ router.get("/", async (req, res, next) => {
       cursor,
     });
 
-    console.log('📊 Actions result:', {
-      totalItems: result.items.length,
-      hasNextCursor: !!result.nextCursor,
-      containerId,
-    });
+    res.status(200).json(standardResponse(result, "Action history retrieved successfully"));
+}));
 
-    res.status(200).json({
-      success: true,
-      data: result,
-      message: "Action history retrieved successfully",
-    });
-  } catch (err) {
-    next(err);
-  }
-});
-
-router.get("/stats", async (req, res, next) => {
-  try {
+router.get("/stats", asyncHandler(async (req, res) => {
     const stats = await actionHistoryService.getStats();
-
-    console.log('📈 Stats requested:', stats);
-
-    res.status(200).json({
-      success: true,
-      data: stats,
-      message: "Action history stats retrieved successfully",
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+    res.status(200).json(standardResponse(stats, "Action history stats retrieved successfully"));
+}));
 
 // Debug endpoint - get ALL actions without filtering
-router.get("/debug/all", async (req, res, next) => {
-  try {
+router.get("/debug/all", asyncHandler(async (req, res) => {
     const result = await actionHistoryService.getActions({ limit: 10 });
-
-    res.status(200).json({
-      success: true,
-      data: {
+    res.status(200).json(standardResponse({
         total: result.items.length,
         actions: result.items,
-      },
-      message: "Debug: All actions",
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+    }, "Debug: All actions"));
+}));
 
-router.get("/:id", async (req, res, next) => {
-  try {
+router.get("/:id", asyncHandler(async (req, res) => {
     const { id } = req.params;
-
     const action = await actionHistoryService.getActionById(id);
 
     if (!action) {
-      throw new AppError(`Action ${id} not found`, 404);
+      throw new NotFoundError(`Action ${id} not found`);
     }
 
-    res.status(200).json({
-      success: true,
-      data: action,
-      message: "Action retrieved successfully",
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+    res.status(200).json(standardResponse(action, "Action retrieved successfully"));
+}));
 
 // DELETE /actions - Clear action history (optionally for a specific container)
-router.delete("/", async (req, res, next) => {
-  try {
+router.delete("/", asyncHandler(async (req, res) => {
     const { containerId } = req.query;
     await actionHistoryService.clear(containerId);
 
-    res.status(200).json({
-      success: true,
-      data: null,
-      message: containerId
+    const message = containerId
         ? `Action history cleared for container ${containerId}`
-        : "All action history cleared",
-    });
-  } catch (err) {
-    next(err);
-  }
-});
+        : "All action history cleared";
+
+    res.status(200).json(standardResponse(null, message));
+}));
 
 export default router;

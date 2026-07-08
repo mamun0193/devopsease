@@ -2,13 +2,14 @@ import Repository from '../models/repository.model.js';
 import { ensureDefaultEnvironments } from '../services/env.service.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { ValidationError, ConflictError, NotFoundError } from '../utils/AppError.js';
+import { standardResponse, paginatedResponse, getPagination } from '../utils/apiResponse.js';
 
 const execAsync = promisify(exec);
 
 // Validate that a clone URL looks like a real Git remote
 function isValidCloneUrl(url) {
-    // HTTPS: https://github.com/owner/repo.git or https://gitlab.com/owner/repo
-    // SSH:   git@github.com:owner/repo.git
     const httpsPattern = /^https?:\/\/[a-zA-Z0-9._-]+\.[a-zA-Z]{2,}\/.+/;
     const sshPattern = /^git@[a-zA-Z0-9._-]+\.[a-zA-Z]{2,}:.+/;
     return httpsPattern.test(url) || sshPattern.test(url);
@@ -31,81 +32,64 @@ async function verifyRepoReachable(cloneUrl) {
     }
 }
 
-export const connectRepository = async (req, res, next) => {
-    try {
-        const { repoName, owner, cloneUrl, defaultBranch, provider } = req.body;
-        const userId = req.user._id;
+export const connectRepository = asyncHandler(async (req, res) => {
+    const { repoName, owner, cloneUrl, defaultBranch, provider } = req.body;
+    const userId = req.user._id;
 
-        if (!repoName || !owner || !cloneUrl) {
-            return res.status(400).json({ message: 'repoName, owner, and cloneUrl are required' });
-        }
-
-        // Validate URL format
-        const trimmedUrl = cloneUrl.trim();
-        if (!isValidCloneUrl(trimmedUrl)) {
-            return res.status(400).json({
-                message: 'Invalid clone URL format. Use HTTPS (https://github.com/owner/repo.git) or SSH (git@github.com:owner/repo.git).',
-            });
-        }
-
-        // Check for duplicates
-        const existing = await Repository.findOne({ userId, cloneUrl: trimmedUrl });
-        if (existing) {
-            return res.status(409).json({
-                message: `Repository "${existing.repoName}" is already connected with this URL.`,
-            });
-        }
-
-        // Verify the repo is reachable
-        const verification = await verifyRepoReachable(trimmedUrl);
-        if (!verification.reachable) {
-            return res.status(422).json({ message: verification.reason });
-        }
-
-        const repository = await Repository.create({
-            userId,
-            provider,
-            repoName: repoName.trim(),
-            owner: owner.trim(),
-            cloneUrl: trimmedUrl,
-            defaultBranch: defaultBranch?.trim() || 'main',
-        });
-
-        await ensureDefaultEnvironments(repository._id);
-
-        res.status(201).json({ repository });
-    } catch (error) {
-        next(error);
+    if (!repoName || !owner || !cloneUrl) {
+        throw new ValidationError('repoName, owner, and cloneUrl are required');
     }
-};
 
-export const getRepositories = async (req, res, next) => {
-    try {
-        const userId = req.user._id;
-
-        const repositories = await Repository.find({ userId })
-            .sort({ createdAt: -1 })
-            .lean();
-
-        res.json({ repositories });
-    } catch (error) {
-        next(error);
+    const trimmedUrl = cloneUrl.trim();
+    if (!isValidCloneUrl(trimmedUrl)) {
+        throw new ValidationError('Invalid clone URL format. Use HTTPS or SSH.');
     }
-};
 
-export const deleteRepository = async (req, res, next) => {
-    try {
-        const userId = req.user._id;
-        const { id } = req.params;
-
-        const deleted = await Repository.findOneAndDelete({ _id: id, userId });
-
-        if (!deleted) {
-            return res.status(404).json({ message: 'Repository not found' });
-        }
-
-        res.json({ message: 'Repository deleted successfully' });
-    } catch (error) {
-        next(error);
+    const existing = await Repository.findOne({ userId, cloneUrl: trimmedUrl });
+    if (existing) {
+        throw new ConflictError(`Repository "${existing.repoName}" is already connected with this URL.`);
     }
-};
+
+    const verification = await verifyRepoReachable(trimmedUrl);
+    if (!verification.reachable) {
+        throw new ValidationError(verification.reason);
+    }
+
+    const repository = await Repository.create({
+        userId,
+        provider,
+        repoName: repoName.trim(),
+        owner: owner.trim(),
+        cloneUrl: trimmedUrl,
+        defaultBranch: defaultBranch?.trim() || 'main',
+    });
+
+    await ensureDefaultEnvironments(repository._id);
+    res.status(201).json(standardResponse(repository));
+});
+
+export const getRepositories = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const { page, limit, skip } = getPagination(req);
+
+    const totalCount = await Repository.countDocuments({ userId });
+    const repositories = await Repository.find({ userId })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+
+    res.json(paginatedResponse(repositories, totalCount, page, limit));
+});
+
+export const deleteRepository = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+    const { id } = req.params;
+
+    const deleted = await Repository.findOneAndDelete({ _id: id, userId });
+    if (!deleted) {
+        throw new NotFoundError('Repository not found');
+    }
+
+    res.json(standardResponse({ deleted: true }));
+});

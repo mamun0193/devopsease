@@ -31,7 +31,8 @@ const artifactRevisionSchema = new mongoose.Schema({
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: true,
+      index: true,
     },
     approvalStatus: {
         type: String,
@@ -41,7 +42,8 @@ const artifactRevisionSchema = new mongoose.Schema({
     approvedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        default: null
+        default: null,
+      index: true,
     },
     approvedAt: {
         type: Date,
