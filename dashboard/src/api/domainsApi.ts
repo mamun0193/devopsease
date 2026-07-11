@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+import { api } from './index';
 
 export interface Domain {
   _id: string;
@@ -53,81 +51,83 @@ export interface Certificate {
   createdAt: string;
 }
 
+// ponytail: helper — backend wraps everything in standardResponse({ data }) or paginatedResponse({ data, meta })
+function unwrap<T>(res: any): T {
+  return res.data?.data ?? res.data;
+}
+
 export const domainsApi = {
   // Domain Operations
   listDomains: async (params?: any): Promise<{ data: Domain[], pagination: any }> => {
-    const res = await axios.get(`${API_BASE_URL}/domains`, { params, withCredentials: true });
-    return { data: res.data.data, pagination: res.data.pagination };
+    const res = await api.get('/api/domains', { params });
+    return { data: unwrap(res), pagination: res.data.meta || res.data.pagination };
   },
   
   getDomain: async (id: string): Promise<Domain> => {
-    const res = await axios.get(`${API_BASE_URL}/domains/${id}`, { withCredentials: true });
-    return res.data.data;
+    const res = await api.get(`/api/domains/${id}`);
+    return unwrap(res);
   },
 
   addDomain: async (data: { applicationId: string, hostname: string, type?: string, options?: any }): Promise<Domain> => {
-    const res = await axios.post(`${API_BASE_URL}/domains`, data, { withCredentials: true });
-    return res.data.data;
+    const res = await api.post('/api/domains', data);
+    return unwrap(res);
   },
 
   archiveDomain: async (id: string, reason?: string): Promise<Domain> => {
-    const res = await axios.delete(`${API_BASE_URL}/domains/${id}`, { 
-      data: { reason },
-      withCredentials: true 
-    });
-    return res.data.data;
+    const res = await api.delete(`/api/domains/${id}`, { data: { reason } });
+    return unwrap(res);
   },
 
   // Lifecycle Operations
   verifyDomain: async (id: string): Promise<any> => {
-    const res = await axios.post(`${API_BASE_URL}/domains/${id}/verify`, {}, { withCredentials: true });
-    return res.data;
+    const res = await api.post(`/api/domains/${id}/verify`);
+    return unwrap(res);
   },
 
   retryVerification: async (id: string, method?: string): Promise<Domain> => {
-    const res = await axios.post(`${API_BASE_URL}/domains/${id}/retry-verification`, { method }, { withCredentials: true });
-    return res.data.data;
+    const res = await api.post(`/api/domains/${id}/retry-verification`, { method });
+    return unwrap(res);
   },
 
   connectDomain: async (id: string): Promise<Domain> => {
-    const res = await axios.post(`${API_BASE_URL}/domains/${id}/connect`, {}, { withCredentials: true });
-    return res.data.data;
+    const res = await api.post(`/api/domains/${id}/connect`);
+    return unwrap(res);
   },
 
   disconnectDomain: async (id: string, reason?: string): Promise<Domain> => {
-    const res = await axios.post(`${API_BASE_URL}/domains/${id}/disconnect`, { reason }, { withCredentials: true });
-    return res.data.data;
+    const res = await api.post(`/api/domains/${id}/disconnect`, { reason });
+    return unwrap(res);
   },
 
   evaluateHealth: async (id: string): Promise<any> => {
-    const res = await axios.get(`${API_BASE_URL}/domains/${id}/health`, { withCredentials: true });
-    return res.data.data;
+    const res = await api.get(`/api/domains/${id}/health`);
+    return unwrap(res);
   },
 
   // Certificate Operations
   requestCertificate: async (domainId: string): Promise<Certificate> => {
-    const res = await axios.post(`${API_BASE_URL}/domains/${domainId}/certificates`, {}, { withCredentials: true });
-    return res.data.data;
+    const res = await api.post(`/api/domains/${domainId}/certificates`);
+    return unwrap(res);
   },
 
   getCertificateHistory: async (domainId: string): Promise<Certificate[]> => {
-    const res = await axios.get(`${API_BASE_URL}/domains/${domainId}/certificates`, { withCredentials: true });
-    return res.data.data;
+    const res = await api.get(`/api/domains/${domainId}/certificates`);
+    return unwrap(res);
   },
 
   renewCertificate: async (domainId: string, certificateId: string): Promise<any> => {
-    const res = await axios.post(`${API_BASE_URL}/domains/${domainId}/certificates/${certificateId}/renew`, {}, { withCredentials: true });
-    return res.data;
+    const res = await api.post(`/api/domains/${domainId}/certificates/${certificateId}/renew`);
+    return unwrap(res);
   },
 
   revokeCertificate: async (domainId: string, certificateId: string, reason?: string): Promise<any> => {
-    const res = await axios.post(`${API_BASE_URL}/domains/${domainId}/certificates/${certificateId}/revoke`, { reason }, { withCredentials: true });
-    return res.data;
+    const res = await api.post(`/api/domains/${domainId}/certificates/${certificateId}/revoke`, { reason });
+    return unwrap(res);
   },
 
   // Events
   getDomainEvents: async (domainId: string, params?: any): Promise<{ data: DomainEvent[], pagination: any }> => {
-    const res = await axios.get(`${API_BASE_URL}/domains/${domainId}/events`, { params, withCredentials: true });
-    return { data: res.data.data, pagination: res.data.pagination };
+    const res = await api.get(`/api/domains/${domainId}/events`, { params });
+    return { data: unwrap(res), pagination: res.data.meta || res.data.pagination };
   }
 };

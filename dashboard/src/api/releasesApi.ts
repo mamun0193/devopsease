@@ -42,21 +42,21 @@ export const releasesApi = {
   getReleases: async (applicationId?: string): Promise<Release[]> => {
     const params = applicationId ? { applicationId } : {};
     const { data } = await api.get('/releases', { params });
-    return data;
+    return data.data || [];
   },
 
   getRelease: async (id: string): Promise<Release> => {
     const { data } = await api.get(`/releases/${id}`);
-    return data;
+    return data.data;
   },
 
   promoteRelease: async (id: string, reason?: string): Promise<Release> => {
     const { data } = await api.post(`/releases/${id}/promote`, { reason });
-    return data;
+    return data.data;
   },
 
   rollbackRelease: async (id: string, reason?: string): Promise<Release> => {
     const { data } = await api.post(`/releases/${id}/rollback`, { reason });
-    return data;
+    return data.data;
   }
 };

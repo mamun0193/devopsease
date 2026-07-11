@@ -36,7 +36,7 @@ export const trafficApi = {
   getPolicies: async (applicationId?: string): Promise<TrafficPolicy[]> => {
     const params = applicationId ? { applicationId } : {};
     const { data } = await api.get('/traffic/policies', { params });
-    return data;
+    return data.data || [];
   },
 
   applyPolicy: async (
@@ -46,11 +46,11 @@ export const trafficApi = {
     reason: string
   ): Promise<TrafficPolicy> => {
     const { data } = await api.post('/traffic/policies', { applicationId, mode, targets, reason });
-    return data;
+    return data.data;
   },
 
   getRoutingTable: async (slug: string): Promise<RoutingTable> => {
     const { data } = await api.get(`/traffic/routing-table/${slug}`);
-    return data;
+    return data.data;
   }
 };

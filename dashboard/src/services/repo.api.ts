@@ -1,15 +1,4 @@
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-});
-
+import { api } from '../api';
 
 export type RepoStatus = 'active' | 'disconnected';
 
@@ -31,23 +20,22 @@ export interface ConnectRepoPayload {
   defaultBranch?: string;
 }
 
-
 export const repoApi = {
   // Fetch all connected repositories for the authenticated user.
-   
+  // Backend uses paginatedResponse → { data: [...], meta: {...} }
   getAll: async (): Promise<Repository[]> => {
-    const response = await api.get<{ repositories: Repository[] }>('/api/repos');
-    return response.data?.repositories ?? [];
+    const response = await api.get('/api/repos');
+    return response.data?.data || [];
   },
 
   // Connect a new Git repository.
+  // Backend uses standardResponse(repository) → { data: {...} }
   connect: async (payload: ConnectRepoPayload): Promise<Repository> => {
-    const response = await api.post<{ repository: Repository }>('/api/repos/connect', payload);
-    return response.data.repository;
+    const response = await api.post('/api/repos/connect', payload);
+    return response.data?.data || response.data;
   },
 
   // Delete a connected repository by ID.
-
   delete: async (id: string): Promise<void> => {
     await api.delete(`/api/repos/${id}`);
   },

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import { Send, Cpu, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { api } from '../api';
+import { API_BASE_URL } from '../config';
 import RecommendationCard from '../components/Copilot/RecommendationCard';
 import type { RecommendationProps } from '../components/Copilot/RecommendationCard';
 
@@ -14,6 +15,14 @@ interface CopilotMessage {
     affectedResources: any[];
     knowledgeObjectsUsed?: string[];
   };
+}
+
+// ponytail: helper to safely extract an array from standardResponse({ data }) wrapper
+function unwrapArray<T>(res: any): T[] {
+  const d = res.data;
+  if (Array.isArray(d?.data)) return d.data;
+  if (Array.isArray(d)) return d;
+  return [];
 }
 
 export default function CopilotPage() {
@@ -42,10 +51,11 @@ export default function CopilotPage() {
 
   const fetchConversations = async () => {
     try {
-      const res = await axios.get('/api/ai/conversations');
-      setConversations(res.data);
-      if (res.data.length > 0 && !activeConvId) {
-        setActiveConvId(res.data[0]._id);
+      const res = await api.get('/api/ai/conversations');
+      const data = unwrapArray(res);
+      setConversations(data);
+      if (data.length > 0 && !activeConvId) {
+        setActiveConvId(data[0]._id);
       }
     } catch (err) {
       console.error(err);
@@ -54,8 +64,8 @@ export default function CopilotPage() {
 
   const fetchRecommendations = async () => {
     try {
-      const res = await axios.get('/api/ai/recommendations');
-      setRecommendations(res.data);
+      const res = await api.get('/api/ai/recommendations');
+      setRecommendations(unwrapArray(res));
     } catch (err) {
       console.error(err);
     }
@@ -63,8 +73,8 @@ export default function CopilotPage() {
 
   const fetchMessages = async (convId: string) => {
     try {
-      const res = await axios.get(`/api/ai/conversations/${convId}/messages`);
-      setMessages(res.data);
+      const res = await api.get(`/api/ai/conversations/${convId}/messages`);
+      setMessages(unwrapArray(res));
     } catch (err) {
       console.error(err);
     }
@@ -72,9 +82,10 @@ export default function CopilotPage() {
 
   const createConversation = async () => {
     try {
-      const res = await axios.post('/api/ai/conversations', { title: 'New Analysis' });
-      setConversations([res.data, ...conversations]);
-      setActiveConvId(res.data._id);
+      const res = await api.post('/api/ai/conversations', { title: 'New Analysis' });
+      const newConv = res.data?.data || res.data || {};
+      setConversations(prev => [newConv, ...prev]);
+      setActiveConvId(newConv._id);
       setMessages([]);
     } catch (err) {
       console.error(err);
@@ -91,43 +102,45 @@ export default function CopilotPage() {
     setLoading(true);
 
     try {
-      const response = await fetch(`/api/ai/conversations/${activeConvId}/messages`, {
+      // SSE stream requires fetch — use the absolute backend URL with cookies
+      const response = await fetch(`${API_BASE_URL}/api/ai/conversations/${activeConvId}/messages`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` // assuming standard setup
-        },
-        body: JSON.stringify({ message: userMsg.content })
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ message: userMsg.content }),
       });
 
       if (!response.body) throw new Error('No response body');
-      
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      
+
       let assistantMsg: CopilotMessage = { _id: (Date.now()+1).toString(), role: 'assistant', content: '' };
       setMessages(prev => [...prev, assistantMsg]);
 
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        
-        const chunkStr = decoder.decode(value);
-        const lines = chunkStr.split('\\n\\n');
-        
+
+        const chunkStr = decoder.decode(value, { stream: true });
+        const lines = chunkStr.split('\n\n');
+
         for (const line of lines) {
           if (line.startsWith('data: ')) {
-            const data = JSON.parse(line.substring(6));
-            if (data.error) {
-              assistantMsg.content += '\\n**Error:** ' + data.error;
-              setMessages(prev => [...prev.slice(0, -1), { ...assistantMsg }]);
-            } else if (data.chunk) {
-              assistantMsg.content += data.chunk;
-              setMessages(prev => [...prev.slice(0, -1), { ...assistantMsg }]);
-            } else if (data.done) {
-              // Final message payload with explainability
-              assistantMsg = data.message;
-              setMessages(prev => [...prev.slice(0, -1), assistantMsg]);
+            try {
+              const data = JSON.parse(line.substring(6));
+              if (data.error) {
+                assistantMsg = { ...assistantMsg, content: assistantMsg.content + '\n**Error:** ' + data.error };
+                setMessages(prev => [...prev.slice(0, -1), assistantMsg]);
+              } else if (data.chunk) {
+                assistantMsg = { ...assistantMsg, content: assistantMsg.content + data.chunk };
+                setMessages(prev => [...prev.slice(0, -1), assistantMsg]);
+              } else if (data.done) {
+                assistantMsg = data.message;
+                setMessages(prev => [...prev.slice(0, -1), assistantMsg]);
+              }
+            } catch {
+              // partial JSON chunk, skip
             }
           }
         }

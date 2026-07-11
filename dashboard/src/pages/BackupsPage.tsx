@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { api } from '../api';
 import { useAppDispatch } from '../store/hooks';
 import { addToast } from '../store/toastSlice';
 
@@ -25,11 +25,11 @@ export default function BackupsPage() {
   const fetchData = async () => {
     try {
       const [b, r] = await Promise.all([
-        axios.get('/api/resilience/backups'),
-        axios.get('/api/resilience/restores')
+        api.get('/api/resilience/backups'),
+        api.get('/api/resilience/restores')
       ]);
-      setBackups(b.data);
-      setRestores(r.data);
+      setBackups(Array.isArray(b.data?.data) ? b.data.data : []);
+      setRestores(Array.isArray(r.data?.data) ? r.data.data : []);
     } catch (err) {
       console.error('Failed to fetch backups', err);
     } finally {
@@ -40,7 +40,7 @@ export default function BackupsPage() {
   const handleCreateBackup = async () => {
     setCreating(true);
     try {
-      await axios.post('/api/resilience/backups', { tier: 'pinned' });
+      await api.post('/api/resilience/backups', { tier: 'pinned' });
       await fetchData();
     } catch (err: any) {
       dispatch(addToast({ message: err?.response?.data?.message || 'Failed to create backup', type: 'error', duration: 5000 }));
@@ -52,7 +52,7 @@ export default function BackupsPage() {
   const handleDeleteBackup = async (id: string) => {
     if (!confirm('Are you sure you want to delete this backup?')) return;
     try {
-      await axios.delete(`/api/resilience/backups/${id}`);
+      await api.delete(`/api/resilience/backups/${id}`);
       await fetchData();
     } catch (err: any) {
       dispatch(addToast({ message: err?.response?.data?.message || 'Failed to delete backup', type: 'error', duration: 5000 }));
@@ -70,8 +70,8 @@ export default function BackupsPage() {
   const generatePlan = async (backupId: string) => {
     setWizardStep('PREVIEW');
     try {
-      const res = await axios.post('/api/resilience/restores/plan', { backupId });
-      setRestorePlan(res.data);
+      const res = await api.post('/api/resilience/restores/plan', { backupId });
+      setRestorePlan(res.data?.data || res.data);
     } catch (err: any) {
       dispatch(addToast({ message: err?.response?.data?.message || 'Failed to generate restore plan', type: 'error', duration: 5000 }));
       setWizardOpen(false);
@@ -82,7 +82,7 @@ export default function BackupsPage() {
     if (!restorePlan) return;
     setWizardStep('EXECUTING');
     try {
-      await axios.post(`/api/resilience/restores/${restorePlan.restore._id}/execute`);
+      await api.post(`/api/resilience/restores/${restorePlan.restore._id}/execute`);
       dispatch(addToast({ message: 'Restore execution started! The platform will enter maintenance mode.', type: 'info', duration: 5000 }));
       setWizardOpen(false);
       fetchData();

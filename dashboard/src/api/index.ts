@@ -320,8 +320,8 @@ export interface ApiResponse<T> {
 export const containerApi = {
   // Get all containers
   getAll: async (): Promise<Container[]> => {
-    const response = await api.get<ApiResponse<Container[]>>('/containers');
-    return response.data.data;
+    const response = await api.get<ApiResponse<{ containers: Container[] }>>('/containers');
+    return (response.data.data as any).containers || [];
   },
 
   // Get container logs (now returns parsed logs from server)
@@ -979,18 +979,19 @@ export interface CreatePipelinePayload {
 
 export const pipelineApi = {
   list: async (): Promise<Pipeline[]> => {
-    const response = await api.get<{ pipelines: Pipeline[] }>('/api/pipelines');
-    return response.data.pipelines;
+    const response = await api.get('/api/pipelines');
+    const data = response.data?.data || response.data;
+    return data.pipelines || [];
   },
 
   get: async (id: string): Promise<Pipeline> => {
-    const response = await api.get<Pipeline>(`/api/pipelines/${id}`);
-    return response.data;
+    const response = await api.get(`/api/pipelines/${id}`);
+    return response.data?.data || response.data;
   },
 
   create: async (payload: CreatePipelinePayload): Promise<Pipeline> => {
-    const response = await api.post<Pipeline>('/api/pipelines', payload);
-    return response.data;
+    const response = await api.post('/api/pipelines', payload);
+    return response.data?.data || response.data;
   },
 
   delete: async (id: string): Promise<void> => {
@@ -1002,13 +1003,13 @@ export const pipelineApi = {
   },
 
   run: async (id: string, body?: { triggerSource?: string; commitHash?: string; branch?: string }): Promise<RunPipelineResponse> => {
-    const response = await api.post<RunPipelineResponse>(`/api/pipelines/${id}/run`, body || {});
-    return response.data;
+    const response = await api.post(`/api/pipelines/${id}/run`, body || {});
+    return response.data?.data || response.data;
   },
 
   getStatus: async (id: string): Promise<any> => {
     const response = await api.get(`/api/pipelines/${id}/status`);
-    return response.data;
+    return response.data?.data || response.data;
   },
 
   getRuns: async (id: string, opts?: { limit?: number; skip?: number }): Promise<PipelineRun[]> => {
@@ -1016,18 +1017,21 @@ export const pipelineApi = {
     if (opts?.limit) params.append('limit', String(opts.limit));
     if (opts?.skip) params.append('skip', String(opts.skip));
     const qs = params.toString();
-    const response = await api.get<{ runs: PipelineRun[] }>(`/api/pipelines/${id}/runs${qs ? `?${qs}` : ''}`);
-    return response.data.runs;
+    const response = await api.get(`/api/pipelines/${id}/runs${qs ? `?${qs}` : ''}`);
+    const data = response.data?.data || response.data;
+    return data.runs || [];
   },
 
   getMetrics: async (id: string): Promise<CIPipelineMetrics> => {
-    const response = await api.get<{ metrics: CIPipelineMetrics }>(`/api/pipelines/${id}/metrics`);
-    return response.data.metrics;
+    const response = await api.get(`/api/pipelines/${id}/metrics`);
+    const data = response.data?.data || response.data;
+    return data.metrics || data;
   },
 
   getRun: async (runId: string): Promise<PipelineRun> => {
-    const response = await api.get<{ run: PipelineRun }>(`/api/pipeline-runs/${runId}`);
-    return response.data.run;
+    const response = await api.get(`/api/pipeline-runs/${runId}`);
+    const data = response.data?.data || response.data;
+    return data.run || data;
   },
 
   getRunLogsUrl: (runId: string): string => {
@@ -1057,41 +1061,42 @@ export interface Deployment {
 
 export const deploymentApi = {
   list: async (): Promise<Deployment[]> => {
-    const response = await api.get<Deployment[] | { deployments: Deployment[] }>('/api/deployments');
-    return Array.isArray(response.data)
-      ? response.data
-      : (response.data as any).deployments ?? [];
+    const response = await api.get('/api/deployments');
+    const payload = response.data?.data || response.data;
+    return Array.isArray(payload)
+      ? payload
+      : payload?.deployments ?? [];
   },
 
   start: async (id: string): Promise<Deployment> => {
-    const response = await api.post<{ deployment: Deployment }>(`/api/deployments/${id}/start`);
-    return response.data.deployment;
+    const response = await api.post(`/api/deployments/${id}/start`);
+    return (response.data?.data || response.data).deployment;
   },
 
   stop: async (id: string): Promise<Deployment> => {
-    const response = await api.post<{ deployment: Deployment }>(`/api/deployments/${id}/stop`);
-    return response.data.deployment;
+    const response = await api.post(`/api/deployments/${id}/stop`);
+    return (response.data?.data || response.data).deployment;
   },
 
   remove: async (id: string): Promise<Deployment> => {
-    const response = await api.post<{ deployment: Deployment }>(`/api/deployments/${id}/remove`);
-    return response.data.deployment;
+    const response = await api.post(`/api/deployments/${id}/remove`);
+    return (response.data?.data || response.data).deployment;
   },
 
   rollback: async (id: string, reason?: string): Promise<Deployment> => {
     const payload = reason ? { reason } : undefined;
-    const response = await api.post<{ deployment: Deployment }>(`/api/deployments/${id}/rollback`, payload);
-    return response.data.deployment;
+    const response = await api.post(`/api/deployments/${id}/rollback`, payload);
+    return (response.data?.data || response.data).deployment;
   },
 
   getById: async (id: string): Promise<Deployment> => {
-    const response = await api.get<{ deployment: Deployment }>(`/api/deployments/${id}`);
-    return response.data.deployment;
+    const response = await api.get(`/api/deployments/${id}`);
+    return (response.data?.data || response.data).deployment;
   },
 
   getLogs: async (id: string): Promise<string[]> => {
-    const response = await api.get<{ logs: string[] }>(`/api/deployments/${id}/logs`);
-    return response.data.logs ?? [];
+    const response = await api.get(`/api/deployments/${id}/logs`);
+    return (response.data?.data || response.data).logs ?? [];
   },
 };
 

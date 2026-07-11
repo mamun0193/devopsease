@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { api } from '../api';
 
 interface SecurityEvent {
   _id: string;
@@ -22,8 +22,10 @@ export default function SecurityCenterPage() {
 
   const fetchEvents = async () => {
     try {
-      const res = await axios.get('/api/resilience/security/events');
-      setEvents(res.data.data);
+      const res = await api.get('/api/resilience/security/events');
+      // Backend uses paginatedResponse → { data: [...], meta: {...} }
+      const data = Array.isArray(res.data?.data) ? res.data.data : [];
+      setEvents(data);
     } catch (err) {
       console.error('Failed to fetch security events', err);
     } finally {

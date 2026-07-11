@@ -14,27 +14,30 @@ export interface Application {
 
 export const applicationsApi = {
     getApplications: async (params?: Record<string, any>): Promise<Application[]> => {
-        const response = await api.get('/applications', { params });
-        // The API might return { success: true, data: [...] } or just [...]
-        return response.data?.data || response.data || [];
+        const response = await api.get('/api/applications', { params });
+        const data = response.data?.data || response.data;
+        return data.applications || [];
     },
     
     getApplication: async (id: string): Promise<Application> => {
-        const response = await api.get(`/applications/${id}`);
-        return response.data?.data || response.data;
+        const response = await api.get(`/api/applications/${id}`);
+        const data = response.data?.data || response.data;
+        return data.application || data;
     },
     
-    createApplication: async (data: any): Promise<Application> => {
-        const response = await api.post('/applications', data);
-        return response.data?.data || response.data;
+    createApplication: async (payload: any): Promise<Application> => {
+        const response = await api.post('/api/applications', payload);
+        const data = response.data?.data || response.data;
+        return data.application || data;
     },
     
-    updateApplication: async (id: string, data: any): Promise<Application> => {
-        const response = await api.put(`/applications/${id}`, data);
-        return response.data?.data || response.data;
+    updateApplication: async (id: string, payload: any): Promise<Application> => {
+        const response = await api.put(`/api/applications/${id}`, payload);
+        const data = response.data?.data || response.data;
+        return data.application || data;
     },
     
     deleteApplication: async (id: string): Promise<void> => {
-        await api.delete(`/applications/${id}`);
+        await api.delete(`/api/applications/${id}`);
     }
 };
