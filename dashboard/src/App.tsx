@@ -109,6 +109,10 @@ function App() {
 
                 <Route path="/" element={<LandingPage />} />
 
+                <Route path="/about" element={<AboutPage />} />
+
+                <Route path="/features" element={<FeaturesPage />} />
+
                 <Route path="/docs" element={<DocsPage />} />
 
                 <Route path="/developers" element={<DevelopersPage />} />
