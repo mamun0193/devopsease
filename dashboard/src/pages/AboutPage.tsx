@@ -123,7 +123,6 @@ const STACK = [
   { label: 'Observability', icon: <Activity className="w-4 h-4" /> },
   { label: 'Secrets', icon: <Lock className="w-4 h-4" /> },
   { label: 'CLI Tool', icon: <Terminal className="w-4 h-4" /> },
-  { label: 'Resource Quotas', icon: <Cpu className="w-4 h-4" /> },
 ];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -132,18 +131,14 @@ export const AboutPage: React.FC = () => (
   <LandingLayout>
     {/* ── Split Hero ─────────────────────────────────────────────────────── */}
     <section className="py-20 border-b border-dds-border/50">
-      <div className="max-w-7xl mx-auto px-8 lg:px-12 xl:px-24">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
           {/* Left — headline */}
           <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45 }}>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-dds-primary/10 text-dds-primary text-xs font-semibold border border-dds-primary/20 mb-6">
-              <Check className="w-3.5 h-3.5" />
-              About DevOpsEase
-            </span>
             <h1 className="text-4xl md:text-5xl font-bold text-dds-white leading-tight">
-              DevOps shouldn't be<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-dds-primary to-purple-400">
+              DevOps shouldn't <br/> be  
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-dds-primary to-purple-400 px-3">
                 a full-time job
               </span>
             </h1>
@@ -168,7 +163,7 @@ export const AboutPage: React.FC = () => (
 
     {/* ── What's inside — pill grid ────────────────────────────────────────── */}
     <section className="py-8 border-b border-dds-border/50 bg-dds-bg/50">
-      <div className="max-w-4xl mx-auto px-4">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           variants={fadeUp}
           initial="hidden"
@@ -191,8 +186,8 @@ export const AboutPage: React.FC = () => (
     </section>
 
     {/* ── How It Works ─────────────────────────────────────────────────────── */}
-    <section className="py-20 border-b border-dds-border/50">
-      <div className="max-w-7xl mx-auto px-8 lg:px-12 xl:px-24">
+    <section className="py-10 border-b border-dds-border/50">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           variants={fadeUp}
           initial="hidden"
@@ -207,7 +202,7 @@ export const AboutPage: React.FC = () => (
         </motion.div>
 
         {/* Step flow */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5">
           {STEPS.map((s, i) => (
             <motion.div
               key={i}
@@ -243,7 +238,7 @@ export const AboutPage: React.FC = () => (
     </section>
 
     {/* ── Why DevOpsEase ───────────────────────────────────────────────────── */}
-    <section className="py-20 max-w-7xl mx-auto px-8 lg:px-12 xl:px-24">
+    <section className="py-10 max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
       <motion.div
         variants={fadeUp}
         initial="hidden"
@@ -293,7 +288,7 @@ export const AboutPage: React.FC = () => (
     </section>
 
     {/* ── Bottom CTA ───────────────────────────────────────────────────────── */}
-    <section className="max-w-7xl mx-auto px-8 lg:px-12 xl:px-24 pb-24">
+    <section className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pb-24">
       <motion.div
         variants={fadeUp}
         initial="hidden"

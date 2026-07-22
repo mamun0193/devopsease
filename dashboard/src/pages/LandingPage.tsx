@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Check, GitBranch, Hammer, Rocket, BarChart2, TerminalSquare,
-  Activity, Shield, Sparkles, Globe, Zap, ChevronRight
+  Activity, Shield, Sparkles, Globe, Zap, ChevronRight, Container, Layers
 } from 'lucide-react';
 import { LandingLayout } from '../components/LandingLayout';
 import { useAuth } from '../context/AuthContext';
@@ -110,37 +110,39 @@ export const LandingPage: React.FC = () => {
     <LandingLayout>
 
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="relative pt-14 pb-24 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+      <section className="relative pt-12 pb-14 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-8 lg:px-12 xl:px-24 text-center relative z-10">
           <motion.div initial="hidden" animate="visible" variants={containerVariants}>
 
-            <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-3 py-1 rounded-[6px] bg-dds-primary/10 border border-dds-primary/20 text-dds-primary text-sm font-medium mb-8">
+            <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-3.5 py-1 rounded-[6px] bg-dds-primary/10 border border-dds-primary/20 text-dds-primary text-xs font-semibold uppercase tracking-wider mb-4">
               <span className="w-2 h-2 rounded-full bg-dds-primary animate-pulse" />
               V 1.0 Live Now
             </motion.div>
 
-            <motion.h1 variants={itemVariants} className="text-5xl md:text-7xl font-bold tracking-tight text-dds-white mb-6">
+            <motion.h1 variants={itemVariants} className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-dds-white mb-4">
               From Code to Production{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-dds-primary to-purple-400">
-                Simplified.
-              </span>
+              <div className="py-5">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-dds-primary to-purple-400">
+                  Simplified.
+                </span>
+              </div>
             </motion.h1>
 
-            <motion.p variants={itemVariants} className="text-xl text-dds-text-secondary max-w-2xl mx-auto mb-4 leading-relaxed">
+            <motion.p variants={itemVariants} className="text-lg text-dds-text-secondary max-w-2xl mx-auto mb-3 leading-relaxed">
               DevOpsEase is a full-stack PaaS that automates every stage of your deployment lifecycle — CI/CD, Docker, Kubernetes, traffic management, observability, and AI-driven operations — all from a single platform.
             </motion.p>
 
-            <motion.p variants={itemVariants} className="text-base text-dds-text-muted mb-10">
+            <motion.p variants={itemVariants} className="text-base text-dds-text-muted mb-6">
               No glue code. No DevOps headache. Just push and ship.
             </motion.p>
 
-            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row gap-3.5 justify-center items-center">
               {isAuthenticated ? (
-                <Link to="/dashboard" className="btn-primary px-8 py-3 text-base">
+                <Link to="/dashboard" className="btn-primary px-8 py-3 text-sm font-semibold">
                   Go to Dashboard
                 </Link>
               ) : (
-                <Link to="/login?tab=register" className="btn-primary px-8 py-3 text-base">
+                <Link to="/login?tab=register" className="btn-primary px-8 py-3 text-sm font-semibold">
                   Start for Free
                 </Link>
               )}
@@ -148,7 +150,7 @@ export const LandingPage: React.FC = () => {
                 href="https://github.com/mamun0193/devopsease"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-secondary px-8 py-3 text-base"
+                className="btn-secondary px-8 py-3 text-sm font-semibold"
               >
                 View on GitHub
               </a>
@@ -159,11 +161,11 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ── How It Works ─────────────────────────────────────────────────── */}
-      <section id="about" className="py-16 bg-dds-surface/30 border-y border-dds-border/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-dds-white mb-4">How DevOpsEase Works</h2>
-            <p className="text-dds-text-secondary max-w-xl mx-auto">
+      <section id="about" className="py-12 bg-dds-surface/30 border-y border-dds-border/50">
+        <div className="max-w-7xl mx-auto px-8 lg:px-12 xl:px-24">
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-bold text-dds-white mb-2">How DevOpsEase Works</h2>
+            <p className="text-dds-text-secondary text-base max-w-xl mx-auto">
               Five steps from first commit to a self-healing, observable production system.
             </p>
           </div>
@@ -171,21 +173,21 @@ export const LandingPage: React.FC = () => {
             {HOW_IT_WORKS.map((s, i) => {
               const Icon = s.icon;
               return (
-                <div key={i} className="card card-interactive flex flex-col items-start p-6 min-h-[170px]">
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="w-9 h-9 bg-dds-elevated rounded-[6px] flex items-center justify-center flex-shrink-0">
-                      <Icon className={`w-5 h-5 ${s.color}`} />
+                <div key={i} className="card card-interactive flex flex-col items-start p-5 min-h-[145px]">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8.5 h-8.5 bg-dds-elevated rounded-[6px] flex items-center justify-center flex-shrink-0">
+                      <Icon className={`w-4 h-4 ${s.color}`} />
                     </div>
                     <span className="text-xs font-bold text-dds-text-muted tracking-widest">{s.step}</span>
                   </div>
-                  <h3 className="text-sm font-bold text-dds-white mb-2">{s.title}</h3>
+                  <h3 className="text-sm font-bold text-dds-white mb-1.5">{s.title}</h3>
                   <p className="text-dds-text-secondary text-sm leading-relaxed">{s.description}</p>
                 </div>
               );
             })}
           </div>
-          <div className="mt-8 flex justify-center">
-            <Link to="/about" className="btn-primary w-30 py-3 text-sm font-semibold">
+          <div className="mt-6 flex justify-center">
+            <Link to="/about" className="btn-primary w-32 py-2.5 text-sm font-semibold">
               Know more
             </Link>
           </div>
@@ -193,11 +195,11 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ── Features Grid ────────────────────────────────────────────────── */}
-      <section id="features" className="py-16 border-b border-dds-border/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-dds-white mb-4">Everything You Need for Modern DevOps</h2>
-            <p className="text-dds-text-secondary max-w-2xl mx-auto">
+      <section id="features" className="py-12 border-b border-dds-border/50">
+        <div className="max-w-7xl mx-auto px-8 lg:px-12 xl:px-24">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-bold text-dds-white mb-2">Everything You Need for Modern DevOps</h2>
+            <p className="text-dds-text-secondary text-base max-w-2xl mx-auto">
               From code push to production — every stage covered, in one platform.
             </p>
           </div>
@@ -205,23 +207,23 @@ export const LandingPage: React.FC = () => {
             {FEATURES.map((f, i) => {
               const Icon = f.icon;
               return (
-                <Link key={i} to={f.link} className="card card-interactive flex items-start gap-4 p-6 group">
-                  <div className="w-9 h-9 bg-dds-elevated rounded-[6px] flex items-center justify-center flex-shrink-0">
-                    <Icon className={`w-4 h-4 ${f.color}`} />
+                <Link key={i} to={f.link} className="card card-interactive flex items-start gap-4 p-5 group">
+                  <div className="w-9 h-9 bg-dds-elevated rounded-[6px] flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Icon className={`w-4.5 h-4.5 ${f.color}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-bold text-dds-white mb-1 flex items-center gap-1">
                       {f.title}
-                      <ChevronRight className="w-3.5 h-3.5 text-dds-text-muted opacity-0 group-hover:opacity-100 transition-opacity -mr-1" />
+                      <ChevronRight className="w-4 h-4 text-dds-text-muted opacity-0 group-hover:opacity-100 transition-opacity -mr-1" />
                     </h3>
-                    <p className="text-dds-text-muted text-sm leading-relaxed">{f.description}</p>
+                    <p className="text-dds-text-secondary text-sm leading-relaxed">{f.description}</p>
                   </div>
                 </Link>
               );
             })}
           </div>
-          <div className="mt-10 flex justify-center">
-            <Link to="/features" className="btn-primary w-50 py-3 text-sm font-semibold text-center">
+          <div className="mt-6 flex justify-center">
+            <Link to="/features" className="btn-primary w-52 py-2.5 text-sm font-semibold text-center">
               Explore all features
             </Link>
           </div>
@@ -229,35 +231,39 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ── Pricing ──────────────────────────────────────────────────────── */}
-      <section id="pricing" className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-dds-white mb-4">Simple, transparent pricing</h2>
-            <p className="text-dds-text-secondary">Start for free, upgrade as you grow.</p>
+      <section id="pricing" className="py-12 border-b border-dds-border/50">
+        <div className="max-w-7xl mx-auto px-8 lg:px-12">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl md:text-4xl font-bold text-dds-white mb-2 tracking-tight">
+              Flexible plans for every scale
+            </h2>
+            <p className="text-dds-text-secondary text-base max-w-xl mx-auto mb-10">
+              Start for free with basic containers and CI/CD. Upgrade seamlessly as your team and compute requirements grow.
+            </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch max-w-6xl mx-auto">
             <PricingCard
               title="Free"
               price="₹0"
-              description="Perfect for getting started"
+              description="Ideal for side projects & individual testing"
+              resources={{ containers: 2, cpu: '1 core', ram: '512 MB', storage: '1 GB', storageType: 'Ephemeral' }}
               features={[
-                '2 containers · 1 CPU core',
-                '512 MB RAM · 1 GB storage (ephemeral)',
                 'Basic CI/CD pipelines',
                 'Docker builds & deployments',
                 'Community support',
               ]}
               footer={
-                <div className="flex flex-col gap-3 w-full">
+                <div className="flex flex-col gap-2 w-full">
                   <a
                     href="https://github.com/mamun0193/devopsease"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="btn-secondary w-full justify-center py-2.5"
+                    className="btn-secondary w-full justify-center py-2.5 text-sm font-semibold rounded-lg"
                   >
                     Star on GitHub
                   </a>
-                  <Link to="/login?tab=register" className="btn-primary w-full justify-center py-2.5">
+                  <Link to="/login?tab=register" className="btn-primary w-full justify-center py-2.5 text-sm font-semibold rounded-lg">
                     Get Started
                   </Link>
                 </div>
@@ -267,11 +273,10 @@ export const LandingPage: React.FC = () => {
               title="Pro"
               price="₹199"
               isPopular
-              description="For serious developers"
+              description="For production workloads & serious developers"
               highlight
+              resources={{ containers: 10, cpu: '4 cores', ram: '4 GB', storage: '10 GB', storageType: 'Persistent' }}
               features={[
-                '10 containers · 4 CPU cores',
-                '4 GB RAM · 10 GB storage (persistent)',
                 'Advanced CI/CD pipelines',
                 'Kubernetes deployments',
                 'Secrets management',
@@ -280,18 +285,17 @@ export const LandingPage: React.FC = () => {
                 'Priority support',
               ]}
               footer={
-                <Link to="/login?tab=register" className="btn-primary w-full justify-center py-2.5">
-                  Get Started
+                <Link to="/login?tab=register" className="btn-primary w-full justify-center py-3 text-sm font-semibold rounded-lg shadow-lg shadow-dds-primary/20">
+                  Get Started with Pro
                 </Link>
               }
             />
             <PricingCard
               title="Premium"
               price="₹399"
-              description="For teams and scale"
+              description="For scaling teams requiring full autonomy & AI"
+              resources={{ containers: 20, cpu: '8 cores', ram: '16 GB', storage: '25 GB', storageType: 'Persistent' }}
               features={[
-                '20 containers · 8 CPU cores',
-                '16 GB RAM · 25 GB storage (persistent)',
                 'Multi-cluster Kubernetes',
                 'Full observability + Autopilot',
                 'AI Copilot access',
@@ -300,7 +304,7 @@ export const LandingPage: React.FC = () => {
                 'Dedicated support',
               ]}
               footer={
-                <button className="btn-secondary w-full justify-center py-2.5">
+                <button className="btn-secondary w-full justify-center py-2.5 text-sm font-semibold rounded-lg hover:border-dds-primary/40">
                   Contact Sales
                 </button>
               }
@@ -310,25 +314,25 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ── CTA Banner ───────────────────────────────────────────────────── */}
-      <section className="py-16 border-t border-dds-border/50">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-dds-white mb-4">
+      <section className="py-12 border-t border-dds-border/50">
+        <div className="max-w-3xl mx-auto px-8 lg:px-12 text-center">
+          <h2 className="text-3xl font-bold text-dds-white mb-2 tracking-tight">
             Ready to ship faster?
           </h2>
-          <p className="text-dds-text-secondary mb-8 text-lg leading-relaxed">
+          <p className="text-dds-text-secondary mb-6 text-base sm:text-lg leading-relaxed">
             Join DevOpsEase and go from code to production — with CI/CD, smart builds, autonomous scaling, and an AI Copilot watching your back.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3.5 justify-center">
             {isAuthenticated ? (
-              <Link to="/dashboard" className="btn-primary px-8 py-3 text-base">
+              <Link to="/dashboard" className="btn-primary px-8 py-3 text-sm font-semibold rounded-lg shadow-lg shadow-dds-primary/20">
                 Open Dashboard <ChevronRight className="w-4 h-4" />
               </Link>
             ) : (
-              <Link to="/login?tab=register" className="btn-primary px-8 py-3 text-base">
+              <Link to="/login?tab=register" className="btn-primary px-8 py-3 text-sm font-semibold rounded-lg shadow-lg shadow-dds-primary/20">
                 Start for Free <ChevronRight className="w-4 h-4" />
               </Link>
             )}
-            <Link to="/docs" className="btn-secondary px-8 py-3 text-base">
+            <Link to="/docs" className="btn-secondary px-8 py-3 text-sm font-semibold rounded-lg">
               Read the Docs
             </Link>
           </div>
@@ -344,36 +348,68 @@ export const LandingPage: React.FC = () => {
 const PricingCard: React.FC<{
   title: string;
   price: string;
+  resources: { containers: number; cpu: string; ram: string; storage: string; storageType: string };
   features: string[];
   description: string;
   isPopular?: boolean;
   footer: React.ReactNode;
   highlight?: boolean;
-}> = ({ title, price, features, description, isPopular, footer, highlight }) => (
-  <div className={`p-5 rounded-[6px] border flex flex-col relative ${highlight ? 'bg-dds-elevated border-dds-primary/30 shadow-xl shadow-dds-primary/10' : 'bg-dds-surface border-dds-border'}`}>
+}> = ({ title, price, resources, features, description, isPopular, footer, highlight }) => (
+  <motion.div
+    whileHover={{ y: -4 }}
+    transition={{ duration: 0.2 }}
+    className={`p-6 sm:p-7 rounded-xl border flex flex-col justify-between relative transition-all duration-300 ${highlight
+        ? 'bg-gradient-to-b from-dds-elevated to-dds-surface border-2 border-dds-primary/60 shadow-2xl shadow-dds-primary/15'
+        : 'bg-dds-surface/90 border-dds-border hover:border-dds-border/80'
+      }`}
+  >
     {isPopular && (
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-0.5 bg-dds-primary text-white text-xs font-bold rounded-[6px] uppercase tracking-wide">
+      <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-1 bg-gradient-to-r from-dds-primary via-purple-500 to-dds-blue text-white text-[11px] font-bold rounded-full uppercase tracking-wider shadow-md">
         Most Popular
       </div>
     )}
-    <div className="mb-5">
-      <h3 className="text-base font-semibold text-dds-text-secondary mb-1">{title}</h3>
-      <div className="flex items-baseline gap-1">
-        <span className="text-3xl font-bold text-dds-white">{price}</span>
-        <span className="text-dds-text-muted text-sm">/mo</span>
+
+    <div>
+      <div className="mb-5">
+        <h3 className="text-xl font-bold text-dds-white mb-1.5">{title}</h3>
+        <div className="flex items-baseline gap-1.5 mb-1.5">
+          <span className="text-4xl font-extrabold text-dds-white tracking-tight">{price}</span>
+          <span className="text-dds-text-muted text-xs font-medium">/month</span>
+        </div>
+        <p className="text-dds-text-muted text-xs leading-relaxed">{description}</p>
       </div>
-      <p className="text-dds-text-muted text-sm mt-1">{description}</p>
-    </div>
-    <ul className="space-y-2.5 mb-5 flex-grow">
-      {features.map((feature, i) => (
-        <li key={i} className="flex items-center gap-3 text-dds-text-secondary text-sm">
-          <div className={`p-0.5 rounded-[4px] flex-shrink-0 ${highlight ? 'bg-dds-primary/20 text-dds-primary' : 'bg-dds-elevated text-dds-text-muted'}`}>
-            <Check className="w-3 h-3" />
+
+      {/* Resource Chips */}
+      <div className="grid grid-cols-2 gap-2 mb-5">
+        {[
+          { icon: <Container className="w-3.5 h-3.5" />, label: `${resources.containers} containers` },
+          { icon: <Activity className="w-3.5 h-3.5" />, label: resources.cpu },
+          { icon: <BarChart2 className="w-3.5 h-3.5" />, label: resources.ram },
+          { icon: <Layers className="w-3.5 h-3.5" />, label: `${resources.storage} · ${resources.storageType.toLowerCase()}` },
+        ].map((r, j) => (
+          <div key={j} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-dds-elevated/70 border border-dds-border/50 rounded-lg text-xs text-dds-text-secondary font-medium">
+            <span className="text-dds-primary">{r.icon}</span>
+            {r.label}
           </div>
-          {feature}
-        </li>
-      ))}
-    </ul>
-    {footer}
-  </div>
+        ))}
+      </div>
+
+      <div className="w-full h-px bg-dds-border/60 mb-5" />
+
+      <ul className="space-y-2.5 mb-6">
+        {features.map((feature, i) => (
+          <li key={i} className="flex items-center gap-3 text-dds-text-secondary text-sm font-medium">
+            <div className={`p-1 rounded flex-shrink-0 ${highlight ? 'bg-dds-primary/20 text-dds-primary' : 'bg-dds-elevated text-dds-primary/90 border border-dds-border'}`}>
+              <Check className="w-3.5 h-3.5" />
+            </div>
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <div>
+      {footer}
+    </div>
+  </motion.div>
 );

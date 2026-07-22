@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LandingLayout } from '../components/LandingLayout';
-import { Copy, Check, Github, MessageSquare, BookOpen, Zap, Users, Star, GitPullRequest, Bug } from 'lucide-react';
+import { Copy, Check, Github, MessageSquare, BookOpen, Zap, Users, Star, GitPullRequest, Bug, Terminal, Wrench, ShieldAlert } from 'lucide-react';
 
 type Tab = 'setup' | 'blog' | 'changelog' | 'community';
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.45 } },
 };
 const stagger = {
   hidden: { opacity: 0 },
@@ -18,45 +18,72 @@ const CodeBlock: React.FC<{ code: string; lang?: string }> = ({ code, lang = 'ba
   const [copied, setCopied] = useState(false);
   const copy = () => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 2000); };
   return (
-    <div className="relative my-4 rounded-xl overflow-hidden border border-gray-800 bg-gray-950">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-gray-900/60">
-        <span className="text-xs text-gray-500 font-mono">{lang}</span>
-        <button onClick={copy} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors">
-          {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+    <div className="relative my-4 rounded-xl overflow-hidden border border-dds-border bg-dds-bg">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-dds-border bg-dds-elevated/80">
+        <span className="text-xs text-dds-text-muted font-mono">{lang}</span>
+        <button onClick={copy} className="flex items-center gap-1.5 text-xs text-dds-text-secondary hover:text-dds-white transition-colors">
+          {copied ? <Check size={13} className="text-dds-green" /> : <Copy size={13} />}
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
-      <pre className="p-4 overflow-x-auto text-sm leading-relaxed"><code className="text-indigo-300 font-mono">{code}</code></pre>
+      <pre className="p-4 overflow-x-auto text-sm leading-relaxed"><code className="text-dds-primary font-mono">{code}</code></pre>
     </div>
   );
 };
 
 const Note: React.FC<{ type?: 'info' | 'warn' | 'tip'; children: React.ReactNode }> = ({ type = 'info', children }) => {
-  const styles = { info: 'border-blue-500/40 bg-blue-500/5 text-blue-200', warn: 'border-amber-500/40 bg-amber-500/5 text-amber-200', tip: 'border-emerald-500/40 bg-emerald-500/5 text-emerald-200' };
+  const styles = {
+    info: 'border-dds-blue/40 bg-dds-blue/10 text-dds-blue',
+    warn: 'border-dds-orange/40 bg-dds-orange/10 text-dds-orange',
+    tip: 'border-dds-green/40 bg-dds-green/10 text-dds-green',
+  };
   const labels = { info: '📘 Note', warn: '⚠️ Warning', tip: '✅ Tip' };
-  return <div className={`my-4 p-4 rounded-xl border text-sm leading-relaxed ${styles[type]}`}><strong className="block mb-1">{labels[type]}</strong>{children}</div>;
+  return (
+    <div className={`my-4 p-4 rounded-xl border text-sm leading-relaxed ${styles[type]}`}>
+      <strong className="block mb-1 font-bold">{labels[type]}</strong>
+      <div className="text-dds-white font-medium">{children}</div>
+    </div>
+  );
 };
 
 const H2: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <h2 className="text-xl font-bold text-white mt-10 mb-3 flex items-center gap-3">
-    <span className="w-1 h-5 rounded-full bg-gradient-to-b from-purple-400 to-indigo-400 flex-shrink-0" />
+  <h2 className="text-xl font-bold text-dds-white mt-10 mb-3 flex items-center gap-3 tracking-tight">
+    <span className="w-1.5 h-5 rounded-full bg-gradient-to-b from-dds-primary to-purple-400 flex-shrink-0" />
     {children}
   </h2>
 );
-const H3: React.FC<{ children: React.ReactNode }> = ({ children }) => <h3 className="text-base font-semibold text-white mt-5 mb-2">{children}</h3>;
-const P: React.FC<{ children: React.ReactNode }> = ({ children }) => <p className="text-gray-400 leading-relaxed mb-3 text-sm">{children}</p>;
+const H3: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <h3 className="text-base font-semibold text-dds-white mt-6 mb-2">{children}</h3>
+);
+const P: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <p className="text-dds-text-secondary leading-relaxed mb-3 text-sm">{children}</p>
+);
 const Li: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <li className="flex items-start gap-2 text-gray-400 text-sm mb-1.5">
-    <span className="text-purple-400 mt-0.5 flex-shrink-0">▸</span>{children}
+  <li className="flex items-start gap-2 text-dds-text-secondary text-sm mb-2">
+    <span className="text-dds-primary mt-0.5 flex-shrink-0">▸</span>
+    <span className="leading-relaxed">{children}</span>
   </li>
 );
 const Table: React.FC<{ headers: string[]; rows: string[][] }> = ({ headers, rows }) => (
-  <div className="overflow-x-auto my-4 rounded-xl border border-gray-800">
+  <div className="overflow-x-auto my-4 rounded-xl border border-dds-border bg-dds-surface">
     <table className="w-full text-sm">
-      <thead className="bg-gray-900/60 border-b border-gray-800">
-        <tr>{headers.map(h => <th key={h} className="px-4 py-2.5 text-left text-gray-400 font-semibold text-xs">{h}</th>)}</tr>
+      <thead className="bg-dds-elevated border-b border-dds-border">
+        <tr>
+          {headers.map(h => (
+            <th key={h} className="px-4 py-3 text-left text-dds-white font-bold text-xs uppercase tracking-wider">{h}</th>
+          ))}
+        </tr>
       </thead>
-      <tbody>{rows.map((r, i) => <tr key={i} className="border-b border-gray-800/50 hover:bg-gray-800/30"><td className="px-4 py-2.5 text-gray-300 text-xs font-mono">{r[0]}</td>{r.slice(1).map((c, j) => <td key={j} className="px-4 py-2.5 text-gray-400 text-xs">{c}</td>)}</tr>)}</tbody>
+      <tbody className="divide-y divide-dds-border/50">
+        {rows.map((r, i) => (
+          <tr key={i} className="hover:bg-dds-elevated/40 transition-colors">
+            <td className="px-4 py-3 text-dds-white text-xs font-mono font-semibold">{r[0]}</td>
+            {r.slice(1).map((c, j) => (
+              <td key={j} className="px-4 py-3 text-dds-text-secondary text-xs">{c}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
     </table>
   </div>
 );
@@ -64,9 +91,16 @@ const Table: React.FC<{ headers: string[]; rows: string[][] }> = ({ headers, row
 /* ── Setup Tab ─────────────────────────────── */
 const SetupTab: React.FC = () => (
   <div>
-    <div className="p-5 rounded-xl border border-purple-500/20 bg-purple-500/5 mb-8">
-      <p className="text-purple-300 font-semibold mb-1">🛠️ Self-Hosted Setup</p>
-      <p className="text-gray-400 text-sm">These guides are for developers who want to run DevOpsEase on their own infrastructure or contribute to the open-source project.</p>
+    <div className="p-5 rounded-xl border border-dds-primary/30 bg-dds-primary/10 mb-8 flex items-start gap-3.5">
+      <div className="w-10 h-10 rounded-lg bg-dds-elevated border border-dds-primary/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Wrench className="w-5 h-5 text-dds-primary" />
+      </div>
+      <div>
+        <h4 className="text-dds-white font-bold text-base mb-1">Self-Hosted Setup</h4>
+        <p className="text-dds-text-secondary text-sm leading-relaxed">
+          Follow these guides to run DevOpsEase on your local machine, deploy to self-hosted infrastructure, or contribute to the open-source platform.
+        </p>
+      </div>
     </div>
 
     <H2>Prerequisites</H2>
@@ -80,7 +114,7 @@ const SetupTab: React.FC = () => (
         ['Git', 'any', 'Repository cloning and webhook integration'],
       ]}
     />
-    <Note type="warn">On Windows, Docker Desktop with WSL2 is required.</Note>
+    <Note type="warn">On Windows, Docker Desktop with WSL2 backend enabled is required.</Note>
 
     <H2>Installation</H2>
     <CodeBlock lang="bash" code={`git clone https://github.com/mamun0193/devopsease.git
@@ -96,11 +130,13 @@ cd server && npm run dev
 
 # Terminal 2 — Frontend Dashboard (port 5173)
 cd dashboard && npm run dev`} />
-    <P>Dashboard: <code className="text-indigo-300">http://localhost:5173</code> — API: <code className="text-indigo-300">http://localhost:3497</code></P>
-    <Note type="tip">Quick deps: <code className="text-indigo-300">docker run -d -p 27017:27017 mongo</code> and <code className="text-indigo-300">docker run -d -p 6379:6379 redis:7-alpine</code></Note>
+    <P>
+      Dashboard: <code className="text-dds-primary font-mono font-semibold">http://localhost:5173</code> — API: <code className="text-dds-primary font-mono font-semibold">http://localhost:3497</code>
+    </P>
+    <Note type="tip">Quick local DB dependencies: <code className="text-dds-primary">docker run -d -p 27017:27017 mongo</code> and <code className="text-dds-primary">docker run -d -p 6379:6379 redis:7-alpine</code></Note>
 
     <H2>Environment Configuration</H2>
-    <P>Create a <code className="text-indigo-300">.env</code> file inside the <code className="text-indigo-300">server/</code> directory:</P>
+    <P>Create a <code className="text-dds-primary">.env</code> file inside the <code className="text-dds-primary">server/</code> directory:</P>
     <CodeBlock lang="env" code={`PORT=3497
 MONGO_URI=mongodb://localhost:27017/devopsease
 
@@ -135,117 +171,141 @@ TUNNEL_PROVIDER=ngrok`} />
         ['NGROK_AUTH_TOKEN', '❌ Optional', 'Required only for Public Tunnels feature'],
       ]}
     />
-    <Note type="warn">Never change or lose your <code className="text-indigo-300">ENCRYPTION_KEY</code> after first run. All secrets, Docker Hub credentials, and Kubernetes kubeconfigs are encrypted with it. Changing it makes all encrypted data unreadable.</Note>
+    <Note type="warn">
+      Never change or lose your <code className="text-dds-primary font-mono font-semibold">ENCRYPTION_KEY</code> after first run. All secrets, Docker Hub credentials, and Kubernetes kubeconfigs are encrypted with it.
+    </Note>
 
-    <H2>Project Structure</H2>
+    <H2>Project Architecture</H2>
     <CodeBlock lang="text" code={`devopsease/
 ├── server/          # Node.js + Express backend (port 3497)
 │   ├── src/
-│   │   ├── models/       # Mongoose models
-│   │   ├── services/     # Business logic
-│   │   ├── controllers/  # Route handlers
-│   │   ├── routes/       # Express routers
-│   │   ├── middlewares/  # Auth, rate limiting, RBAC
-│   │   ├── websocket/    # WS handlers (exec, builds, alerts, metrics)
+│   │   ├── models/       # Mongoose schemas & models
+│   │   ├── services/     # Business logic & engines
+│   │   ├── controllers/  # API Route controllers
+│   │   ├── routes/       # Express endpoint definitions
+│   │   ├── middlewares/  # Auth, Rate limiting, RBAC
+│   │   ├── websocket/    # Live WS handlers (logs, metrics, builds)
 │   │   ├── intelligence/ # Failure classification engine
-│   │   └── docker/       # Docker Engine API wrappers
-│   └── sandbox/     # Verification scripts
+│   │   └── docker/       # Docker Engine API integration
+│   └── sandbox/     # Verification & self-check scripts
 │
-├── dashboard/       # React + TypeScript frontend (port 5173)
+├── dashboard/       # React + TypeScript PaaS UI (port 5173)
 │   └── src/
-│       ├── pages/        # Route-level page components
-│       ├── components/   # Shared UI components
-│       ├── hooks/        # React Query hooks + WebSocket hooks
-│       ├── store/        # Redux slices (auth, toasts, alerts)
-│       ├── api/          # Typed API client
-│       └── context/      # AuthContext, RoleContext
+│       ├── pages/        # Dashboard & Public pages
+│       ├── components/   # DDS Design system elements
+│       ├── hooks/        # React Query + WebSocket hooks
+│       ├── store/        # Redux toolkit state slices
+│       ├── api/          # Axios typed API client
+│       └── context/      # AuthContext & RoleContext
 │
-├── cli/             # devopsease-cli (dse binary, 25 modules)
-└── docs/            # Daily progress logs (Day 1–88)`} />
+├── cli/             # devopsease CLI binary (dse command)
+└── docs/            # Build logs & engineering notes`} />
 
     <H2>Contributing</H2>
-    <ul className="mb-4">
-      <Li>Fork the repo and create a feature branch: <code className="text-indigo-300">git checkout -b feat/my-feature</code></Li>
-      <Li>Follow the existing code style — TypeScript strict mode on the frontend, ES2022 modules on the backend</Li>
-      <Li>Add docs entries to <code className="text-indigo-300">docs/</code> for any significant feature work</Li>
-      <Li>Open a PR against <code className="text-indigo-300">main</code> — include what changed and why</Li>
-      <Li>For bugs, open a GitHub Issue with reproduction steps before submitting a fix</Li>
+    <ul className="mb-6 space-y-1">
+      <Li>Fork the repository and create a feature branch: <code className="text-dds-primary">git checkout -b feat/my-feature</code></Li>
+      <Li>Follow the project standard — TypeScript strict mode on frontend, ES2022 modules on backend</Li>
+      <Li>Add docs entries to <code className="text-dds-primary">docs/</code> for any significant feature addition</Li>
+      <Li>Open a PR against <code className="text-dds-primary">main</code> with a summary of changes and verification steps</Li>
     </ul>
-    <Note type="info">The <code className="text-indigo-300">docs/</code> folder contains 88 daily progress logs documenting the full build history of every feature. Reading relevant day files is the fastest way to understand any subsystem.</Note>
+    <Note type="info">The <code className="text-dds-primary">docs/</code> folder contains detailed technical logs documenting the implementation history of every subsystem.</Note>
   </div>
 );
 
 /* ── Blog Tab ─────────────────────────────── */
 const BlogTab: React.FC = () => (
-  <div className="text-center py-28">
-    <div className="text-6xl mb-5">✍️</div>
-    <h2 className="text-2xl font-bold text-white mb-3">Blog Coming Soon</h2>
-    <p className="text-gray-400 text-sm max-w-md mx-auto leading-relaxed">Engineering posts, deep dives, architecture decisions, and tutorials are on the way. Check back soon.</p>
+  <div className="card text-center py-24 px-6 border-dds-border">
+    <div className="w-16 h-16 rounded-2xl bg-dds-elevated border border-dds-border flex items-center justify-center mx-auto mb-4 text-dds-primary">
+      <Terminal size={32} />
+    </div>
+    <h2 className="text-2xl font-bold text-dds-white mb-2">Engineering Blog Coming Soon</h2>
+    <p className="text-dds-text-secondary text-sm max-w-md mx-auto leading-relaxed">
+      In-depth technical posts on container intelligence, Kubernetes autopilot algorithms, WebSocket log streaming, and platform architecture are on the way.
+    </p>
   </div>
 );
 
 /* ── Changelog Tab ─────────────────────────── */
 const ChangelogTab: React.FC = () => (
-  <div className="text-center py-28">
-    <div className="text-6xl mb-5">📋</div>
-    <h2 className="text-2xl font-bold text-white mb-3">Changelog Coming Soon</h2>
-    <p className="text-gray-400 text-sm max-w-md mx-auto leading-relaxed">Version history, release notes, and what's new in each update will be published here.</p>
+  <div className="card text-center py-24 px-6 border-dds-border">
+    <div className="w-16 h-16 rounded-2xl bg-dds-elevated border border-dds-border flex items-center justify-center mx-auto mb-4 text-dds-primary">
+      <Star size={32} />
+    </div>
+    <h2 className="text-2xl font-bold text-dds-white mb-2">Platform Changelog Coming Soon</h2>
+    <p className="text-dds-text-secondary text-sm max-w-md mx-auto leading-relaxed">
+      Detailed version histories, release logs, breaking change notifications, and new CLI module releases will be tracked here.
+    </p>
   </div>
 );
 
-
 /* ── Community Tab ─────────────────────────── */
-
-
 const CommunityTab: React.FC = () => (
   <div>
     <div className="mb-8">
-      <h2 className="text-2xl font-bold text-white mb-2">Community</h2>
-      <p className="text-gray-400 text-sm">Join the DevOpsEase developer community — discuss ideas, report bugs, request features, and contribute code.</p>
+      <h2 className="text-2xl font-bold text-dds-white mb-2">Community & Ecosystem</h2>
+      <p className="text-dds-text-secondary text-sm">
+        Connect with the DevOpsEase community — ask questions, discuss architecture, report bugs, and shape the roadmap.
+      </p>
     </div>
 
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-10">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-10">
       {[
-        { icon: Github, title: 'GitHub', desc: 'Source code, issues, pull requests, and releases. This is the primary hub for all development activity.', link: 'https://github.com/mamun0193/devopsease', label: 'View on GitHub', color: 'border-gray-700 hover:border-gray-500' },
-        { icon: MessageSquare, title: 'GitHub Discussions', desc: 'Ask questions, share ideas, discuss architecture decisions, and get help from the community.', link: 'https://github.com/mamun0193/devopsease/discussions', label: 'Join Discussions', color: 'border-indigo-800 hover:border-indigo-500' },
-        { icon: Bug, title: 'Bug Reports', desc: 'Found something broken? Open a GitHub Issue with reproduction steps. Include your OS, Docker version, and logs.', link: 'https://github.com/mamun0193/devopsease/issues', label: 'Report a Bug', color: 'border-red-900 hover:border-red-600' },
-        { icon: GitPullRequest, title: 'Contribute', desc: 'PRs are welcome for bug fixes, new features, documentation improvements, and test coverage expansions.', link: 'https://github.com/mamun0193/devopsease/pulls', label: 'Open a PR', color: 'border-emerald-900 hover:border-emerald-600' },
-      ].map(({ icon: Icon, title, desc, link, label, color }) => (
+        { icon: Github, title: 'GitHub Repository', desc: 'Explore source code, submit pull requests, and review open issues. The core hub of DevOpsEase.', link: 'https://github.com/mamun0193/devopsease', label: 'View on GitHub' },
+        { icon: MessageSquare, title: 'GitHub Discussions', desc: 'Discuss implementation ideas, ask setup questions, and share custom pipeline recipes with developers.', link: 'https://github.com/mamun0193/devopsease/discussions', label: 'Join Discussions' },
+        { icon: Bug, title: 'Bug Reports', desc: 'Found an issue? Open a bug report with reproduction steps, Docker Engine logs, and environment details.', link: 'https://github.com/mamun0193/devopsease/issues', label: 'Report a Bug' },
+        { icon: GitPullRequest, title: 'Contributions & PRs', desc: 'Submit PRs for new features, bug fixes, CLI subcommands, or documentation enhancements.', link: 'https://github.com/mamun0193/devopsease/pulls', label: 'Submit a PR' },
+      ].map(({ icon: Icon, title, desc, link, label }) => (
         <a key={title} href={link} target="_blank" rel="noreferrer"
-          className={`p-5 rounded-xl border bg-gray-900/40 transition-all group flex flex-col gap-3 ${color}`}>
+          className="card card-interactive p-6 flex flex-col gap-3 group border-dds-border hover:border-dds-primary/50">
           <div className="flex items-center gap-3">
-            <Icon size={20} className="text-gray-400 group-hover:text-white transition-colors" />
-            <span className="text-white font-semibold">{title}</span>
+            <div className="w-9 h-9 rounded-lg bg-dds-elevated border border-dds-border flex items-center justify-center text-dds-primary group-hover:text-white transition-colors">
+              <Icon size={18} />
+            </div>
+            <span className="text-dds-white font-bold text-base">{title}</span>
           </div>
-          <p className="text-gray-400 text-sm leading-relaxed">{desc}</p>
-          <span className="text-indigo-400 text-xs font-medium group-hover:text-indigo-300 transition-colors mt-auto">{label} →</span>
+          <p className="text-dds-text-secondary text-sm leading-relaxed">{desc}</p>
+          <span className="text-dds-primary text-xs font-semibold group-hover:translate-x-1 transition-transform mt-auto inline-flex items-center gap-1">
+            {label} →
+          </span>
         </a>
       ))}
     </div>
 
-    <div className="p-6 rounded-xl border border-gray-800 bg-gray-900/30 mb-6">
-      <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><Star size={16} className="text-amber-400" /> Show Support</h3>
-      <p className="text-gray-400 text-sm mb-3">If DevOpsEase has been useful, a GitHub ⭐ star helps the project grow and reach more developers.</p>
+    <div className="card p-6 border-dds-border mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div>
+        <h3 className="text-dds-white font-bold text-base mb-1 flex items-center gap-2">
+          <Star size={18} className="text-dds-orange" /> Show Your Support
+        </h3>
+        <p className="text-dds-text-secondary text-sm">
+          If DevOpsEase streamlines your deployments, give the project a star on GitHub!
+        </p>
+      </div>
       <a href="https://github.com/mamun0193/devopsease" target="_blank" rel="noreferrer"
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm hover:bg-amber-500/20 transition-colors">
-        <Star size={14} /> Star on GitHub
+        className="btn-primary flex-shrink-0 px-5 py-2.5 text-sm font-semibold rounded-lg">
+        <Star size={15} /> Star on GitHub
       </a>
     </div>
 
-    <div className="p-6 rounded-xl border border-gray-800 bg-gray-900/30">
-      <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><Users size={16} className="text-indigo-400" /> Good First Issues</h3>
-      <p className="text-gray-400 text-sm mb-4">New to the codebase? Look for issues labeled <code className="text-indigo-300">good-first-issue</code> on GitHub — they're scoped, well-described, and a great way to get started contributing.</p>
-      <div className="space-y-2">
+    <div className="card p-6 border-dds-border">
+      <h3 className="text-dds-white font-bold text-base mb-2 flex items-center gap-2">
+        <Users size={18} className="text-dds-primary" /> Good First Issues
+      </h3>
+      <p className="text-dds-text-secondary text-sm mb-4">
+        Looking for beginner-friendly contributions? Explore topics open for implementation:
+      </p>
+      <div className="space-y-2.5">
         {[
-          'Add unit tests for the failure intelligence classifier',
-          'Improve mobile responsiveness of the ResourceNav bar',
-          'Add ECR / GCR support to the Registry page',
-          'Write E2E tests for the container lifecycle flow',
-          'Add a dark/light theme toggle to the dashboard',
+          'Add unit test coverage for the failure intelligence classifier',
+          'Enhance responsive navigation controls on lower resolution displays',
+          'Add ECR & Google Artifact Registry integrations',
+          'Write end-to-end integration tests for container provisioning',
+          'Expand CLI interactive wizard for multi-cluster configuration',
         ].map(item => (
-          <div key={item} className="flex items-center gap-2 text-gray-400 text-sm">
-            <span className="text-xs px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 font-mono">idea</span>
-            {item}
+          <div key={item} className="flex items-center gap-2.5 text-dds-text-secondary text-sm">
+            <span className="text-[11px] px-2 py-0.5 rounded bg-dds-primary/15 border border-dds-primary/30 text-dds-primary font-mono font-semibold uppercase">
+              Idea
+            </span>
+            <span className="leading-relaxed">{item}</span>
           </div>
         ))}
       </div>
@@ -259,48 +319,52 @@ export const DevelopersPage: React.FC = () => {
 
   const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: 'setup',     label: 'Self-Hosted Setup', icon: BookOpen },
-    { key: 'blog',      label: 'Blog',              icon: Zap },
+    { key: 'blog',      label: 'Engineering Blog', icon: Zap },
     { key: 'changelog', label: 'Changelog',         icon: Star },
     { key: 'community', label: 'Community',         icon: Users },
   ];
 
   return (
     <LandingLayout>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-14">
 
         {/* Hero */}
         <motion.div
-          className="text-center mb-12"
+          className="text-center mb-10"
           variants={stagger}
           initial="hidden"
           animate="visible"
         >
-          <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 text-xs font-medium mb-4">
-            🛠️ Developers Hub
+          <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-3.5 py-1 rounded-[6px] bg-dds-primary/10 border border-dds-primary/20 text-dds-primary text-xs font-semibold uppercase tracking-wider mb-4">
+            <Terminal className="w-3.5 h-3.5" />
+            Developers Area
           </motion.div>
-          <motion.h1 variants={fadeUp} className="text-4xl font-bold mb-4 bg-gradient-to-r from-purple-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-            DevOpsEase for Developers
+          <motion.h1 variants={fadeUp} className="text-4xl md:text-5xl font-bold mb-3 text-dds-white tracking-tight">
+            DevOpsEase for{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-dds-primary to-purple-400">
+              Developers & Contributors
+            </span>
           </motion.h1>
-          <motion.p variants={fadeUp} className="text-gray-400 max-w-2xl mx-auto">
-            Self-host DevOpsEase on your own infrastructure, contribute to the open-source project, follow engineering deep dives, and connect with the community.
+          <motion.p variants={fadeUp} className="text-dds-text-secondary text-base max-w-2xl mx-auto leading-relaxed">
+            Self-host DevOpsEase on your own infrastructure, build custom integrations, follow engineering deep dives, and connect with the community.
           </motion.p>
         </motion.div>
 
         {/* Tab Bar */}
         <motion.div
-          className="flex overflow-x-auto gap-1 p-1 bg-gray-900 border border-gray-800 rounded-xl mb-10"
+          className="flex overflow-x-auto gap-2 p-1.5 bg-dds-surface border border-dds-border rounded-xl mb-10 max-w-3xl mx-auto"
           variants={fadeUp}
           initial="hidden"
           animate="visible"
         >
           {tabs.map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-1 justify-center ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-all flex-1 justify-center ${
                 tab === key
-                  ? 'bg-gradient-to-r from-purple-600/80 to-indigo-600/80 text-white shadow-lg shadow-purple-500/20'
-                  : 'text-gray-400 hover:text-gray-200'
+                  ? 'bg-dds-primary text-white shadow-lg shadow-dds-primary/20'
+                  : 'text-dds-text-secondary hover:text-dds-white hover:bg-dds-elevated'
               }`}>
-              <Icon size={15} />
+              <Icon size={16} />
               {label}
             </button>
           ))}
@@ -314,6 +378,7 @@ export const DevelopersPage: React.FC = () => {
             initial="hidden"
             animate="visible"
             exit={{ opacity: 0, y: -10, transition: { duration: 0.15 } }}
+            className="max-w-5xl mx-auto"
           >
             {tab === 'setup'     && <SetupTab />}
             {tab === 'blog'      && <BlogTab />}
@@ -323,9 +388,11 @@ export const DevelopersPage: React.FC = () => {
         </AnimatePresence>
 
         {/* Footer */}
-        <div className="mt-16 pt-8 border-t border-gray-800 flex items-center justify-between text-sm text-gray-500">
-          <span>DevOpsEase Developers Hub — April 2026</span>
-          <a href="https://github.com/mamun0193/devopsease" target="_blank" rel="noreferrer" className="text-purple-400 hover:text-purple-300 transition-colors">GitHub →</a>
+        <div className="mt-16 pt-8 border-t border-dds-border/60 flex flex-col sm:flex-row items-center justify-between text-sm text-dds-text-muted gap-3">
+          <span>DevOpsEase Developers Area — Open Source Community</span>
+          <a href="https://github.com/mamun0193/devopsease" target="_blank" rel="noreferrer" className="text-dds-primary hover:text-dds-primary-hover font-semibold transition-colors flex items-center gap-1">
+            GitHub Repository →
+          </a>
         </div>
       </div>
     </LandingLayout>

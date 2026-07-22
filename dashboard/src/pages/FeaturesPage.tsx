@@ -424,11 +424,7 @@ export const FeaturesPage: React.FC = () => {
 
             {/* Left — headline */}
             <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45 }}>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-[6px] bg-dds-primary/10 text-dds-primary text-xs font-semibold border border-dds-primary/20 mb-6">
-                <Check className="w-3.5 h-3.5" />
-                20 production-grade capabilities
-              </span>
-              <h1 className="text-4xl md:text-6xl font-bold text-dds-white leading-tight">
+              <h1 className="text-4xl md:text-5xl font-bold text-dds-white leading-tight">
                 Built for real{' '}
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-dds-primary to-purple-400">
                   DevOps workflows
@@ -438,7 +434,7 @@ export const FeaturesPage: React.FC = () => {
 
             {/* Right — description + CTA */}
             <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.45, delay: 0.1 }}>
-              <p className="text-dds-text-secondary text-lg leading-relaxed mb-8">
+              <p className="text-dds-text-secondary text-md leading-relaxed mb-8">
                 DevOpsEase covers every stage from your first Git push to autonomous production operations — CI/CD, intelligent builds, release orchestration, observability, self-healing Autopilot, and an AI Copilot, all production-ready out of the box.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">

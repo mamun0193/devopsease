@@ -60,6 +60,7 @@ export const NAV_GROUPS: { group: string; items: DocSection[] }[] = [
       { id: 'networks', title: 'Networks', group: 'Infrastructure' },
       { id: 'volumes',  title: 'Volumes',  group: 'Infrastructure' },
       { id: 'secrets',  title: 'Secrets',  group: 'Infrastructure' },
+      { id: 'domains',  title: 'Custom Domains & TLS', group: 'Infrastructure' },
     ],
   },
   {
@@ -73,6 +74,13 @@ export const NAV_GROUPS: { group: string; items: DocSection[] }[] = [
     ],
   },
   {
+    group: 'AI & Automation',
+    items: [
+      { id: 'copilot',   title: 'AI DevOps Copilot',      group: 'AI & Automation' },
+      { id: 'autopilot', title: 'Autonomous Operations',   group: 'AI & Automation' },
+    ],
+  },
+  {
     group: 'CLI',
     items: [
       { id: 'cli-install',    title: 'Installation & Setup', group: 'CLI' },
@@ -81,6 +89,13 @@ export const NAV_GROUPS: { group: string; items: DocSection[] }[] = [
       { id: 'cli-k8s',        title: 'Kubernetes Commands',  group: 'CLI' },
       { id: 'cli-pipelines',  title: 'Pipeline Commands',    group: 'CLI' },
       { id: 'cli-advanced',   title: 'Advanced Commands',    group: 'CLI' },
+    ],
+  },
+  {
+    group: 'Platform',
+    items: [
+      { id: 'backups',   title: 'Backups & Resilience', group: 'Platform' },
+      { id: 'api',       title: 'Public API & SDK',     group: 'Platform' },
     ],
   },
   {
