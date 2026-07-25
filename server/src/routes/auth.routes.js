@@ -3,6 +3,7 @@ import passport from "passport";
 import { loginSuccess, logout, refresh, register, login } from "../controllers/auth.controller.js";
 import { authRateLimit } from "../middlewares/authRateLimit.middleware.js";
 import checkAuthStatus from "../middlewares/authStatus.middleware.js";
+import patRoutes from "./pat.routes.js";
 
 const router = express.Router();
 
@@ -36,6 +37,8 @@ router.post("/login", authRateLimit("login"), login);
 router.post("/refresh", authRateLimit("refresh"), refresh);
 router.post("/logout", logout);
 
+// PAT endpoints
+router.use("/pats", patRoutes);
 // Session probe — returns full user profile
 router.get("/me", checkAuthStatus, async (req, res) => {
   if (!req.user) return res.json({ isAuthenticated: false, user: null });

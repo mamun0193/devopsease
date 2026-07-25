@@ -12,9 +12,14 @@ const STATUS_COLORS = {
     completed: 'green',
     healthy: 'green',
     ready: 'green',
+    verified: 'green',
+    paused: 'gray',
+    archived: 'gray',
 
     deploying: 'cyan',
     pending: 'cyan',
+    pending_verification: 'cyan',
+    provisioning: 'cyan',
     building: 'cyan',
     'in-progress': 'cyan',
 
@@ -22,6 +27,7 @@ const STATUS_COLORS = {
     error: 'red',
     crashed: 'red',
     terminated: 'red',
+    expired: 'red',
     'CrashLoopBackOff': 'red',
 
     stopped: 'yellow',
@@ -68,36 +74,46 @@ export function printTable(headers, rows) {
 // Success message.
  
 export function success(msg) {
+    if (process.argv.includes('--json')) return;
     console.log(chalk.green(`✔ ${msg}`));
 }
 
 // Error message.
  
 export function error(msg) {
+    if (process.argv.includes('--json')) {
+        console.error(JSON.stringify({ error: msg }));
+        process.exit(1);
+    }
     console.error(chalk.red(`✖ ${msg}`));
+    process.exit(1);
 }
 
 // Warning message.
  
 export function warn(msg) {
+    if (process.argv.includes('--json')) return;
     console.log(chalk.yellow(`⚠ ${msg}`));
 }
 
 // Info message.
  
 export function info(msg) {
+    if (process.argv.includes('--json')) return;
     console.log(chalk.blue(`ℹ ${msg}`));
 }
 
 // Dim/muted text.
  
 export function dim(msg) {
+    if (process.argv.includes('--json')) return;
     console.log(chalk.dim(msg));
 }
 
 // Bold heading.
  
 export function heading(msg) {
+    if (process.argv.includes('--json')) return;
     console.log(chalk.bold.white(`\n${msg}`));
     console.log(chalk.dim('─'.repeat(msg.length + 2)));
 }
@@ -105,6 +121,9 @@ export function heading(msg) {
 // Wraps an async function with an ora spinner.
  
 export async function withSpinner(label, asyncFn) {
+    if (process.argv.includes('--json')) {
+        return await asyncFn({ succeed: () => {}, fail: () => {} });
+    }
     const spinner = ora({ text: label, color: 'cyan' }).start();
     try {
         const result = await asyncFn(spinner);

@@ -3,31 +3,12 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 
-import { registerAuthCommands } from '../commands/auth.js';
-import { registerRepoCommands } from '../commands/repo.js';
-import { registerPipelineCommands } from '../commands/pipeline.js';
-import { registerDeployCommands } from '../commands/deploy.js';
-import { registerClusterCommands } from '../commands/cluster.js';
-import { registerNamespaceCommands } from '../commands/namespace.js';
-import { registerPodCommands } from '../commands/pods.js';
-import { registerK8sCommands } from '../commands/k8s.js';
-import { registerServiceCommands } from '../commands/service.js';
-import { registerIngressCommands } from '../commands/ingress.js';
-import { registerSecretCommands } from '../commands/secrets.js';
-import { registerStatusCommand } from '../commands/status.js';
-import { registerLogsCommand } from '../commands/logs.js';
-import { registerScaleCommand } from '../commands/scale.js';
-import { registerConfigCommands } from '../commands/config.js';
-import { registerInitCommand } from '../commands/init.js';
-import { registerDoctorCommand } from '../commands/doctor.js';
-import { registerContainerCommands } from '../commands/container.js';
-import { registerBuildCommands } from '../commands/build.js';
-import { registerImageCommands } from '../commands/image.js';
-import { registerProjectCommands } from '../commands/project.js';
-import { registerNetworkCommands } from '../commands/network.js';
-import { registerVolumeCommands } from '../commands/volume.js';
-import { registerRegistryCommands } from '../commands/registry.js';
-import { registerTunnelCommands } from '../commands/tunnel.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath, pathToFileURL } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const program = new Command();
 
@@ -38,7 +19,7 @@ program
         chalk.bold.cyan('DevOpsEase CLI') +
         chalk.dim(' — Unified terminal interface for deployments, Kubernetes, CI/CD & observability')
     )
-    .version('1.0.0', '-v, --version', 'Show CLI version')
+    .version('1.1.0', '-v, --version', 'Show CLI version')
     .addHelpText('after', `
 ${chalk.bold('Aliases:')}
   ${chalk.cyan('dse')}                    Short for devopsease
@@ -62,32 +43,23 @@ ${chalk.bold('All commands support:')}
   ${chalk.cyan('--help')}                 Show command help
 `);
 
-// ── Register all command groups ──
-registerAuthCommands(program);
-registerRepoCommands(program);
-registerPipelineCommands(program);
-registerDeployCommands(program);
-registerClusterCommands(program);
-registerNamespaceCommands(program);
-registerPodCommands(program);
-registerK8sCommands(program);
-registerServiceCommands(program);
-registerIngressCommands(program);
-registerSecretCommands(program);
-registerStatusCommand(program);
-registerLogsCommand(program);
-registerScaleCommand(program);
-registerConfigCommands(program);
-registerInitCommand(program);
-registerDoctorCommand(program);
-registerContainerCommands(program);
-registerBuildCommands(program);
-registerImageCommands(program);
-registerProjectCommands(program);
-registerNetworkCommands(program);
-registerVolumeCommands(program);
-registerRegistryCommands(program);
-registerTunnelCommands(program);
+// ── Dynamically register all command groups ──
+const commandsDir = path.join(__dirname, '../commands');
+const commandFiles = fs.readdirSync(commandsDir).filter(f => f.endsWith('.js'));
+
+for (const file of commandFiles) {
+    try {
+        const fileUrl = pathToFileURL(path.join(commandsDir, file)).href;
+        const module = await import(fileUrl);
+        for (const key of Object.keys(module)) {
+            if (typeof module[key] === 'function' && key.startsWith('register')) {
+                module[key](program);
+            }
+        }
+    } catch (err) {
+        console.error(chalk.red(`Failed to load command module ${file}:`), err.message);
+    }
+}
 
 // Shortcut aliases 
 // `dse p` → pod list

@@ -97,4 +97,68 @@ export function registerAuthCommands(program) {
                 error(err.message);
             }
         });
+
+    // ── auth token ──
+    const authCmd = program.command('auth').description('Manage authentication and tokens');
+    const tokenCmd = authCmd.command('token').description('Manage Personal Access Tokens (PATs)');
+
+    tokenCmd
+        .command('set <token>')
+        .description('Authenticate using a Personal Access Token')
+        .action((token) => {
+            saveConfig({ token, refreshToken: '' });
+            success('Token saved successfully. Run `devopsease whoami` to verify.');
+        });
+
+    tokenCmd
+        .command('clear')
+        .description('Clear stored token')
+        .action(() => {
+            clearAuth();
+            success('Token cleared.');
+        });
+
+    tokenCmd
+        .command('validate')
+        .description('Validate current token')
+        .action(async () => {
+            try {
+                const data = await withSpinner('Validating token...', async () => {
+                    return apiGet('/auth/me');
+                });
+                if (data.isAuthenticated) {
+                    success(`Token is valid. Authenticated as ${data.user.email}`);
+                } else {
+                    error('Token is invalid or expired.');
+                }
+            } catch (err) {
+                if (err.message.includes('Session expired')) {
+                    error('Token is invalid or expired.');
+                } else {
+                    error(err.message);
+                }
+            }
+        });
+
+    tokenCmd
+        .command('create')
+        .description('Create a new PAT (requires active login session)')
+        .requiredOption('-n, --name <name>', 'Token name')
+        .option('-d, --days <days>', 'Expiration in days', '30')
+        .action(async (opts) => {
+            try {
+                const data = await withSpinner('Creating PAT...', async () => {
+                    return apiGet('/auth/me').then(async (me) => {
+                         if (!me.isAuthenticated) throw new Error('Not logged in.');
+                         const { apiPost } = await import('../utils/api.util.js');
+                         return apiPost('/auth/pats', { name: opts.name, expiresDays: parseInt(opts.days, 10) });
+                    });
+                });
+                success(`Token created successfully: ${data.pat.name}`);
+                console.log(`\n  ${data.token}\n`);
+                info('Copy this token now. You will not be able to see it again.');
+            } catch (err) {
+                error(err.message);
+            }
+        });
 }

@@ -110,4 +110,54 @@ export function registerBuildCommands(program) {
                 error(err.message);
             }
         });
+
+    build
+        .command('logs [id]')
+        .description('View build logs')
+        .action(async (id) => {
+            try {
+                requireAuth();
+                let buildId = id;
+                if (!buildId) {
+                    const { selectResource } = await import('../utils/interactive.util.js');
+                    const data = await apiGet('/builds');
+                    buildId = await selectResource(data.builds || [], b => `${b._id} (${b.status})`, { message: 'Select a build to view logs:' });
+                }
+
+                const data = await withSpinner('Fetching build logs...', () => apiGet(`/builds/${buildId}/logs`));
+                const logs = data.logs || data.data || [];
+                if (!logs.length) {
+                    info('No logs available.');
+                    return;
+                }
+                logs.forEach(l => console.log(l));
+            } catch (err) {
+                error(err.message);
+            }
+        });
+
+    build
+        .command('manifest [id]')
+        .description('View build manifest')
+        .option('--json', 'Output raw JSON')
+        .action(async (id, opts) => {
+            try {
+                requireAuth();
+                let buildId = id;
+                if (!buildId) {
+                    const { selectResource } = await import('../utils/interactive.util.js');
+                    const data = await apiGet('/builds');
+                    buildId = await selectResource(data.builds || [], b => `${b._id} (${b.status})`, { message: 'Select a build:' });
+                }
+
+                const data = await withSpinner('Fetching build manifest...', () => apiGet(`/builds/${buildId}/manifest`));
+                
+                if (handleJsonOutput(opts, data)) return;
+                
+                const manifest = data.manifest || data.data || data;
+                console.log(JSON.stringify(manifest, null, 2));
+            } catch (err) {
+                error(err.message);
+            }
+        });
 }

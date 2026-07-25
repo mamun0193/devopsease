@@ -286,4 +286,87 @@ export function registerContainerCommands(program) {
                 error(err.message);
             }
         });
+
+    container
+        .command('health [id]')
+        .description('Check container health')
+        .option('--json', 'Output raw JSON')
+        .action(async (id, opts) => {
+            try {
+                requireAuth();
+                let containerId = id;
+                if (!containerId) {
+                    const { selectResource } = await import('../utils/interactive.util.js');
+                    const data = await apiGet('/containers');
+                    containerId = await selectResource(data.containers || [], c => `${c.Names?.[0] || c.Id} (${c.State})`, { message: 'Select a container:' });
+                }
+
+                const data = await withSpinner('Fetching health...', () => apiGet(`/containers/${containerId}/health`));
+
+                if (handleJsonOutput(opts, data)) return;
+                
+                const h = data.health || data.data || data;
+                heading(`Container Health: ${containerId}`);
+                info(`Status: ${statusColor(h.Status || 'unknown')}`);
+                if (h.FailingStreak) info(`Failing Streak: ${h.FailingStreak}`);
+                if (h.Log) {
+                    console.log('\nRecent Health Checks:');
+                    h.Log.forEach((log) => {
+                        console.log(`  [${formatDate(log.Start)}] ${log.Output.trim()}`);
+                    });
+                }
+            } catch (err) {
+                error(err.message);
+            }
+        });
+
+    container
+        .command('pause [id]')
+        .description('Pause a running container')
+        .action(async (id) => {
+            try {
+                requireAuth();
+                let containerId = id;
+                if (!containerId) {
+                    const { selectResource } = await import('../utils/interactive.util.js');
+                    const data = await apiGet('/containers');
+                    containerId = await selectResource(data.containers || [], c => `${c.Names?.[0] || c.Id} (${c.State})`, { message: 'Select a container to pause:' });
+                }
+
+                await withSpinner('Pausing container...', () => apiPost(`/actions/container`, { action: 'pause', id: containerId }));
+                success('Container paused.');
+            } catch (err) {
+                error(err.message);
+            }
+        });
+
+    container
+        .command('top [id]')
+        .description('Display running processes of a container')
+        .option('--json', 'Output raw JSON')
+        .action(async (id, opts) => {
+            try {
+                requireAuth();
+                let containerId = id;
+                if (!containerId) {
+                    const { selectResource } = await import('../utils/interactive.util.js');
+                    const data = await apiGet('/containers');
+                    containerId = await selectResource(data.containers || [], c => `${c.Names?.[0] || c.Id} (${c.State})`, { message: 'Select a container:' });
+                }
+
+                const data = await withSpinner('Fetching processes...', () => apiGet(`/containers/${containerId}/top`));
+
+                if (handleJsonOutput(opts, data)) return;
+
+                const top = data.top || data.data || data;
+                if (!top.Titles || !top.Processes) {
+                    info('No process information available.');
+                    return;
+                }
+
+                printTable(top.Titles, top.Processes);
+            } catch (err) {
+                error(err.message);
+            }
+        });
 }

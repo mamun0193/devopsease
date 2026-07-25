@@ -10,7 +10,7 @@ function createClient() {
     const config = loadConfig();
 
     const client = axios.create({
-        baseURL: config.baseUrl,
+        baseURL: config.baseUrl.replace(/\/$/, '') + (config.apiPrefix || ''),
         timeout: 30000,
         headers: { 'Content-Type': 'application/json' },
     });
@@ -19,11 +19,19 @@ function createClient() {
     client.interceptors.request.use((req) => {
         const cfg = loadConfig();
         const cookies = [];
-        if (cfg.token) cookies.push(`access_token=${cfg.token}`);
+        if (cfg.token) {
+            cookies.push(`access_token=${cfg.token}`);
+            req.headers['Authorization'] = `Bearer ${cfg.token}`;
+        }
         if (cfg.refreshToken) cookies.push(`refresh_token=${cfg.refreshToken}`);
         if (cookies.length) {
             req.headers['Cookie'] = cookies.join('; ');
         }
+        // Fix double /api/ prefix issue for legacy commands
+        if (req.url && req.url.startsWith('/api/')) {
+            req.url = req.url.replace(/^\/api\//, '/');
+        }
+        
         return req;
     });
 
@@ -136,12 +144,19 @@ export async function apiPut(url, data = {}) {
     return res.data;
 }
 
+// Convenience: performs a PATCH request.
+export async function apiPatch(url, data = {}) {
+    const client = getClient();
+    const res = await client.patch(url, data);
+    return res.data;
+}
+
 // Raw Axios client for special cases (e.g., login where we need full response).
  
 export function getRawClient() {
     const config = loadConfig();
     return axios.create({
-        baseURL: config.baseUrl,
+        baseURL: config.baseUrl.replace(/\/$/, '') + (config.apiPrefix || ''),
         timeout: 30000,
         headers: { 'Content-Type': 'application/json' },
     });

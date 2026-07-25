@@ -9,6 +9,8 @@ const DEFAULT_CONFIG = {
     token: '',
     refreshToken: '',
     baseUrl: 'http://localhost:3497',
+    apiPrefix: '/api',
+    profile: 'default',
     currentProject: '',
     currentCluster: '',
     currentNamespace: 'default',
@@ -21,7 +23,6 @@ export function getConfigPath() {
 }
 
 // Loads config from disk. Returns defaults if file doesn't exist.
- */
 export function loadConfig() {
     try {
         if (!fs.existsSync(CONFIG_FILE)) {

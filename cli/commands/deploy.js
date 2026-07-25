@@ -127,4 +127,81 @@ export function registerDeployCommands(program) {
                 error(err.message);
             }
         });
+
+    deploy
+        .command('get [id]')
+        .description('Get deployment details')
+        .option('--json', 'Output raw JSON')
+        .action(async (id, opts) => {
+            try {
+                requireAuth();
+                let deployId = id;
+                if (!deployId) {
+                    const { selectResource } = await import('../utils/interactive.util.js');
+                    const data = await apiGet('/api/deployments');
+                    deployId = await selectResource(data.deployments || [], d => `${d._id} (${d.environment})`, { message: 'Select a deployment:' });
+                }
+
+                const data = await withSpinner('Fetching deployment...', () => apiGet(`/api/deployments/${deployId}`));
+
+                if (handleJsonOutput(opts, data)) return;
+
+                const d = data.deployment || data.data || data;
+                heading(`Deployment: ${d._id}`);
+                info(`Environment: ${d.environment}`);
+                info(`Status:      ${statusColor(d.status || 'unknown')}`);
+                info(`Created:     ${formatDate(d.createdAt)}`);
+            } catch (err) {
+                error(err.message);
+            }
+        });
+
+    deploy
+        .command('logs [id]')
+        .description('View deployment logs')
+        .action(async (id) => {
+            try {
+                requireAuth();
+                let deployId = id;
+                if (!deployId) {
+                    const { selectResource } = await import('../utils/interactive.util.js');
+                    const data = await apiGet('/api/deployments');
+                    deployId = await selectResource(data.deployments || [], d => `${d._id} (${d.environment})`, { message: 'Select a deployment to view logs:' });
+                }
+
+                const data = await withSpinner('Fetching logs...', () => apiGet(`/api/deployments/${deployId}/logs`));
+                const logs = data.logs || data.data || [];
+                if (!logs.length) {
+                    info('No logs available.');
+                    return;
+                }
+                logs.forEach(l => console.log(l));
+            } catch (err) {
+                error(err.message);
+            }
+        });
+
+    deploy
+        .command('scale [id]')
+        .description('Scale a deployment')
+        .requiredOption('-r, --replicas <count>', 'Number of replicas')
+        .action(async (id, opts) => {
+            try {
+                requireAuth();
+                let deployId = id;
+                if (!deployId) {
+                    const { selectResource } = await import('../utils/interactive.util.js');
+                    const data = await apiGet('/api/deployments');
+                    deployId = await selectResource(data.deployments || [], d => `${d._id} (${d.environment})`, { message: 'Select a deployment to scale:' });
+                }
+
+                const replicas = parseInt(opts.replicas, 10);
+                if (isNaN(replicas) || replicas < 0) throw new Error('Replicas must be a positive integer.');
+
+                await withSpinner('Scaling deployment...', () => apiPost(`/api/deployments/${deployId}/scale`, { replicas }));
+                success(`Deployment scaled to ${replicas} replicas.`);
+            } catch (err) {
+                error(err.message);
+            }
+        });
 }

@@ -31,16 +31,18 @@ export function registerDoctorCommand(program) {
 
             // 2. API reachable
             let apiOk = false;
+            let healthData = null;
             try {
                 // Try a lightweight endpoint
-                await apiGet('/health');
+                healthData = await apiGet('/health');
                 apiOk = true;
             } catch {
                 try {
                     // Fallback: just hit the base URL
                     const { getRawClient } = await import('../utils/api.util.js');
                     const client = getRawClient();
-                    await client.get('/health');
+                    const res = await client.get('/health');
+                    healthData = res.data;
                     apiOk = true;
                 } catch {
                     apiOk = false;
@@ -52,6 +54,17 @@ export function registerDoctorCommand(program) {
                 apiOk ? `Connected to ${config.baseUrl}` : `Cannot reach ${config.baseUrl}. Is the server running?`
             );
             if (!apiOk) allGood = false;
+
+            // 2b. Docker engine connected
+            if (apiOk && healthData) {
+                const dockerOk = healthData.components?.docker === 'healthy' || healthData.status === 'healthy' || healthData.status === 'degraded';
+                check(
+                    'Docker engine connected',
+                    dockerOk,
+                    dockerOk ? 'Backend has active Docker connection' : 'Backend cannot reach Docker daemon. Check server logs.'
+                );
+                if (!dockerOk) allGood = false;
+            }
 
             // 3. Token present
             const hasToken = !!config.token;
@@ -105,7 +118,7 @@ export function registerDoctorCommand(program) {
                 let nsExists = false;
                 try {
                     const nsData = await apiGet(
-                        `/api/clusters/${config.currentCluster}/namespaces`
+                        `/clusters/${config.currentCluster}/namespaces`
                     );
                     const namespaces = nsData.namespaces || [];
                     nsExists = namespaces.some((n) => {
